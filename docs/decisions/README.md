@@ -1,6 +1,6 @@
 # docs/decisions/
 
-The decision log — the concrete artifact behind "glass box by default." Every classification rule, scoring rubric, threshold, and routing recommendation gets a numbered entry here **at the time the decision is made**, so an auditor (or eBay's platform team at handover) can reconstruct not just what the system does but why.
+The decision log — the concrete artifact behind "glass box by default." Every classification rule, scoring rubric, threshold, and routing recommendation gets a numbered entry here **at the time the decision is made**, so an auditor (or a customer's platform team) can reconstruct not just what the system does but why.
 
 ## What goes here
 

@@ -14,7 +14,7 @@ Computation of the signals that survive scrutiny:
 
 ## Inputs
 
-- Normalized Git/PR history from `data/` (written by `connectors/github`) — public OSS repos in fall, eBay's history in spring.
+- Normalized Git/PR history from `data/` (written by `connectors/github`) — public OSS repos first; customer history once deployed in their environment.
 
 ## Outputs
 

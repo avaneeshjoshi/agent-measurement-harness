@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "caliper:eval_result:0.1.0",
+  "title": "EvalResult",
+  "description": "One replay cell: a task re-run at (model tier x skill on/off), carrying objective-track results, judged-track results, or both. Judge outputs always carry the calibration statistic they were validated against and whether they cleared the agreement gate — a judged score without its calibration context is not a legal record. Repetition-level results are kept raw; aggregates always carry n and a CI.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "task_ref",
+    "cell",
+    "tracks",
+    "replay_config"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^0\\.[0-9]+\\.[0-9]+$" },
+    "run_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "task_ref": {
+      "type": "object",
+      "description": "The task being replayed, pinned to the classification it was sampled under.",
+      "required": ["task_id"],
+      "additionalProperties": false,
+      "properties": {
+        "task_id": { "type": "string" },
+        "source_session_id": { "type": ["string", "null"] },
+        "task_class": {
+          "type": ["object", "null"],
+          "required": ["task_type", "taxonomy_version"],
+          "additionalProperties": false,
+          "properties": {
+            "task_type": { "type": "string" },
+            "taxonomy_version": { "type": "string" },
+            "classification_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+    "cell": {
+      "type": "object",
+      "required": ["model_id", "skill_attached"],
+      "additionalProperties": false,
+      "properties": {
+        "model_id": { "type": "string" },
+        "model_tier": { "type": ["string", "null"], "description": "Org-level tier label (e.g. frontier/mid/small); mapping model_id->tier is versioned in docs/decisions." },
+        "skill_attached": { "type": "boolean" },
+        "skill_id": { "type": ["string", "null"], "description": "Required when skill_attached=true." },
+        "effort": { "type": ["string", "null"] }
+      }
+    },
+    "replay_config": {
+      "type": "object",
+      "description": "Everything needed to reproduce the cell.",
+      "required": ["harness_version", "n_runs"],
+      "additionalProperties": false,
+      "properties": {
+        "harness_version": { "type": "string" },
+        "n_runs": { "type": "integer", "minimum": 1, "description": "Repetitions of this cell. n=1 results are reportable but must surface as n=1 downstream — no CI can be computed." },
+        "seed": { "type": ["integer", "null"] },
+        "sandbox": { "type": ["string", "null"], "description": "Execution environment identifier." },
+        "prompt_template_version": { "type": ["string", "null"] }
+      }
+    },
+    "tracks": {
+      "type": "object",
+      "description": "At least one of objective / judged must be present. Both may be — where both exist and disagree, downstream consumers report the disagreement (see routing_policy.triangulation); nothing here averages them.",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "objective": {
+          "type": "object",
+          "description": "Per-gate results. Each gate is pass/fail/not_applicable — not_applicable is not failure (e.g. no type checker in the repo).",
+          "additionalProperties": false,
+          "properties": {
+            "runs": {
+              "type": "array",
+              "description": "One entry per repetition, raw.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "run_index": { "type": "integer", "minimum": 0 },
+                  "tests_passed": { "type": ["integer", "null"], "minimum": 0 },
+                  "tests_total": { "type": ["integer", "null"], "minimum": 0 },
+                  "lint": { "type": "string", "enum": ["pass", "fail", "not_applicable"] },
+                  "type_check": { "type": "string", "enum": ["pass", "fail", "not_applicable"] },
+                  "build": { "type": "string", "enum": ["pass", "fail", "not_applicable"] },
+                  "completed": { "type": "boolean", "description": "False = the agent run itself crashed/timed out; gates above are then null/not_applicable, and this still counts in n." }
+                }
+              }
+            },
+            "aggregate": { "$ref": "#/$defs/aggregate" }
+          }
+        },
+        "judged": {
+          "type": "object",
+          "required": ["judge_id", "judge_version", "calibration", "comparisons"],
+          "additionalProperties": false,
+          "properties": {
+            "judge_id": { "type": "string" },
+            "judge_version": { "type": "string" },
+            "rubric_version": { "type": ["string", "null"] },
+            "calibration": {
+              "type": "object",
+              "description": "The judge's validation context — required on every judged record, not looked up elsewhere, so a score can never circulate detached from its calibration.",
+              "required": ["agreement_statistic", "agreement_value", "calibration_n", "cleared_agreement_gate", "gate_threshold"],
+              "additionalProperties": false,
+              "properties": {
+                "agreement_statistic": { "type": "string", "enum": ["percent_agreement", "cohens_kappa", "krippendorffs_alpha"] },
+                "agreement_value": { "type": "number" },
+                "calibration_n": { "type": "integer", "minimum": 1, "description": "Size of the human-labeled calibration set this judge version was validated on." },
+                "cleared_agreement_gate": { "type": "boolean", "description": "False means these scores are exploratory only and must render as such downstream — they are stored, not hidden, but never feed a routing recommendation." },
+                "gate_threshold": { "type": "number" },
+                "calibration_set_id": { "type": ["string", "null"] }
+              }
+            },
+            "comparisons": {
+              "type": "array",
+              "description": "Pairwise, position-swapped comparisons — the raw unit of judged evidence.",
+              "items": {
+                "type": "object",
+                "required": ["baseline_cell", "verdict", "position_swapped", "position_consistent"],
+                "additionalProperties": false,
+                "properties": {
+                  "baseline_cell": {
+                    "type": "object",
+                    "required": ["model_id", "skill_attached"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "model_id": { "type": "string" },
+                      "skill_attached": { "type": "boolean" },
+                      "skill_id": { "type": ["string", "null"] }
+                    }
+                  },
+                  "verdict": { "type": "string", "enum": ["win", "loss", "tie", "inconsistent"] },
+                  "position_swapped": { "type": "boolean", "description": "Whether the swapped-order pass was actually run." },
+                  "position_consistent": { "type": ["boolean", "null"], "description": "Did both orderings agree? verdict must be 'inconsistent' when false — positional disagreement is reported, never resolved by picking one." },
+                  "run_index": { "type": ["integer", "null"] }
+                }
+              }
+            },
+            "aggregate": { "$ref": "#/$defs/aggregate" }
+          }
+        }
+      }
+    },
+    "cost": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "tokens_input": { "type": ["integer", "null"], "minimum": 0 },
+        "tokens_output": { "type": ["integer", "null"], "minimum": 0 },
+        "cost_usd_estimate": { "type": ["number", "null"], "minimum": 0 },
+        "pricing_source": { "type": ["string", "null"] },
+        "pricing_as_of": { "type": ["string", "null"], "format": "date" }
+      }
+    }
+  },
+  "$defs": {
+    "aggregate": {
+      "type": "object",
+      "description": "Any summarized metric: value + n always; CI whenever n supports one.",
+      "required": ["metric", "value", "n"],
+      "additionalProperties": false,
+      "properties": {
+        "metric": { "type": "string", "description": "e.g. 'pass_rate', 'win_rate_vs_baseline'." },
+        "value": { "type": "number" },
+        "n": { "type": "integer", "minimum": 1 },
+        "ci": {
+          "type": ["object", "null"],
+          "required": ["lower", "upper", "level", "method"],
+          "additionalProperties": false,
+          "properties": {
+            "lower": { "type": "number" },
+            "upper": { "type": "number" },
+            "level": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+            "method": { "type": "string", "description": "e.g. 'wilson', 'bootstrap'." }
+          }
+        }
+      }
+    }
+  }
+}

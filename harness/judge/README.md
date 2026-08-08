@@ -6,7 +6,7 @@ The judged quality track, with the safeguards that make LLM-as-judge defensible 
 
 - The judge model is from a **different provider** than any model under test.
 - Comparisons are **pairwise and position-swapped**, never absolute scores.
-- The judge is **calibrated** against a 100–200 task human-labeled set (rated by eBay engineers, ~1hr each), with judge–human agreement reported per class.
+- The judge is **calibrated** against a 100–200 task human-labeled set (rated by practicing engineers, ~1hr each), with judge–human agreement reported per class.
 - Judge results are used **only where agreement clears 80%** per class; classes below threshold escalate to human review rather than being silently trusted.
 
 ## What goes here

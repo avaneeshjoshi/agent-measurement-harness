@@ -1,6 +1,6 @@
-# Agent Measurement Harness
+# Caliper
 
-An independent observability and evaluation layer for coding-agent traffic (Cursor, Claude Code), built as an Open Project @ UC Berkeley engagement. It answers three questions no vendor dashboard can: **what are agents actually used for**, **is automatic model routing making good calls**, and **what did the spend actually deliver**.
+An independent observability and evaluation layer for coding-agent traffic (Cursor, Claude Code). It answers three questions no vendor dashboard can: **what are agents actually used for**, **is automatic model routing making good calls**, and **what did the spend actually deliver**.
 
 The harness produces four things:
 
@@ -17,7 +17,7 @@ Governing principle: **glass box by default.** Every classification rule, rubric
 flowchart LR
     subgraph external [External sources]
         GH[GitHub / Git history]
-        JIRA[Jira - synthetic in fall]
+        JIRA[Jira - synthetic for now]
         TEL[Agent telemetry]
     end
 
@@ -51,11 +51,11 @@ All components communicate **through data, not direct imports across layers**: e
 | [`schemas/`](schemas/) | The shared contracts: event schema, task classification, eval results |
 | [`connectors/`](connectors/) | Ingestion: GitHub, Jira (synthetic), agent telemetry → normalized records |
 | [`harness/`](harness/) | The core Python package — classifier, replay, judge, signals, trace, routing |
-| [`data/`](data/) | Synthetic traffic, fixtures, calibration sets. **Never real eBay data.** |
+| [`data/`](data/) | Synthetic traffic, fixtures, calibration sets. **Never customer data.** |
 | [`dashboard/`](dashboard/) | Next.js reporting UI — the manager-facing decision buckets |
 | [`notebooks/`](notebooks/) | Exploratory analysis and curve plots |
 | [`tests/`](tests/) | Test suite for the harness and schema validation |
 
 ## Status
 
-Scaffold only — structure and contracts are being defined before any code lands. See each directory's README for what belongs there and its inputs/outputs.
+Contracts-first stage: the six v0 schemas, the conventions they follow (`docs/conventions.md`), two ADRs grounding them in real session logs, and a first hand-labeled calibration set (`data/calibration/`) exist. No pipeline components are built yet. The `session` and `task_class` schemas are flagged REVIEW REQUIRED pending field-by-field review. See each directory's README for what belongs there and its inputs/outputs.

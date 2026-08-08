@@ -6,11 +6,11 @@ The value-traceability layer: connects agent activity to the work the organizati
 
 - Linkage logic for the chain: **agent session → generated change → commit/PR → Jira ticket or initiative → deployment → available downstream outcome**, using the identifiers each system exposes (branch names, PR references, ticket keys, deploy metadata).
 - The value dimensions per traced item, kept as **separate fields, never collapsed into a single score**: business/roadmap priority, engineering category, estimated complexity, production criticality and risk, delivery status, review effort/rework/reversions, downstream outcome, and strength + confidence of the AI contribution.
-- Explicit handling of broken chains: where identifiers or links are missing, the trace records *where* the chain broke — that map of lost linkages is itself a fall deliverable.
+- Explicit handling of broken chains: where identifiers or links are missing, the trace records *where* the chain broke — that map of lost linkages is itself a deliverable.
 
 ## Inputs
 
-- Session records, Git/PR history, and ticket metadata from `data/` (via `connectors/` — synthetic Jira and public GitHub in fall).
+- Session records, Git/PR history, and ticket metadata from `data/` (via `connectors/` — synthetic Jira and public GitHub for now).
 - `schemas/trace_event.schema.json` — the integration contract this package implements.
 
 ## Outputs
@@ -24,5 +24,5 @@ The value-traceability layer: connects agent activity to the work the organizati
 
 ## Rules
 
-- Jira priority and story points are **context, not value**. eBay defines which combinations constitute a meaningful outcome; the system makes those definitions visible, never hard-codes them.
+- Jira priority and story points are **context, not value**. The customer org defines which combinations constitute a meaningful outcome; the system makes those definitions visible, never hard-codes them.
 - Associations, not causal claims. Where volume permits, matched comparisons and before/after baselines — with confounders documented.

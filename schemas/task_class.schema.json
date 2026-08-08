@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "caliper:task_class:0.1.0",
+  "title": "TaskClass",
+  "description": "REVIEW REQUIRED — encodes the research decision of what a task class is. One classification of one UNIT of agent work, where the unit itself is an unsettled research question with three candidates: prompt, segment, session. The unit is therefore explicit and required on every record, and classifications at multiple granularities over the same underlying data are expected to coexist — that coexistence is what lets unit choices be compared empirically. Record identity is (unit, unit_ref, classifier_version, taxonomy_version); records differing in any of those are distinct observations, not duplicates. The three axes (task_type, context_breadth, risk) are a DRAFT taxonomy to pressure-test in interviews, not settled fact; values marked PROVISIONAL below were added because real local sessions did not fit the original eight types, and can be deleted at review. Uncertainty is first-class: confidence is required, 'unclassified' is a legal outcome, every axis has 'unknown'.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "taxonomy_version",
+    "classifier_version",
+    "unit",
+    "unit_ref",
+    "status",
+    "confidence",
+    "method"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^0\\.[0-9]+\\.[0-9]+$"
+    },
+    "taxonomy_version": {
+      "type": "string",
+      "description": "Version of the taxonomy itself, independent of schema and classifier versions — the taxonomy WILL change after engineer interviews, and old labels must remain interpretable."
+    },
+    "classifier_version": {
+      "type": "string",
+      "description": "Version of the classifier (ruleset or model) that produced this label."
+    },
+    "unit": {
+      "type": "string",
+      "enum": ["prompt", "segment", "session"],
+      "description": "The granularity of what was classified. Deliberately unsettled at v0: per-prompt (one user prompt and the agent's response window), per-segment (a run of turns split by observable boundaries — see session.schema segments and conventions.md), per-session (the whole log). Distributions computed at different units are compared, not assumed equal."
+    },
+    "unit_ref": {
+      "type": "object",
+      "description": "Exactly what was classified. Turn indices are 0-based ordinals over USER PROMPT turns as defined in conventions.md (tool results, meta records, and command output are not turns).",
+      "required": ["session_id"],
+      "additionalProperties": false,
+      "properties": {
+        "session_id": { "type": "string" },
+        "turn_range": {
+          "type": ["object", "null"],
+          "required": ["start_turn", "end_turn"],
+          "additionalProperties": false,
+          "properties": {
+            "start_turn": { "type": "integer", "minimum": 0 },
+            "end_turn": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Inclusive. Required for unit=prompt (start_turn == end_turn) and unit=segment; null for unit=session."
+        },
+        "segment_id": {
+          "type": ["string", "null"],
+          "description": "Required when unit=segment; must match a segment in the session record produced by the same segmenter_version."
+        },
+        "segmenter_version": {
+          "type": ["string", "null"],
+          "description": "Required when unit=segment: version of the observable boundary rules (conventions.md) that produced the segment. Segment classifications are only comparable within a segmenter_version."
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["classified", "unclassified", "ambiguous"],
+      "description": "'unclassified' is a legal, reportable outcome — the classifier declining to guess. 'ambiguous' means a label was assigned but alternatives were close; alternatives[] must be populated."
+    },
+    "task_type": {
+      "type": ["string", "null"],
+      "enum": [
+        "boilerplate_scaffolding",
+        "single_file_bug_fix",
+        "multi_file_refactor",
+        "feature_implementation",
+        "test_authoring",
+        "documentation",
+        "config_infra",
+        "exploratory_qa",
+        "ui_verification_loop",
+        "agent_meta_work",
+        "other",
+        null
+      ],
+      "description": "Null iff status=unclassified. PROVISIONAL values from real-data pressure-testing: 'ui_verification_loop' (observed: a 12MB session dominated by browser-automation tool calls iterating on visual behavior — huge session, modest diff; none of the original eight fit) and 'agent_meta_work' (observed: sessions configuring/orchestrating the agent tooling itself). 'other' requires other_note."
+    },
+    "other_note": {
+      "type": ["string", "null"],
+      "description": "Required free text when task_type='other'. These notes are interview material — a recurring other_note is a missing taxonomy value."
+    },
+    "context_breadth": {
+      "type": "string",
+      "enum": ["localized", "cross_module", "cross_repo", "unknown"],
+      "description": "CAVEAT from real data: cross_repo is nearly invisible in local logs (one session = one cwd); it will be under-detected until multi-repo enterprise telemetry exists. 'unknown' is expected to be common at v0."
+    },
+    "risk": {
+      "type": "object",
+      "description": "Risk kept as two independent axes, never combined into one tier score.",
+      "required": ["test_coverage", "criticality"],
+      "additionalProperties": false,
+      "properties": {
+        "test_coverage": {
+          "type": "string",
+          "enum": ["covered", "uncovered", "unknown"],
+          "description": "CAVEAT: unvalidatable against local data — zero of the observed local projects had test suites, so this axis collapses to one value outside enterprise repos."
+        },
+        "criticality": {
+          "type": "string",
+          "enum": ["production_critical", "internal_tooling", "unknown"],
+          "description": "Requires org context (deploy targets, service tiers) no local log contains; 'unknown' until trace/enterprise data supplies it."
+        }
+      }
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Required even when unclassified (confidence that no label applies)."
+    },
+    "alternatives": {
+      "type": "array",
+      "description": "Runner-up labels with their confidences. Mandatory when status='ambiguous'. Preserves disagreement instead of erasing it.",
+      "items": {
+        "type": "object",
+        "required": ["task_type", "confidence"],
+        "additionalProperties": false,
+        "properties": {
+          "task_type": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "method": {
+      "type": "object",
+      "description": "Glass box: how the label was produced.",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["rule", "model", "human"]
+        },
+        "rule_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Which versioned rules fired (kind=rule)."
+        },
+        "model_id": { "type": ["string", "null"] },
+        "rationale": {
+          "type": ["string", "null"],
+          "description": "Human-readable why, referencing only content-free features."
+        }
+      }
+    },
+    "features_used": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Names of the content-free session features the decision consumed (e.g. 'diff_stats.files_touched', 'tool_call_pattern'). Enforces and documents the no-content rule per record.",
+      "default": []
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "unit": { "const": "prompt" } } },
+      "then": {
+        "properties": {
+          "unit_ref": { "required": ["session_id", "turn_range"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "unit": { "const": "segment" } } },
+      "then": {
+        "properties": {
+          "unit_ref": { "required": ["session_id", "turn_range", "segment_id", "segmenter_version"] }
+        }
+      }
+    }
+  ]
+}

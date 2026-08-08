@@ -1,6 +1,6 @@
 # notebooks/
 
-Exploratory analysis. Where the curves get plotted, the tracks get triangulated, and the fall report's figures come from.
+Exploratory analysis. Where the curves get plotted, the tracks get triangulated, and report figures come from.
 
 ## What goes here
 

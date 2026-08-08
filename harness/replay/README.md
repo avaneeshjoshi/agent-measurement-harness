@@ -4,15 +4,15 @@ The controlled-evaluation engine. Takes a sampled task suite per class and repla
 
 ## What goes here
 
-- Task suite construction: sampling per priority class from real traffic distributions (public in fall, eBay's in spring).
+- Task suite construction: sampling per priority class from real traffic distributions (public-repo traffic first; customer traffic once deployed).
 - The replay runner: identical prompts, context, and tooling per tier; the only variables are model tier and skill on/off.
 - The **objective track**: hidden-test pass rate where tests exist; compile, lint, and type-check gates as a floor everywhere.
 
 ## Inputs
 
 - Task classes from `harness/classifier` (defines the sampling frame).
-- Task material from `data/` (public repo tasks in fall).
-- The model lineup and rates under test (config, per eBay's actual contracts or proxy pricing).
+- Task material from `data/` (public repo tasks initially).
+- The model lineup and rates under test (config, per the org's actual contracts or proxy pricing).
 
 ## Outputs
 

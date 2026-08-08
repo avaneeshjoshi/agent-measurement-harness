@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "caliper:session:0.1.0",
+  "title": "Session",
+  "description": "REVIEW REQUIRED — encodes the research decision of what describes a session. A normalized, content-free record of one agent session. Validated structurally against real Claude Code JSONL logs (~/.claude/projects/, format version 2.x, 20 sessions) and Cursor's ai-code-tracking.db on 2026-08-07. Every property carries x-provenance: 'observed' (field exists verbatim in real logs), 'derived' (computable from real log contents), or 'aspirational' (not obtainable from current logs; requires an external source or a future connector). No content-level fields: no prompts, no code, no file contents, no stdout.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "session_id",
+    "source_tool",
+    "started_at",
+    "provenance"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^0\\.[0-9]+\\.[0-9]+$",
+      "description": "Version of this schema the record was written against. v0.x until post-interview revision."
+    },
+    "session_id": {
+      "type": "string",
+      "x-provenance": "observed",
+      "description": "Stable session identifier. Claude Code: the sessionId UUID (also the log filename). Cursor: conversationId from ai-code-tracking.db."
+    },
+    "source_tool": {
+      "type": "string",
+      "enum": ["claude_code", "cursor", "other"],
+      "x-provenance": "observed",
+      "description": "Which agent tool produced the session."
+    },
+    "provenance": {
+      "type": "object",
+      "description": "How this record was extracted — kept so any number is traceable to a log format and connector version.",
+      "required": ["log_format", "connector_version", "extracted_at"],
+      "additionalProperties": false,
+      "properties": {
+        "log_format": {
+          "type": "string",
+          "enum": ["claude_code_jsonl", "cursor_tracking_db", "cursor_state_db", "synthetic"],
+          "x-provenance": "observed"
+        },
+        "source_format_version": {
+          "type": ["string", "null"],
+          "x-provenance": "observed",
+          "description": "The producing tool's own version (Claude Code logs carry `version` on every record). Real logs show fields appearing/disappearing across CLI versions — e.g. promptSource is present in 2026-08 sessions, null in 2026-07 sessions — so this field is load-bearing for parsing."
+        },
+        "connector_version": { "type": "string" },
+        "extracted_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "project_ref": {
+      "type": ["string", "null"],
+      "x-provenance": "derived",
+      "description": "Opaque project identifier (salted hash of cwd / repo root). Raw paths never leave the connector. Claude Code: derived from `cwd`."
+    },
+    "git_branch": {
+      "type": ["string", "null"],
+      "x-provenance": "observed",
+      "description": "Branch at session time (`gitBranch` on every conversational record). Null when not in a repo."
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "x-provenance": "derived",
+      "description": "Timestamp of the first stamped record."
+    },
+    "ended_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "x-provenance": "derived",
+      "description": "Timestamp of the last stamped record. IMPORTANT: real logs have NO end-of-session marker; a session file is appended to across resumes. Observed sessions span up to 5 days of wall clock. This is 'last activity seen', not 'session ended'."
+    },
+    "end_observed": {
+      "type": "boolean",
+      "x-provenance": "derived",
+      "description": "Always false for Claude Code logs (no end marker exists). Kept explicit so downstream duration math cannot silently treat ended_at as authoritative."
+    },
+    "wall_clock_ms": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "x-provenance": "derived",
+      "description": "ended_at - started_at. Misleading on its own (includes idle days); reported only alongside active_duration_ms."
+    },
+    "active_duration_ms": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "x-provenance": "derived",
+      "description": "Sum of system/turn_duration records (`durationMs`), which real logs emit per turn. The honest work-time signal. Null if the producing CLI version emitted no turn_duration records."
+    },
+    "turns": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "user_messages": { "type": "integer", "minimum": 0, "x-provenance": "derived" },
+        "assistant_messages": { "type": "integer", "minimum": 0, "x-provenance": "derived" },
+        "tool_calls": { "type": "integer", "minimum": 0, "x-provenance": "derived" },
+        "interrupted_tool_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "x-provenance": "observed",
+          "description": "Count of toolUseResult.interrupted == true — user cancelled mid-run. A human-friction signal."
+        }
+      }
+    },
+    "tool_call_pattern": {
+      "type": "array",
+      "x-provenance": "derived",
+      "description": "Per-tool call counts from tool_use blocks. MCP tools keep their mcp__<server>__ prefix so server-level bucketing is possible without content.",
+      "items": {
+        "type": "object",
+        "required": ["tool_name", "count"],
+        "additionalProperties": false,
+        "properties": {
+          "tool_name": { "type": "string" },
+          "count": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "models": {
+      "type": "array",
+      "x-provenance": "observed",
+      "description": "Every model that served part of the session (real sessions mix models: primary + fallback + '<synthetic>' bookkeeping records, which connectors must filter or label).",
+      "items": {
+        "type": "object",
+        "required": ["model_id", "assistant_messages"],
+        "additionalProperties": false,
+        "properties": {
+          "model_id": { "type": "string" },
+          "assistant_messages": { "type": "integer", "minimum": 1 },
+          "effort": {
+            "type": ["string", "null"],
+            "x-provenance": "observed",
+            "description": "Reasoning effort setting (`effort` field, e.g. 'high'). Present only in newer log versions — null means unrecorded, not 'default'."
+          },
+          "speed": { "type": ["string", "null"], "x-provenance": "observed" },
+          "service_tier": { "type": ["string", "null"], "x-provenance": "observed" }
+        }
+      }
+    },
+    "tokens": {
+      "type": "object",
+      "x-provenance": "observed",
+      "description": "Summed from per-message `usage`. Cache fields are first-class because real traffic is dominated by cache reads — cost models that ignore them are wrong.",
+      "additionalProperties": false,
+      "properties": {
+        "input": { "type": "integer", "minimum": 0 },
+        "output": { "type": "integer", "minimum": 0 },
+        "cache_read": { "type": "integer", "minimum": 0 },
+        "cache_creation": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "cost_usd": {
+      "type": ["object", "null"],
+      "x-provenance": "aspirational",
+      "description": "NOT in any real log. Computable only as tokens x an external price sheet, so it carries its pricing source or stays null.",
+      "required": ["estimate", "pricing_source", "pricing_as_of"],
+      "additionalProperties": false,
+      "properties": {
+        "estimate": { "type": "number", "minimum": 0 },
+        "pricing_source": { "type": "string" },
+        "pricing_as_of": { "type": "string", "format": "date" }
+      }
+    },
+    "diff_stats": {
+      "type": ["object", "null"],
+      "x-provenance": "derived",
+      "description": "Aggregated from structuredPatch hunks on Edit/Write tool results (verified present in real logs). Null when the session produced no edits.",
+      "additionalProperties": false,
+      "properties": {
+        "files_touched": { "type": "integer", "minimum": 0 },
+        "lines_added": { "type": "integer", "minimum": 0 },
+        "lines_removed": { "type": "integer", "minimum": 0 },
+        "hunks": { "type": "integer", "minimum": 0 },
+        "user_modified_edits": {
+          "type": "integer",
+          "minimum": 0,
+          "x-provenance": "observed",
+          "description": "Count of edits where the log's userModified flag is true — the human touched the AI's edit. Direct human-in-the-loop evidence; feeds attribution."
+        }
+      }
+    },
+    "languages": {
+      "type": "array",
+      "x-provenance": "derived",
+      "description": "File extensions touched, mapped to languages. Extension-based only — never inferred from content.",
+      "items": { "type": "string" }
+    },
+    "subagents": {
+      "type": "object",
+      "x-provenance": "observed",
+      "description": "Real logs nest subagent transcripts under <session-id>/subagents/. Parent-session stats EXCLUDE subagent activity; each subagent may be its own session record with parent_session_id set.",
+      "additionalProperties": false,
+      "properties": {
+        "count": { "type": "integer", "minimum": 0 },
+        "is_sidechain": { "type": "boolean" }
+      }
+    },
+    "parent_session_id": {
+      "type": ["string", "null"],
+      "x-provenance": "observed",
+      "description": "Set when this record describes a subagent transcript."
+    },
+    "prompt_source_counts": {
+      "type": ["object", "null"],
+      "x-provenance": "observed",
+      "description": "Counts of user messages by origin (`promptSource`: typed / etc.; origin.kind: human / automated). Only in newer log versions — null means the producing version didn't record it. Distinguishes human-driven from scheduled/autonomous sessions.",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "segments": {
+      "type": ["array", "null"],
+      "x-provenance": "derived",
+      "description": "Contiguous runs of user-prompt turns, split by OBSERVABLE boundaries only — turn gaps, git branch changes, jumps to a disjoint file set, interruptions. No semantic/content inference in v0. Boundary rules are versioned as segmenter_version and documented in docs/conventions.md; segments from different segmenter versions are not comparable. Null only when segmentation has not been run. The classification UNIT (prompt vs segment vs session) is an open research question — see task_class.schema.",
+      "items": {
+        "type": "object",
+        "required": ["segment_id", "turn_range", "started_at", "ended_at", "opened_by", "segmenter_version"],
+        "additionalProperties": false,
+        "properties": {
+          "segment_id": { "type": "string" },
+          "turn_range": {
+            "type": "object",
+            "required": ["start_turn", "end_turn"],
+            "additionalProperties": false,
+            "properties": {
+              "start_turn": { "type": "integer", "minimum": 0 },
+              "end_turn": { "type": "integer", "minimum": 0 }
+            },
+            "description": "Inclusive, over user-prompt turn indices as defined in conventions.md."
+          },
+          "started_at": { "type": "string", "format": "date-time" },
+          "ended_at": { "type": "string", "format": "date-time" },
+          "opened_by": {
+            "type": "string",
+            "enum": ["session_start", "turn_gap", "branch_change", "file_set_jump", "interrupt"],
+            "description": "The observable boundary that opened this segment. When several rules fire on the same turn, precedence is turn_gap > branch_change > file_set_jump > interrupt (conventions.md)."
+          },
+          "segmenter_version": { "type": "string" }
+        }
+      }
+    },
+    "team_ref": {
+      "type": ["string", "null"],
+      "x-provenance": "aspirational",
+      "description": "Opaque team identifier. Not in any local log; comes from enterprise org mapping. Required for team-level reporting; null in synthetic and pre-deployment data is expected. Never resolves to an individual."
+    },
+    "patches_accepted": {
+      "type": ["integer", "null"],
+      "x-provenance": "aspirational",
+      "description": "Accept/reject counts as a first-class field exist in NEITHER real source (Cursor tracks source-of-lines, not accept events; Claude Code has userModified/interrupted as weaker proxies). Null until a telemetry export provides it."
+    },
+    "patches_rejected": { "type": ["integer", "null"], "x-provenance": "aspirational" }
+  }
+}

@@ -1,6 +1,6 @@
 # dashboard/
 
-The reporting UI — a Next.js app. This is the demo-facing surface: what the eBay sponsor, a platform lead, or the monthly CTO conversation actually looks at.
+The reporting UI — a Next.js app. This is the customer-facing surface: what a platform lead or a CTO actually looks at.
 
 ## What goes here
 
@@ -13,7 +13,7 @@ A Next.js (App Router, TypeScript) application whose views map to the four harne
 
 ## Inputs
 
-- Schema-conforming artifacts from `data/derived/` — read via a thin API route layer (no direct coupling to harness internals; the schemas are the contract). Fall demo can read static JSON exports; a live backend is a later decision.
+- Schema-conforming artifacts from `data/derived/` — read via a thin API route layer (no direct coupling to harness internals; the schemas are the contract). An early demo can read static JSON exports; a live backend is a later decision.
 
 ## Outputs
 

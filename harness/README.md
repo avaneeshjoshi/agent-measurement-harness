@@ -13,7 +13,7 @@ connectors → classifier → replay → judge ┐
 
 | Subpackage | One-line job | Track |
 |---|---|---|
-| [`classifier/`](classifier/) | Label every session with task type × context breadth × risk tier from content-free metadata | Visibility |
+| [`classifier/`](classifier/) | Label every unit of agent work (prompt / segment / session) with task type × context breadth × risk axes from content-free metadata | Visibility |
 | [`replay/`](replay/) | Re-run sampled tasks across model tiers × (skill on/off) under identical conditions | Quality (objective) |
 | [`judge/`](judge/) | Pairwise, position-swapped LLM judging where hidden tests don't exist; calibrated against human labels | Quality (judged) |
 | [`signals/`](signals/) | Mine Git/PR history for survival, rework, review iterations, revert linkage | Quality (production) |

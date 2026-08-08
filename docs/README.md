@@ -6,9 +6,9 @@ The written half of the glass box. Everything that explains *why* the harness wo
 
 | File / dir | Contents |
 |---|---|
-| `proposal.md` | The engagement proposal — problem, harness design, phasing, assumptions |
+| `proposal.md` | The product thesis — problem, harness design, phasing, assumptions |
 | `methodology.md` | The scoring protocol in full: two tracks (production signals + controlled replay), triangulation rules, calibration procedure, agreement thresholds |
-| `taxonomy.md` | The three-axis task taxonomy (task type × context breadth × risk tier) and its validation results |
+| `taxonomy.md` | The three-axis task taxonomy (task type × context breadth × risk axes) and its validation results |
 | `decisions/` | The decision log — see [`decisions/README.md`](decisions/README.md) |
 
 ## How it communicates with the rest

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "caliper:production_signal:0.1.0",
+  "title": "ProductionSignal",
+  "description": "Per-change history signals for one commit (or PR): survival, rework, review friction, revert linkage, and AI attribution. Attribution design is grounded in real vendor data: Cursor's ai-code-tracking.db scores commits with per-source line counts (tab/composer/human) and an aiPercentage — and in the observed database only 11 of 72 commits actually had those counts populated. 'partial' and 'unknown' are therefore normal states, not error states. Attribution is NEVER inferred from code content or style; only from tracking-db evidence, session-trace linkage, or explicit self-report.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "change_ref",
+    "ai_attribution",
+    "measured_at",
+    "signals_version"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^0\\.[0-9]+\\.[0-9]+$" },
+    "signals_version": { "type": "string", "description": "Version of the harness/signals code that computed this record." },
+    "measured_at": { "type": "string", "format": "date-time" },
+    "change_ref": {
+      "type": "object",
+      "required": ["repo_ref", "commit_sha"],
+      "additionalProperties": false,
+      "properties": {
+        "repo_ref": { "type": "string", "description": "Opaque repo identifier (hashed for private repos; plain for public OSS)." },
+        "commit_sha": { "type": "string" },
+        "pr_number": { "type": ["integer", "null"] },
+        "branch": { "type": ["string", "null"] },
+        "authored_at": { "type": ["string", "null"], "format": "date-time" },
+        "lines_added": { "type": ["integer", "null"], "minimum": 0 },
+        "lines_deleted": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "ai_attribution": {
+      "type": "object",
+      "required": ["status", "evidence_source"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["known", "partial", "unknown"],
+          "description": "known = line-level evidence covers the whole change (e.g. a fully scored Cursor commit). partial = some evidence exists but doesn't cover the change (e.g. session linked to the PR but no line-level split, or a Cursor commit with only some sources scored). unknown = no evidence; the default. Never inferred from what the code looks like."
+        },
+        "evidence_source": {
+          "type": "string",
+          "enum": ["vendor_tracking_db", "session_trace_link", "self_report", "none"],
+          "description": "vendor_tracking_db = e.g. Cursor scored_commits / ai_code_hashes. session_trace_link = a trace_event ties an agent session to this change. none iff status=unknown."
+        },
+        "ai_lines": { "type": ["integer", "null"], "minimum": 0, "description": "Line-level counts only when the evidence actually provides them (Cursor: tabLinesAdded + composerLinesAdded); otherwise null — never estimated." },
+        "human_lines": { "type": ["integer", "null"], "minimum": 0 },
+        "ai_fraction": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Null unless ai_lines/human_lines are populated. Kept as evidence, not identity: reported at team level and above only." },
+        "vendor_score_version": { "type": ["string", "null"], "description": "Vendor scoring version when evidence_source=vendor_tracking_db (Cursor exposes v1/v2 aiPercentage; record which)." }
+      }
+    },
+    "survival": {
+      "type": "array",
+      "description": "Line survival at fixed horizons. A change younger than the horizon is 'not_yet_measurable' — absence of the measurement is encoded, not conflated with 0% or 100% survival.",
+      "items": {
+        "type": "object",
+        "required": ["horizon_days", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "horizon_days": { "type": "integer", "enum": [30, 60, 90] },
+          "status": { "type": "string", "enum": ["measured", "not_yet_measurable", "unmeasurable"] },
+          "lines_surviving": { "type": ["integer", "null"], "minimum": 0 },
+          "lines_original": { "type": ["integer", "null"], "minimum": 0 },
+          "surviving_fraction": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "rework": {
+      "type": ["object", "null"],
+      "description": "Was this change's code modified again shortly after landing?",
+      "required": ["window_days", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "window_days": { "type": "integer", "minimum": 1, "default": 14 },
+        "status": { "type": "string", "enum": ["measured", "not_yet_measurable"] },
+        "occurred": { "type": ["boolean", "null"] },
+        "lines_reworked": { "type": ["integer", "null"], "minimum": 0 },
+        "rework_commit_shas": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "review": {
+      "type": ["object", "null"],
+      "description": "Review friction. Null for changes with no PR (direct pushes, solo repos) — a structural gap in local/solo data flagged for enterprise validation, not zero friction.",
+      "additionalProperties": false,
+      "properties": {
+        "iterations": { "type": ["integer", "null"], "minimum": 0, "description": "Push-review-push cycles before merge." },
+        "review_comments": { "type": ["integer", "null"], "minimum": 0 },
+        "reviewers": { "type": ["integer", "null"], "minimum": 0 },
+        "time_to_merge_hours": { "type": ["number", "null"], "minimum": 0 }
+      }
+    },
+    "revert": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "reverted": { "type": "boolean" },
+        "revert_commit_sha": { "type": ["string", "null"] },
+        "revert_detection": { "type": ["string", "null"], "enum": ["git_revert_marker", "manual_link", null], "description": "How the revert linkage was found — only explicit evidence; no content-similarity guessing." }
+      }
+    }
+  }
+}
