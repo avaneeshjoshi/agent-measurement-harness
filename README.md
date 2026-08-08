@@ -13,6 +13,23 @@ Governing principle: **glass box by default.** Every classification rule, rubric
 
 ## How the pieces fit together
 
+The conceptual picture — agent activity on one side, delivery outcomes on the other, with trace as the join between them:
+
+```
+ACTIVITY                      OUTCOME
+Claude Code ─┐               ┌─ Git/GitHub  (survival, rework, reverts)
+Cursor ──────┼─→ sessions    ├─ Jira        (priority, initiative)   [enterprise]
+Codex ───────┘        │      └─ Deploy/CI   (shipped or not)         [enterprise]
+                      ▼             │
+                 TRACE (the join) ◄─┘
+                      │
+        classifier · replay/judge · signals
+                      ▼
+              routing policy + reports
+```
+
+In repo terms:
+
 ```mermaid
 flowchart LR
     subgraph external [External sources]
