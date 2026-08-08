@@ -10,7 +10,7 @@ One subpackage per source:
 |---|---|---|
 | `github/` | Repo + PR history (public OSS repos first; customer repos once deployed in their environment) — commits, PRs, reviews, reverts, CI status | Raw material for `harness/signals` and `harness/trace` |
 | `jira/` | Project-management metadata — ticket, priority, story points, issue type, initiative links. **Synthetic generator for now**; real integration only after a customer's security review approves it | Ticket context for `harness/trace` |
-| `telemetry/` | Agent/IDE session exports (Cursor, Claude Code) — session shape, model, tokens, patches accepted/rejected. Synthetic for now | Session records for `harness/classifier` |
+| `telemetry/` | Agent/IDE session exports — session shape, model, tokens, patches accepted/rejected. One adapter per harness: Claude Code, Cursor, Codex first-class; new harnesses enter via `source_tool: other` and get promoted per ADR-0003. Synthetic for now | Session records for `harness/classifier` |
 
 ## How it communicates with the rest
 

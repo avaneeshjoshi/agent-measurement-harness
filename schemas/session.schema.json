@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "caliper:session:0.1.0",
+  "$id": "caliper:session:0.2.0",
   "title": "Session",
-  "description": "REVIEW REQUIRED — encodes the research decision of what describes a session. A normalized, content-free record of one agent session. Validated structurally against real Claude Code JSONL logs (~/.claude/projects/, format version 2.x, 20 sessions) and Cursor's ai-code-tracking.db on 2026-08-07. Every property carries x-provenance: 'observed' (field exists verbatim in real logs), 'derived' (computable from real log contents), or 'aspirational' (not obtainable from current logs; requires an external source or a future connector). No content-level fields: no prompts, no code, no file contents, no stdout.",
+  "description": "REVIEW REQUIRED — encodes the research decision of what describes a session. A normalized, content-free record of one agent session. Validated structurally against real Claude Code JSONL logs (~/.claude/projects/, format version 2.x, 20 sessions) and Cursor's ai-code-tracking.db on 2026-08-07. Every property carries x-provenance: 'observed' (field exists verbatim in real logs), 'derived' (computable from real log contents), or 'aspirational' (not obtainable from current logs; requires an external source or a future connector). Codex support is enum-level only as of 0.2.0 — no Codex logs have been structurally inspected yet, so x-provenance claims apply to Claude Code and Cursor sources only (ADR-0003). No content-level fields: no prompts, no code, no file contents, no stdout.",
   "type": "object",
   "required": [
     "schema_version",
@@ -25,9 +25,14 @@
     },
     "source_tool": {
       "type": "string",
-      "enum": ["claude_code", "cursor", "other"],
+      "enum": ["claude_code", "cursor", "codex", "other"],
       "x-provenance": "observed",
-      "description": "Which agent tool produced the session."
+      "description": "Which agent harness produced the session. New harnesses enter as 'other' (with source_tool_other set) and are promoted to first-class enum values once a connector exists and their log format has been structurally validated in an ADR — see ADR-0003."
+    },
+    "source_tool_other": {
+      "type": ["string", "null"],
+      "x-provenance": "observed",
+      "description": "Raw harness name when source_tool='other' (null otherwise), so 'other' traffic stays disaggregatable per harness instead of pooling into one bucket."
     },
     "provenance": {
       "type": "object",
@@ -37,8 +42,9 @@
       "properties": {
         "log_format": {
           "type": "string",
-          "enum": ["claude_code_jsonl", "cursor_tracking_db", "cursor_state_db", "synthetic"],
-          "x-provenance": "observed"
+          "enum": ["claude_code_jsonl", "cursor_tracking_db", "cursor_state_db", "codex_jsonl", "synthetic", "other"],
+          "x-provenance": "observed",
+          "description": "'codex_jsonl' is a placeholder pending structural validation of real Codex logs (ADR-0003). 'other' covers not-yet-promoted harnesses; source_format_version identifies the actual format."
         },
         "source_format_version": {
           "type": ["string", "null"],

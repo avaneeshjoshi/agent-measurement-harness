@@ -1,6 +1,6 @@
 # Caliper
 
-An independent observability and evaluation layer for coding-agent traffic (Cursor, Claude Code). It answers three questions no vendor dashboard can: **what are agents actually used for**, **is automatic model routing making good calls**, and **what did the spend actually deliver**.
+An independent observability and evaluation layer for coding-agent traffic — Claude Code, Cursor, and Codex first-class, extensible to other harnesses (ADR-0003). It answers three questions no vendor dashboard can: **what are agents actually used for**, **is automatic model routing making good calls**, and **what did the spend actually deliver**.
 
 The harness produces four things:
 
