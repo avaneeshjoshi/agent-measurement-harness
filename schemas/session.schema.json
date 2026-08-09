@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "caliper:session:0.3.0",
+  "$id": "caliper:session:0.4.0",
   "title": "Session",
-  "description": "REVIEW REQUIRED — encodes the research decision of what describes a session. A normalized, content-free record of one agent session. Validated structurally against real Claude Code JSONL logs (~/.claude/projects/, format version 2.x, 20 sessions) and Cursor's ai-code-tracking.db on 2026-08-07; Codex rollout JSONL structurally validated 2026-08-09 (ADR-0004), so x-provenance claims now cover all three first-class sources. 0.3.0 (ADR-0004): provenance gains required content_hash + source_artifacts (extractor traceability); models[].assistant_messages no longer required (Cursor attributes lines, not messages); tokens gains reasoning_output (observed in Codex token_count); new nullable fork_of (fork/resume dedup, ADR-0002 finding 4); provenance.log_format gains cursor_state_db usage for composer-derived records. No content-level fields: no prompts, no code, no file contents, no stdout.",
+  "description": "REVIEW REQUIRED — encodes the research decision of what describes a session. A normalized, content-free record of one agent session. Validated structurally against real Claude Code JSONL logs (~/.claude/projects/, format version 2.x, 20 sessions) and Cursor's ai-code-tracking.db on 2026-08-07; Codex rollout JSONL structurally validated 2026-08-09 (ADR-0004), so x-provenance claims now cover all three first-class sources. 0.3.0 (ADR-0004): provenance gains required content_hash + source_artifacts (extractor traceability); models[].assistant_messages no longer required (Cursor attributes lines, not messages); tokens gains reasoning_output (observed in Codex token_count); new nullable fork_of (fork/resume dedup, ADR-0002 finding 4); provenance.log_format gains cursor_state_db usage for composer-derived records. No content-level fields: no prompts, no code, no file contents, no stdout. 0.4.0 (ADR-0005): adds nullable `automated` — agent-initiated vs human-initiated sessions, from observed markers only (Codex thread_source; subagent structure).",
   "type": "object",
   "required": [
     "schema_version",
@@ -245,7 +245,12 @@
     "parent_session_id": {
       "type": ["string", "null"],
       "x-provenance": "observed",
-      "description": "Set when this record describes a subagent transcript."
+      "description": "Set when this record describes a subagent transcript (Claude Code subagents/ files) or a child thread (Codex session_meta.parent_thread_id — auto-review runs, subthreads)."
+    },
+    "automated": {
+      "type": ["boolean", "null"],
+      "x-provenance": "observed",
+      "description": "True when the session was initiated by tooling rather than a human, from OBSERVED markers only: Codex session_meta.thread_source ('user' -> false, any other recorded value e.g. 'subagent' -> true; field absent in pre-2026-05 metas -> absent here), and subagent/sidechain structure (Claude Code subagent transcripts, Cursor isSubagent composers -> true). Absent when no marker exists — never guessed from behavior. Billed-like-human automated traffic was 10/21 local Codex threads (ADR-0005); this field is what lets reporting separate it."
     },
     "prompt_source_counts": {
       "type": ["object", "null"],

@@ -26,7 +26,8 @@ from pathlib import Path
 from typing import Any, Iterator
 
 
-CONNECTOR_VERSION = "0.1.0"
+CONNECTOR_VERSION = "0.2.0"
+SESSION_SCHEMA_VERSION = "0.4.0"
 
 
 @dataclass

@@ -38,7 +38,13 @@ class SessionStore:
         sid = record["session_id"]
         old = self.existing.get(sid)
         new_hash = record["provenance"]["content_hash"]
-        if old is not None and old.get("provenance", {}).get("content_hash") == new_hash:
+        # Unchanged means: same source content AND same extractor contract.
+        # A schema or connector bump re-emits so new fields propagate.
+        if old is not None \
+                and old.get("provenance", {}).get("content_hash") == new_hash \
+                and old.get("schema_version") == record.get("schema_version") \
+                and old.get("provenance", {}).get("connector_version") \
+                    == record["provenance"]["connector_version"]:
             self.counts["unchanged"] += 1
             return "unchanged"
         self._merged[sid] = record

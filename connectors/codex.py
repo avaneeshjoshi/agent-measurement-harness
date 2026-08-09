@@ -34,7 +34,7 @@ import json
 from pathlib import Path
 from typing import Iterator
 
-from .base import CONNECTOR_VERSION, Emission, RawArtifact, SourcePlugin, sha256_file
+from .base import CONNECTOR_VERSION, SESSION_SCHEMA_VERSION, Emission, RawArtifact, SourcePlugin, sha256_file
 from .util import (
     iso_utc,
     languages_from_paths,
@@ -188,7 +188,7 @@ class CodexPlugin(SourcePlugin):
 
         file_hash = sha256_file(artifact.path)
         record = {
-            "schema_version": "0.3.0",
+            "schema_version": SESSION_SCHEMA_VERSION,
             "session_id": session_id,
             "source_tool": "codex",
             "provenance": {
@@ -229,6 +229,11 @@ class CodexPlugin(SourcePlugin):
             } if patched_files else None,
             "languages": languages_from_paths(patched_files) or None,
             "parent_session_id": first_meta.get("parent_thread_id"),
+            # thread_source observed since ~2026-05: 'user' = human-initiated,
+            # any other recorded value ('subagent', ...) = tool-initiated.
+            # Absent field (older metas) -> absent, never guessed.
+            "automated": (None if first_meta.get("thread_source") is None
+                          else first_meta["thread_source"] != "user"),
         }
         record = prune(record)
 

@@ -25,7 +25,7 @@ import json
 from pathlib import Path
 from typing import Iterator
 
-from .base import CONNECTOR_VERSION, Emission, RawArtifact, SourcePlugin, sha256_file
+from .base import CONNECTOR_VERSION, SESSION_SCHEMA_VERSION, Emission, RawArtifact, SourcePlugin, sha256_file
 from .util import (
     iso_utc,
     languages_from_paths,
@@ -257,7 +257,7 @@ class ClaudeCodePlugin(SourcePlugin):
 
         file_hash = sha256_file(artifact.path)
         record = {
-            "schema_version": "0.3.0",
+            "schema_version": SESSION_SCHEMA_VERSION,
             "session_id": session_id,
             "source_tool": "claude_code",
             "provenance": {
@@ -305,6 +305,10 @@ class ClaudeCodePlugin(SourcePlugin):
                 "is_sidechain": is_sidechain,
             } if artifact.kind == "session_jsonl" else {"is_sidechain": is_sidechain},
             "parent_session_id": artifact.extra.get("parent_session_id"),
+            # subagent transcripts are agent-spawned by construction; for main
+            # sessions no session-level marker exists (prompt_source_counts
+            # carries the per-prompt origin mix) -> absent.
+            "automated": True if artifact.kind == "subagent_jsonl" else None,
         }
         record = prune(record)
         # models[] items with assistant_messages=0 can't occur (added on first sight)

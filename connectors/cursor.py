@@ -34,7 +34,7 @@ import tempfile
 from pathlib import Path
 from typing import Iterator
 
-from .base import CONNECTOR_VERSION, Emission, RawArtifact, SourcePlugin, sha256_file, sha256_json
+from .base import CONNECTOR_VERSION, SESSION_SCHEMA_VERSION, Emission, RawArtifact, SourcePlugin, sha256_file, sha256_json
 from .util import iso_utc, languages_from_extensions, ms_between, now_iso, project_ref, prune
 
 
@@ -213,7 +213,7 @@ class CursorPlugin(SourcePlugin):
         })
 
         record = prune({
-            "schema_version": "0.3.0",
+            "schema_version": SESSION_SCHEMA_VERSION,
             "session_id": cid,
             "source_tool": "cursor",
             "provenance": {
@@ -236,6 +236,8 @@ class CursorPlugin(SourcePlugin):
                 "count": n_sub if isinstance(n_sub, int) else None,
                 "is_sidechain": bool(row.get("isSubagent")) or None,
             }) or None,
+            # isSubagent composers are agent-spawned; no marker for the rest
+            "automated": True if row.get("isSubagent") else None,
         })
         return Emission(record=record)
 
@@ -255,7 +257,7 @@ class CursorPlugin(SourcePlugin):
                                 for r in conv_rows),
         })
         record = prune({
-            "schema_version": "0.3.0",
+            "schema_version": SESSION_SCHEMA_VERSION,
             "session_id": cid,
             "source_tool": "cursor",
             "provenance": {
