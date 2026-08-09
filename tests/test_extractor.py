@@ -87,6 +87,45 @@ def test_content_flag_writes_sidecar_only(run_extract):
     assert not (data_dir / "cursor" / "content.jsonl").exists()
 
 
+def test_extractor_output_is_gitignored():
+    """The content-boundary guarantee, half two: even if content sidecars are
+    written, the extractor's output tree can never enter version control."""
+    import subprocess
+    for probe in ("data/extracted/claude_code/sessions.jsonl",
+                  "data/extracted/claude_code/content.jsonl",
+                  "data/extracted/cursor/content.jsonl",
+                  "data/extracted/codex/content.jsonl",
+                  "data/extracted/manifests/run.json",
+                  "data/extracted/.salt"):
+        res = subprocess.run(["git", "check-ignore", "-q", probe], cwd=REPO)
+        assert res.returncode == 0, f"not gitignored: {probe}"
+    # and nothing under data/extracted/ is tracked
+    res = subprocess.run(["git", "ls-files", "data/extracted"], cwd=REPO,
+                         capture_output=True, text=True)
+    assert res.stdout.strip() == "", f"tracked files in data/extracted: {res.stdout}"
+
+
+def test_default_run_emits_no_source_text(run_extract):
+    """No emitted record in a default run carries prompt text or file
+    contents: every string value in every record is checked against the raw
+    fixture logs' message/patch text, not just known markers."""
+    _, data_dir = run_extract(include_content=False)
+    # source-side text that must never appear in output
+    forbidden = [
+        "please refactor the widget", "continue from the fork",  # claude prompts
+        "old line", "another new",                               # claude patch lines
+        "fix the bug in parser", "now add docs",                 # codex prompts
+        "done with turn one", "docs added",                      # codex agent msgs
+        "*** Begin Patch",                                       # codex patch body
+        "should never be extracted",                             # cursor composer name
+    ]
+    for tool in ("claude_code", "cursor", "codex"):
+        for rec in read_sessions(data_dir, tool):
+            blob = json.dumps(rec)
+            for text in forbidden:
+                assert text not in blob, f"source text leaked into {tool} record"
+
+
 # ------------------------------------------------------- claude_code format
 
 def test_claude_code_session_shape(run_extract):
@@ -165,6 +204,10 @@ def test_codex_child_thread_parent_link(run_extract):
     recs = {r["session_id"]: r for r in read_sessions(data_dir, "codex")}
     child = recs["bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"]
     assert child["parent_session_id"] == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    # thread_source='auto_review' -> automated; parent has no thread_source
+    # (older meta) -> the marker is absent, never guessed
+    assert child["automated"] is True
+    assert "automated" not in recs["aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
     # a session with no user_message events reports zero, not absence — the
     # log observed the absence of prompts
     assert child["turns"]["user_messages"] == 0

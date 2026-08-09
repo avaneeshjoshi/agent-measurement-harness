@@ -49,6 +49,7 @@ Schema properties carry `x-provenance`:
 ## Content and privacy
 
 - Session records are **content-free**: no prompts, code, file contents, or command output. Classifiers list the features they consumed (`features_used`).
+- Content sidecars (`content.jsonl`, written only under `--include-content`) are **local-only artifacts and must never enter version control** — the extractor's output tree (`data/extracted/`) is gitignored and a test enforces it.
 - Paths, private repo names, and org identifiers are salted-hashed at the connector (`project_ref`, `repo_ref`, `team_ref`). Public OSS repo refs may stay plain.
 - Reporting is team-level and above. Per-change attribution fields exist as evidence and are aggregated before any surface renders them. No individual rankings, ever.
 
