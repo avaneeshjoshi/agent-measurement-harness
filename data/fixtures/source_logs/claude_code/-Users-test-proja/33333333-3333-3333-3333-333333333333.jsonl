@@ -1,0 +1,3 @@
+{"type":"user","uuid":"u-other","sessionId":"33333333-3333-3333-3333-333333333333","timestamp":"2026-01-07T12:00:00.000Z","cwd":"/Users/test/proja","gitBranch":"dev","version":"2.1.100","message":{"role":"user","content":"unrelated session"}}
+this line is not valid json {{{
+{"type":"assistant","uuid":"a-x","sessionId":"33333333-3333-3333-3333-333333333333","timestamp":"2026-01-07T12:00:04.000Z","gitBranch":"dev","version":"2.1.100","message":{"id":"msg_301","model":"claude-haiku-4-5-20251001","usage":{"input_tokens":7,"output_tokens":11,"cache_read_input_tokens":0,"cache_creation_input_tokens":0},"content":[{"type":"text","text":"hello"}]}}

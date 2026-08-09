@@ -163,4 +163,11 @@ All components communicate **through data, not direct imports across layers**: e
 
 ## Status
 
-Contracts-first stage: the six v0 schemas, the conventions they follow (`docs/conventions.md`), two ADRs grounding them in real session logs, and a first hand-labeled calibration set (`data/calibration/`) exist. No pipeline components are built yet. The `session` and `task_class` schemas are flagged REVIEW REQUIRED pending field-by-field review. See each directory's README for what belongs there and its inputs/outputs.
+Contracts-first stage, first component shipped: the six v0 schemas (session now 0.3.0),
+the conventions they follow (`docs/conventions.md`), four ADRs, a first hand-labeled
+calibration set (`data/calibration/`), and the **log extractor** — `pip install -e .`
+then `caliper extract` pulls Claude Code, Cursor, and Codex sessions on this machine
+into schema-valid records under `data/extracted/` (ADR-0004; `cli/` and `connectors/`).
+The `session` and `task_class` schemas remain flagged REVIEW REQUIRED pending
+field-by-field review. See each directory's README for what belongs there and its
+inputs/outputs.
