@@ -1,21 +1,34 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "caliper:production_signal:0.1.0",
+  "$id": "caliper:production_signal:0.2.0",
   "title": "ProductionSignal",
-  "description": "Per-change history signals for one commit (or PR): survival, rework, review friction, revert linkage, and AI attribution. Attribution design is grounded in real vendor data: Cursor's ai-code-tracking.db scores commits with per-source line counts (tab/composer/human) and an aiPercentage — and in the observed database only 11 of 72 commits actually had those counts populated. 'partial' and 'unknown' are therefore normal states, not error states. Attribution is NEVER inferred from code content or style; only from tracking-db evidence, session-trace linkage, or explicit self-report.",
+  "description": "Per-change history signals for one commit (or PR): survival, rework, review friction, revert linkage, and AI attribution. Attribution design is grounded in real vendor data: Cursor's ai-code-tracking.db scores commits with per-source line counts (tab/composer/human) and an aiPercentage — and in the observed database only 11 of 72 commits actually had those counts populated. 'partial' and 'unknown' are therefore normal states, not error states. Attribution is NEVER inferred from code content or style; only from tracking-db evidence, session-trace linkage, or explicit self-report. 0.2.0 (ADR-0006): adds required provenance (repo path, HEAD at measurement, content hash) matching the extractor's traceability contract; records are local-only artifacts, like extracted sessions.",
   "type": "object",
   "required": [
     "schema_version",
     "change_ref",
     "ai_attribution",
     "measured_at",
-    "signals_version"
+    "signals_version",
+    "provenance"
   ],
   "additionalProperties": false,
   "properties": {
     "schema_version": { "type": "string", "pattern": "^0\\.[0-9]+\\.[0-9]+$" },
     "signals_version": { "type": "string", "description": "Version of the harness/signals code that computed this record." },
     "measured_at": { "type": "string", "format": "date-time" },
+    "provenance": {
+      "type": "object",
+      "description": "How this record was computed — the signal analog of the session record's provenance (session schema 0.3.0+). Survival/rework numbers depend on repo state, so head_sha pins WHAT was measured against; content_hash is the idempotency key (hash of the computed signal payload — unchanged repo state for this commit's horizons yields an unchanged hash).",
+      "required": ["connector_version", "content_hash", "repo_path", "head_sha"],
+      "additionalProperties": false,
+      "properties": {
+        "connector_version": { "type": "string" },
+        "content_hash": { "type": "string" },
+        "repo_path": { "type": "string", "description": "Local repo root as read. Local-only artifact — never enters version control; repo_ref is the reportable identifier." },
+        "head_sha": { "type": "string", "description": "HEAD of the analyzed history at measurement time." }
+      }
+    },
     "change_ref": {
       "type": "object",
       "required": ["repo_ref", "commit_sha"],

@@ -15,10 +15,18 @@ import os
 from pathlib import Path
 
 
+def _session_key(rec: dict) -> str:
+    return rec["session_id"]
+
+
 class SessionStore:
-    def __init__(self, out_dir: Path) -> None:
+    """Also serves signal records: pass filename and a key function."""
+
+    def __init__(self, out_dir: Path, filename: str = "sessions.jsonl",
+                 key=_session_key) -> None:
         self.out_dir = Path(out_dir)
-        self.path = self.out_dir / "sessions.jsonl"
+        self.path = self.out_dir / filename
+        self.key = key
         self.existing: dict[str, dict] = {}
         if self.path.exists():
             with open(self.path, encoding="utf-8") as fh:
@@ -28,14 +36,14 @@ class SessionStore:
                         continue
                     try:
                         rec = json.loads(line)
-                        self.existing[rec["session_id"]] = rec
+                        self.existing[self.key(rec)] = rec
                     except (json.JSONDecodeError, KeyError):
                         continue  # rebuilt on write
         self.counts = {"new": 0, "unchanged": 0, "updated": 0}
         self._merged: dict[str, dict] = dict(self.existing)
 
     def upsert(self, record: dict) -> str:
-        sid = record["session_id"]
+        sid = self.key(record)
         old = self.existing.get(sid)
         new_hash = record["provenance"]["content_hash"]
         # Unchanged means: same source content AND same extractor contract.
@@ -57,7 +65,7 @@ class SessionStore:
     def write(self) -> int:
         self.out_dir.mkdir(parents=True, exist_ok=True)
         records = sorted(self._merged.values(),
-                         key=lambda r: (r.get("started_at") or "", r["session_id"]))
+                         key=lambda r: (r.get("started_at") or "", self.key(r)))
         tmp = self.path.with_suffix(".jsonl.tmp")
         with open(tmp, "w", encoding="utf-8") as fh:
             for rec in records:

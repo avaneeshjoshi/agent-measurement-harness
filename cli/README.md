@@ -13,6 +13,20 @@ caliper extract --include-content        # also write prompt-text sidecars
 caliper extract --data-dir /elsewhere    # output root (default: data/extracted/)
 ```
 
+```bash
+caliper signals                          # production signals from local git repos
+caliper signals --repo /path/to/repo     # analyze additional repos
+```
+
+## What signals does
+
+Runs `connectors/git_history.py`: discovers the git repos the extracted sessions
+reference (session cwd → git toplevel), computes per-commit survival (30/60/90d,
+blame-based), 14-day rework, revert linkage, PR patterns, and evidence-only AI
+attribution, then writes `data/extracted/git_history/production_signals.jsonl`
+(validating against `schemas/production_signal.schema.json`) plus a manifest with
+per-repo aggregates and session→repo join rates. Local git only — no forge APIs.
+
 ## What extract does
 
 For each source plugin in `connectors/` (Claude Code, Cursor, Codex — ADR-0003):

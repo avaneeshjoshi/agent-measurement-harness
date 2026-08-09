@@ -139,6 +139,112 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
     return manifest
 
 
+def signals(data_dir: Path, schema_path: Path,
+            connector=None) -> dict:
+    """Run the git-history connector: production signals for the repos the
+    extracted sessions reference. Returns the manifest. `connector` lets
+    tests inject one pointed at fixture roots."""
+    from connectors.git_history import GitHistoryConnector
+
+    validator = load_validator(schema_path)
+    salt = load_salt(data_dir)
+    conn = connector or GitHistoryConnector(salt=salt)
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
+    manifest: dict = {"run_id": run_id, "kind": "signals",
+                      "started_at": now_iso(), "schema": schema_path.name,
+                      "repos": {}, "records": {"emitted": 0, "new": 0,
+                                               "updated": 0, "unchanged": 0,
+                                               "invalid": 0},
+                      "validation_errors": [], "skipped": []}
+
+    repos, cwd_to_root = conn.discover_repos()
+    store = SessionStore(data_dir / "git_history",
+                         filename="production_signals.jsonl",
+                         key=lambda r: r["change_ref"]["repo_ref"] + ":" +
+                                       r["change_ref"]["commit_sha"])
+    all_records: list[dict] = []
+    for root, tools in sorted(repos.items()):
+        try:
+            records = conn.analyze_repo(root)
+        except Exception as exc:  # malformed repo: logged, never fatal
+            conn.skip(root, f"analysis failed: {exc!r}")
+            continue
+        repo_ref = records[0]["change_ref"]["repo_ref"] if records else None
+        agg = _aggregate_repo(records)
+        manifest["repos"][repo_ref or root] = {
+            "tools_referencing": sorted(tools),
+            "commits_analyzed": len(records), **agg,
+        }
+        all_records.extend(records)
+
+    for rec in all_records:
+        errors = sorted(validator.iter_errors(rec), key=lambda e: e.json_path)
+        if errors:
+            manifest["records"]["invalid"] += 1
+            manifest["validation_errors"].append({
+                "key": rec["change_ref"]["commit_sha"],
+                "errors": [f"{e.json_path}: {e.message}" for e in errors[:5]]})
+            continue
+        outcome = store.upsert(rec)
+        manifest["records"]["emitted"] += 1
+        manifest["records"][outcome] += 1
+
+    manifest["signals_on_disk"] = store.write()
+
+    # session -> repo/commit join, per tool
+    sessions_by_tool: dict[str, list[dict]] = {}
+    for tool in ("claude_code", "cursor", "codex"):
+        path = data_dir / tool / "sessions.jsonl"
+        if path.exists():
+            sessions_by_tool[tool] = [json.loads(l) for l in
+                                      path.read_text().splitlines() if l.strip()]
+    manifest["session_join"] = conn.session_join_stats(
+        sessions_by_tool, cwd_to_root, all_records)
+
+    manifest["skipped"] = conn.skips
+    manifest["finished_at"] = now_iso()
+    manifest_dir = data_dir / "manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    (manifest_dir / f"{run_id}.json").write_text(json.dumps(manifest, indent=2))
+    return manifest
+
+
+def _aggregate_repo(records: list[dict]) -> dict:
+    """Per-repo aggregate for the manifest: rates over measured commits only."""
+    def frac(n, d):
+        return round(n / d, 3) if d else None
+
+    surv = {h: {"lines_orig": 0, "lines_surv": 0, "commits": 0} for h in (30, 60, 90)}
+    rework_measured = rework_occurred = 0
+    reverted = 0
+    attr = {"known": 0, "partial": 0, "unknown": 0}
+    for r in records:
+        for s in r["survival"]:
+            if s["status"] == "measured":
+                h = s["horizon_days"]
+                surv[h]["commits"] += 1
+                surv[h]["lines_orig"] += s["lines_original"]
+                surv[h]["lines_surv"] += s["lines_surviving"]
+        rw = r.get("rework")
+        if rw and rw["status"] == "measured":
+            rework_measured += 1
+            if rw["occurred"]:
+                rework_occurred += 1
+        if r["revert"]["reverted"]:
+            reverted += 1
+        attr[r["ai_attribution"]["status"]] += 1
+    return {
+        "survival": {str(h): {"commits_measured": v["commits"],
+                              "line_survival_rate": frac(v["lines_surv"], v["lines_orig"])}
+                     for h, v in surv.items()},
+        "rework": {"commits_measured": rework_measured,
+                   "occurred": rework_occurred,
+                   "rate": frac(rework_occurred, rework_measured)},
+        "reverted_commits": reverted,
+        "attribution": attr,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="caliper",
                                      description="Caliper: coding-agent traffic measurement.")
@@ -154,14 +260,43 @@ def main(argv: list[str] | None = None) -> int:
     p_extract.add_argument("--data-dir", default=None,
                            help="Output root (default: <repo>/data/extracted).")
 
+    p_signals = sub.add_parser("signals",
+                               help="Compute production signals from local git "
+                                    "repos referenced by extracted sessions.")
+    p_signals.add_argument("--data-dir", default=None,
+                           help="Output root (default: <repo>/data/extracted).")
+    p_signals.add_argument("--repo", action="append", default=[],
+                           help="Additional repo path(s) to analyze.")
+
     args = parser.parse_args(argv)
-    if args.command != "extract":
+    if args.command not in ("extract", "signals"):
         parser.print_help()
         return 1
 
     root = repo_root()
-    schema_path = root / "schemas" / "session.schema.json"
     data_dir = Path(args.data_dir) if args.data_dir else root / "data" / "extracted"
+
+    if args.command == "signals":
+        from connectors.git_history import GitHistoryConnector
+        schema_path = root / "schemas" / "production_signal.schema.json"
+        conn = GitHistoryConnector(salt=load_salt(data_dir),
+                                   extra_repos=[Path(p) for p in args.repo])
+        manifest = signals(data_dir, schema_path, connector=conn)
+        for ref, m in manifest["repos"].items():
+            print(f"{ref}  commits={m['commits_analyzed']}"
+                  f"  rework_rate={m['rework']['rate']}"
+                  f"  reverted={m['reverted_commits']}"
+                  f"  attribution={m['attribution']}"
+                  f"  tools={','.join(m['tools_referencing'])}")
+        for tool, j in manifest["session_join"].items():
+            print(f"join {tool:12s} sessions={j['sessions']}"
+                  f" repo_join={j['repo_join']} ({j['repo_join_rate']})"
+                  f" commit_window={j['commit_in_session_window']}"
+                  f" ({j['commit_window_rate']})")
+        print(f"manifest: {data_dir / 'manifests' / (manifest['run_id'] + '.json')}")
+        return 0
+
+    schema_path = root / "schemas" / "session.schema.json"
 
     if args.source:
         sources = []
