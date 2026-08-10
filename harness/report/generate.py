@@ -47,10 +47,18 @@ def _price(tokens: dict | None, model_ids: list[str], pricing: dict) -> float | 
         return None
     p = pricing["models"][key]
     M = 1_000_000
-    return (tokens.get("input", 0) / M * p["input"]
-            + tokens.get("output", 0) / M * p["output"]
-            + tokens.get("cache_read", 0) / M * p["cache_read"]
-            + tokens.get("cache_creation", 0) / M * p["cache_write_1h"])
+    total = 0.0
+    for bucket, rate_key in (("input", "input"), ("output", "output"),
+                             ("cache_read", "cache_read"),
+                             ("cache_creation", "cache_write_1h")):
+        t = tokens.get(bucket, 0)
+        if not t:
+            continue
+        rate = p.get(rate_key)
+        if rate is None:
+            return None  # traffic in a bucket with no rate: unpriced, not partial
+        total += t / M * rate
+    return total
 
 
 def _dominant_models(rec: dict) -> list[str]:
