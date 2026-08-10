@@ -49,10 +49,12 @@ class Skip:
 
 @dataclass
 class Emission:
-    """One emitted session record plus its (optional) content sidecar rows."""
+    """One emitted session record plus its (optional) content sidecar rows
+    and (optional) content-free prompt-unit records (prompt_unit.schema)."""
 
     record: dict
     content_rows: list[dict] = field(default_factory=list)
+    prompt_units: list[dict] = field(default_factory=list)
 
 
 class SourcePlugin:

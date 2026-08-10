@@ -74,6 +74,130 @@ def _user_prompt_text(rec: dict) -> str | None:
     return text
 
 
+def build_prompt_units(recs: list[dict], session_id: str, salt: str) -> list[dict]:
+    """Content-free prompt-unit records (prompt_unit.schema 0.1.0).
+
+    Turn indexing per conventions.md AND the ADR-0002 calibration convention:
+    user prompt turns exclude tool results, meta, command/attachment
+    bookkeeping, interruption markers, and task-notification records
+    (origin.kind == 'task-notification')."""
+    from .util import file_refs, path_flags
+
+    conv = [r for r in recs if r.get("type") not in _BOOKKEEPING_TYPES]
+    prompt_idx = []
+    for i, rec in enumerate(conv):
+        text = _user_prompt_text(rec)
+        if text is None:
+            continue
+        origin = rec.get("origin") or {}
+        if isinstance(origin, dict) and origin.get("kind") == "task-notification":
+            continue
+        prompt_idx.append(i)
+
+    units = []
+    for n, i in enumerate(prompt_idx):
+        rec = conv[i]
+        end = prompt_idx[n + 1] if n + 1 < len(prompt_idx) else len(conv)
+        window = conv[i + 1:end]
+        prev_ts = next((conv[j].get("timestamp") for j in range(i - 1, -1, -1)
+                        if conv[j].get("timestamp")), None)
+        ts = rec.get("timestamp")
+        gap = None
+        if prev_ts and ts:
+            from .util import iso_utc, ms_between
+            gap = ms_between(iso_utc(prev_ts), iso_utc(ts))
+
+        msg_ids, tool_counts, models = set(), {}, set()
+        tokens = {"input": 0, "output": 0, "cache_read": 0, "cache_creation": 0}
+        saw_usage = interrupted = False
+        active_ms = None
+        files: dict[str, dict] = {}
+        la = lr = 0
+        last_ts = ts
+        for w in window:
+            if w.get("timestamp"):
+                last_ts = w["timestamp"]
+            wtype = w.get("type")
+            if wtype == "assistant":
+                msg = w.get("message") or {}
+                mid = msg.get("id") or w.get("uuid")
+                if mid not in msg_ids:
+                    msg_ids.add(mid)
+                    if msg.get("model"):
+                        models.add(msg["model"])
+                    u = msg.get("usage") or {}
+                    if u:
+                        saw_usage = True
+                        tokens["input"] += int(u.get("input_tokens") or 0)
+                        tokens["output"] += int(u.get("output_tokens") or 0)
+                        tokens["cache_read"] += int(u.get("cache_read_input_tokens") or 0)
+                        tokens["cache_creation"] += int(u.get("cache_creation_input_tokens") or 0)
+                for b in (msg.get("content") or []):
+                    if isinstance(b, dict) and b.get("type") == "tool_use":
+                        tn = b.get("name", "?")
+                        tool_counts[tn] = tool_counts.get(tn, 0) + 1
+            elif wtype == "user":
+                tur = w.get("toolUseResult")
+                if isinstance(tur, dict):
+                    if tur.get("interrupted"):
+                        interrupted = True
+                    patch = tur.get("structuredPatch")
+                    fp = tur.get("filePath")
+                    if isinstance(patch, list) and patch and fp:
+                        if fp not in files:
+                            entry = {**file_refs(salt, fp), **path_flags(fp)}
+                            entry["is_new_file"] = tur.get("type") == "create" \
+                                if "type" in tur else None
+                            files[fp] = entry
+                        for hunk in patch:
+                            if isinstance(hunk, dict):
+                                for hl in hunk.get("lines", []):
+                                    if isinstance(hl, str):
+                                        if hl.startswith("+"): la += 1
+                                        elif hl.startswith("-"): lr += 1
+                # interruption marker records are user records too
+                msg = w.get("message") or {}
+                c = msg.get("content")
+                marker = c if isinstance(c, str) else ""
+                if isinstance(c, list):
+                    marker = " ".join(b.get("text", "") for b in c
+                                      if isinstance(b, dict) and b.get("type") == "text")
+                if any(marker.strip().startswith(m) for m in _INTERRUPT_MARKERS):
+                    interrupted = True
+            elif wtype == "system" and w.get("subtype") == "turn_duration":
+                d = w.get("durationMs")
+                if isinstance(d, (int, float)):
+                    active_ms = (active_ms or 0) + int(d)
+
+        from .util import iso_utc as _iso
+        units.append({
+            "schema_version": "0.1.0",
+            "session_id": session_id,
+            "source_tool": "claude_code",
+            "turn_index": n,
+            "started_at": _iso(ts),
+            "window_ended_at": _iso(last_ts),
+            "gap_ms_before": gap,
+            "git_branch": rec.get("gitBranch"),
+            "prompt_source": rec.get("promptSource"),
+            "origin_kind": (rec.get("origin") or {}).get("kind")
+                if isinstance(rec.get("origin"), dict) else None,
+            "window": {
+                "assistant_messages": len(msg_ids),
+                "tool_calls": sum(tool_counts.values()),
+                "tool_counts": tool_counts,
+                "interrupted": interrupted,
+                "active_ms": active_ms,
+                "tokens": tokens if saw_usage else None,
+                "models": sorted(models),
+                "files_edited": list(files.values()),
+                "lines_added": la,
+                "lines_removed": lr,
+            },
+        })
+    return units
+
+
 class ClaudeCodePlugin(SourcePlugin):
     name = "claude_code"
     log_format = "claude_code_jsonl"
@@ -316,7 +440,9 @@ class ClaudeCodePlugin(SourcePlugin):
 
         for row in content_rows:
             row.update({"source_tool": "claude_code", "session_id": session_id})
-        return [Emission(record=record, content_rows=content_rows)]
+        units = build_prompt_units(recs, session_id, self.salt)
+        return [Emission(record=record, content_rows=content_rows,
+                         prompt_units=units)]
 
     def finalize(self, emissions: list[Emission]) -> list[Emission]:
         """Fork/resume detection (ADR-0002 finding 4): sessions sharing the
