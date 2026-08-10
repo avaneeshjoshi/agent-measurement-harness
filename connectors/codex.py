@@ -132,7 +132,7 @@ def build_prompt_units(records: list[dict], session_id: str, git_branch,
                     tool_counts[pt] = tool_counts.get(pt, 0) + 1
 
         units.append({
-            "schema_version": "0.1.0",
+            "schema_version": "0.1.1",
             "session_id": session_id,
             "source_tool": "codex",
             "turn_index": n,
@@ -147,6 +147,7 @@ def build_prompt_units(records: list[dict], session_id: str, git_branch,
                 "tool_calls": sum(tool_counts.values()),
                 "tool_counts": tool_counts,
                 "interrupted": interrupted,
+                "interrupt_marker": None,
                 "active_ms": active_ms,
                 "tokens": tokens if saw_tokens else None,
                 "models": sorted(models),

@@ -109,7 +109,7 @@ def build_prompt_units(recs: list[dict], session_id: str, salt: str) -> list[dic
 
         msg_ids, tool_counts, models = set(), {}, set()
         tokens = {"input": 0, "output": 0, "cache_read": 0, "cache_creation": 0}
-        saw_usage = interrupted = False
+        saw_usage = interrupted = interrupt_marker = False
         active_ms = None
         files: dict[str, dict] = {}
         la = lr = 0
@@ -163,7 +163,7 @@ def build_prompt_units(recs: list[dict], session_id: str, salt: str) -> list[dic
                     marker = " ".join(b.get("text", "") for b in c
                                       if isinstance(b, dict) and b.get("type") == "text")
                 if any(marker.strip().startswith(m) for m in _INTERRUPT_MARKERS):
-                    interrupted = True
+                    interrupt_marker = True
             elif wtype == "system" and w.get("subtype") == "turn_duration":
                 d = w.get("durationMs")
                 if isinstance(d, (int, float)):
@@ -171,7 +171,7 @@ def build_prompt_units(recs: list[dict], session_id: str, salt: str) -> list[dic
 
         from .util import iso_utc as _iso
         units.append({
-            "schema_version": "0.1.0",
+            "schema_version": "0.1.1",
             "session_id": session_id,
             "source_tool": "claude_code",
             "turn_index": n,
@@ -187,6 +187,7 @@ def build_prompt_units(recs: list[dict], session_id: str, salt: str) -> list[dic
                 "tool_calls": sum(tool_counts.values()),
                 "tool_counts": tool_counts,
                 "interrupted": interrupted,
+                "interrupt_marker": interrupt_marker,
                 "active_ms": active_ms,
                 "tokens": tokens if saw_usage else None,
                 "models": sorted(models),
