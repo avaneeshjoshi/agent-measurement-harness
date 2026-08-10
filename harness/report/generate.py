@@ -157,6 +157,33 @@ def collect(repo_root: Path) -> dict:
         x = c.get("cost_x1000")
         proj_cost[proj] = (x / 1000) if x is not None else None
 
+    # ---- headline -------------------------------------------------------
+    total_cost = sum(c.get("cost_x1000", 0) for c in spend_by_tool.values()) / 1000
+    autoreview = {"sessions": 0, "tokens": 0}
+    unpriced_tokens = 0
+    for r in sessions.values():
+        tok = r.get("tokens")
+        if not tok:
+            continue
+        if _price(tok, _dominant_models(r), pricing) is None:
+            unpriced_tokens += sum(tok.values())
+            if any(m.startswith("codex-auto-review") for m in _dominant_models(r)):
+                autoreview["sessions"] += 1
+                autoreview["tokens"] += sum(tok.values())
+    cursor_n = sum(1 for r in sessions.values() if r["source_tool"] == "cursor")
+    organic_n = sum(1 for r in sessions.values() if _cohort(r) == "organic")
+    headline = {
+        "total_cost": total_cost,
+        "priced_sessions": len(sessions) - unpriced_sessions - no_token_sessions,
+        "unpriced_sessions": unpriced_sessions,
+        "no_token_sessions": no_token_sessions,
+        "unpriced_tokens": unpriced_tokens,
+        "autoreview": autoreview,
+        "cursor_sessions": cursor_n,
+        "cursor_share_all": cursor_n / len(sessions) if sessions else 0,
+        "cursor_share_organic": cursor_n / organic_n if organic_n else 0,
+    }
+
     # ---- coverage -------------------------------------------------------
     coverage = {}
     for tool in TOOLS:
@@ -181,6 +208,7 @@ def collect(repo_root: Path) -> dict:
         "pricing": {"as_of": pricing["pricing_version"],
                     "source": pricing["pricing_source"]},
         "n_sessions": len(sessions),
+        "headline": headline,
         "spend": {"by_model": {k: dict(v) for k, v in spend_by_model.items()},
                   "by_tool": {k: dict(v) for k, v in spend_by_tool.items()},
                   "by_project": {k: dict(v) for k, v in spend_by_project.items()},
