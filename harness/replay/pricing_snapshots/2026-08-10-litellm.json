@@ -1,0 +1,102 @@
+{
+  "pricing_version": "2026-08-10-litellm",
+  "effective_date": "2026-08-10",
+  "fetched_at": "2026-08-10T12:35:47+00:00",
+  "source_url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json",
+  "maintenance": "generated from LiteLLM community price data \u2014 COMMUNITY-MAINTAINED, NOT AUTHORITATIVE; base rates only (tiered/priority variants ignored)",
+  "pricing_source": "LiteLLM model_prices (2026-08-10, community-maintained, not authoritative); base rates; buckets are Caliper-normalized non-overlapping (ADR-0005)",
+  "currency": "USD_per_million_tokens",
+  "unresolved_models": [],
+  "models": {
+    "claude-fable-5": {
+      "input": 10.0,
+      "output": 50.0,
+      "cache_read": 1.0,
+      "cache_write_5m": 12.5,
+      "cache_write_1h": 20.0,
+      "litellm_key": "claude-fable-5"
+    },
+    "claude-opus-5": {
+      "input": 5.0,
+      "output": 25.0,
+      "cache_read": 0.5,
+      "cache_write_5m": 6.25,
+      "cache_write_1h": 10.0,
+      "litellm_key": "claude-opus-5"
+    },
+    "claude-opus-4-8": {
+      "input": 5.0,
+      "output": 25.0,
+      "cache_read": 0.5,
+      "cache_write_5m": 6.25,
+      "cache_write_1h": 10.0,
+      "litellm_key": "claude-opus-4-8"
+    },
+    "claude-sonnet-5": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.2,
+      "cache_write_5m": 2.5,
+      "cache_write_1h": 4.0,
+      "litellm_key": "claude-sonnet-5"
+    },
+    "claude-sonnet-4-5": {
+      "input": 3.0,
+      "output": 15.0,
+      "cache_read": 0.3,
+      "cache_write_5m": 3.75,
+      "cache_write_1h": 6.0,
+      "litellm_key": "claude-sonnet-4-5"
+    },
+    "claude-haiku-4-5": {
+      "input": 1.0,
+      "output": 5.0,
+      "cache_read": 0.1,
+      "cache_write_5m": 1.25,
+      "cache_write_1h": 2.0,
+      "litellm_key": "claude-haiku-4-5"
+    },
+    "gpt-5.5": {
+      "input": 5.0,
+      "output": 30.0,
+      "cache_read": 0.5,
+      "cache_write_5m": null,
+      "cache_write_1h": null,
+      "litellm_key": "gpt-5.5"
+    },
+    "gpt-5.6-sol": {
+      "input": 5.0,
+      "output": 30.0,
+      "cache_read": 0.5,
+      "cache_write_5m": 6.25,
+      "cache_write_1h": null,
+      "litellm_key": "gpt-5.6-sol"
+    },
+    "gpt-5.3-codex": {
+      "input": 1.75,
+      "output": 14.0,
+      "cache_read": 0.175,
+      "cache_write_5m": null,
+      "cache_write_1h": null,
+      "litellm_key": "gpt-5.3-codex"
+    },
+    "grok-4.5": {
+      "input": 2.0,
+      "output": 6.0,
+      "cache_read": 0.5,
+      "cache_write_5m": null,
+      "cache_write_1h": null,
+      "litellm_key": "xai/grok-4.5"
+    }
+  },
+  "cross_check_vs_previous": {
+    "previous": "2026-08-10",
+    "disagreements": [
+      "claude-sonnet-5.input: 2026-08-10=3.0 vs new=2.0",
+      "claude-sonnet-5.output: 2026-08-10=15.0 vs new=10.0",
+      "claude-sonnet-5.cache_read: 2026-08-10=0.3 vs new=0.2",
+      "claude-sonnet-5.cache_write_5m: 2026-08-10=3.75 vs new=2.5",
+      "claude-sonnet-5.cache_write_1h: 2026-08-10=6.0 vs new=4.0"
+    ]
+  }
+}
