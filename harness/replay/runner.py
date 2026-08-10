@@ -51,7 +51,7 @@ Rules:
 - Do not use the internet or any git history; work only from the code present.
 When the fix is complete and the project compiles, you are done."""
 
-EVAL_SCHEMA_VERSION = "0.2.0"
+EVAL_SCHEMA_VERSION = "0.3.0"
 
 
 def _now_iso() -> str:
@@ -172,9 +172,14 @@ def run_cell(task: dict, model_id: str, tier: str, repo: Path,
 
     usage = agent.get("usage") or {}
     our_cost = price_usage(usage, model_id, pricing)
-    pass_rate = None
-    if gates["tests_total"]:
-        pass_rate = gates["tests_passed"] / gates["tests_total"]
+    turn_capped = agent.get("subtype") == "error_max_turns" or \
+        (agent.get("num_turns") or 0) > 60
+    # Locked policy: solved = agent finished under the cap AND the tree
+    # compiles AND every hidden test passes. Turn-capped => FAILED, raw
+    # test counts still recorded. No retries, no extensions.
+    solved = (completed and not turn_capped and gates["build"] == "pass"
+              and gates["tests_total"] not in (None, 0)
+              and gates["tests_passed"] == gates["tests_total"])
 
     record = {
         "schema_version": EVAL_SCHEMA_VERSION,
@@ -199,8 +204,11 @@ def run_cell(task: dict, model_id: str, tier: str, repo: Path,
             "type_check": "not_applicable",
             "build": gates["build"],
             "completed": completed,
-        }], "aggregate": {"metric": "hidden_test_pass_rate",
-                          "value": pass_rate if pass_rate is not None else 0.0,
+            "turn_capped": turn_capped,
+            "turns": agent.get("num_turns"),
+            "wall_seconds": round(wall_s, 1),
+        }], "aggregate": {"metric": "task_solved",
+                          "value": 1.0 if solved else 0.0,
                           "n": 1, "ci": None}}},
         "cost": {
             "tokens_input": usage.get("input_tokens"),
@@ -221,20 +229,39 @@ def run_cell(task: dict, model_id: str, tier: str, repo: Path,
 
 
 def run_matrix(tasks: list[dict], models: list[tuple[str, str]], repo: Path,
-               work_root: Path, out_path: Path, log=print) -> list[dict]:
+               work_root: Path, out_path: Path, log=print,
+               max_workers: int = 1) -> list[dict]:
+    """Every (task x model) cell, optionally a few in parallel. Cells are
+    fully isolated (own snapshot dir, own mvn target dir); the shared Maven
+    artifact cache is read-only once warm, so concurrency is scoring-safe."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
     pricing = load_pricing()
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
+    cells = [(task, model_id, tier) for task in tasks for model_id, tier in models]
     results = []
-    for task in tasks:
-        log(f"TASK {task['task_id']}: {task['subject'][:70]}")
-        for model_id, tier in models:
-            cell = run_cell(task, model_id, tier, repo, work_root, run_id, pricing, log)
-            results.append(cell)
-            out_path.parent.mkdir(parents=True, exist_ok=True)
+    write_lock = threading.Lock()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def one(args):
+        task, model_id, tier = args
+        tag = f"[{task['task_id']}/{model_id}]"
+        cell = run_cell(task, model_id, tier, repo, work_root, run_id, pricing,
+                        log=lambda m: log(f"{tag} {m}"))
+        with write_lock:
             with open(out_path, "a") as fh:
                 fh.write(json.dumps(cell["record"]) + "\n")
+            results.append(cell)
             r = cell["record"]["tracks"]["objective"]["runs"][0]
-            log(f"  => build={r['build']} tests={r['tests_passed']}/{r['tests_total']}"
-                f" cost=${cell['record']['cost']['cost_usd_estimate']}"
-                f" (cli ${cell['record']['cost']['cli_reported_cost_usd']})")
+            agg = cell["record"]["tracks"]["objective"]["aggregate"]["value"]
+            log(f"{tag} => {'SOLVED' if agg == 1.0 else 'FAILED'}"
+                f"{' (turn-capped)' if r['turn_capped'] else ''}"
+                f" tests={r['tests_passed']}/{r['tests_total']}"
+                f" turns={r['turns']} cost=${cell['record']['cost']['cost_usd_estimate']}"
+                f"  [{len(results)}/{len(cells)}]")
+        return cell
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        list(ex.map(one, cells))
     return results

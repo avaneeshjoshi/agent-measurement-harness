@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "caliper:eval_result:0.2.0",
+  "$id": "caliper:eval_result:0.3.0",
   "title": "EvalResult",
   "description": "One replay cell: a task re-run at (model tier x skill on/off), carrying objective-track results, judged-track results, or both. Judge outputs always carry the calibration statistic they were validated against and whether they cleared the agreement gate — a judged score without its calibration context is not a legal record. Repetition-level results are kept raw; aggregates always carry n and a CI. 0.2.0 (first real replay run, 2026-08-09): cost gains cache token buckets — ADR-0005 established that cache traffic dominates real agent usage, so input/output alone materially misprices a run — plus cli_reported_cost_usd as a cross-check against the harness's own price-sheet computation.",
   "type": "object",
@@ -86,7 +86,10 @@
                   "lint": { "type": "string", "enum": ["pass", "fail", "not_applicable"] },
                   "type_check": { "type": "string", "enum": ["pass", "fail", "not_applicable"] },
                   "build": { "type": "string", "enum": ["pass", "fail", "not_applicable"] },
-                  "completed": { "type": "boolean", "description": "False = the agent run itself crashed/timed out; gates above are then null/not_applicable, and this still counts in n." }
+                  "completed": { "type": "boolean", "description": "False = the agent run itself crashed/timed out; gates above are then null/not_applicable, and this still counts in n." },
+                  "turn_capped": { "type": ["boolean", "null"], "description": "0.3.0: the run hit the harness max-turns ceiling. Policy (locked 2026-08-09): turn-capped runs are SCORED FAILED regardless of raw test results — flailing is data; no retry, no extension. Raw tests_passed is still recorded." },
+                  "turns": { "type": ["integer", "null"], "minimum": 0, "description": "0.3.0: agent turns used." },
+                  "wall_seconds": { "type": ["number", "null"], "minimum": 0, "description": "0.3.0: agent wall clock, excluding scoring." }
                 }
               }
             },

@@ -57,9 +57,10 @@ def test_eval_record_shape_validates():
         "tracks": {"objective": {"runs": [{
             "run_index": 0, "tests_passed": 58, "tests_total": 59,
             "lint": "not_applicable", "type_check": "not_applicable",
-            "build": "pass", "completed": True}],
-            "aggregate": {"metric": "hidden_test_pass_rate",
-                          "value": 58 / 59, "n": 1, "ci": None}}},
+            "build": "pass", "completed": True,
+            "turn_capped": False, "turns": 9, "wall_seconds": 47.0}],
+            "aggregate": {"metric": "task_solved",
+                          "value": 0.0, "n": 1, "ci": None}}},
         "cost": {"tokens_input": 100, "tokens_output": 200,
                  "tokens_cache_read": 300, "tokens_cache_creation": 400,
                  "cost_usd_estimate": 0.01, "cli_reported_cost_usd": 0.011,
