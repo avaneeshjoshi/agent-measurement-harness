@@ -1,0 +1,76 @@
+{
+  "prompt": {
+    "claude_code/organic": {
+      "unclassified": 24,
+      "feature_implementation": 25,
+      "exploratory_qa": 30,
+      "ui_verification_loop": 20,
+      "multi_file_refactor": 2,
+      "agent_meta_work": 9,
+      "single_file_bug_fix": 1,
+      "documentation": 2
+    },
+    "claude_code/eval_harness": {
+      "single_file_bug_fix": 143,
+      "feature_implementation": 31,
+      "unclassified": 27,
+      "exploratory_qa": 1
+    },
+    "codex/organic": {
+      "exploratory_qa": 250,
+      "unclassified": 96,
+      "boilerplate_scaffolding": 19,
+      "feature_implementation": 172,
+      "config_infra": 5,
+      "test_authoring": 3,
+      "documentation": 4
+    }
+  },
+  "segment": {
+    "claude_code/organic": {
+      "feature_implementation": 9,
+      "exploratory_qa": 3,
+      "ui_verification_loop": 4,
+      "unclassified": 3,
+      "agent_meta_work": 1
+    },
+    "claude_code/eval_harness": {
+      "single_file_bug_fix": 143,
+      "feature_implementation": 31,
+      "unclassified": 27,
+      "exploratory_qa": 1
+    },
+    "codex/organic": {
+      "exploratory_qa": 22,
+      "boilerplate_scaffolding": 12,
+      "unclassified": 10,
+      "feature_implementation": 29
+    }
+  },
+  "session": {
+    "claude_code/organic": {
+      "exploratory_qa": 11,
+      "feature_implementation": 4,
+      "ui_verification_loop": 3,
+      "unclassified": 2,
+      "agent_meta_work": 1
+    },
+    "claude_code/eval_harness": {
+      "single_file_bug_fix": 143,
+      "feature_implementation": 31,
+      "unclassified": 27,
+      "exploratory_qa": 1
+    },
+    "cursor/organic": {
+      "exploratory_qa": 26,
+      "feature_implementation": 16,
+      "single_file_bug_fix": 1
+    },
+    "codex/organic": {
+      "exploratory_qa": 12,
+      "boilerplate_scaffolding": 4,
+      "unclassified": 4,
+      "feature_implementation": 1
+    }
+  }
+}
