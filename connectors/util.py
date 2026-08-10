@@ -91,6 +91,47 @@ def languages_from_extensions(exts) -> list[str]:
     return sorted(l for l in langs if l)
 
 
+_TEST_PATH_RE = None
+_DOCS_EXT = {"md", "mdx", "rst", "txt", "adoc"}
+_CONFIG_EXT = {"json", "jsonl", "yaml", "yml", "toml", "ini", "cfg", "conf",
+               "properties", "env", "lock", "gradle", "xml"}
+_CONFIG_NAMES = {"dockerfile", "makefile", "gemfile", "rakefile", "procfile",
+                 ".gitignore", ".gitattributes", ".editorconfig", ".env"}
+_AGENT_MARKERS = (".claude/", ".claude\\", "claude.md", ".cursorrules",
+                  ".cursor/", "/skills/", ".mcp.json", "agents.md",
+                  "/memory/", ".codex/")
+
+
+def path_flags(raw_path: str) -> dict:
+    """Content-free booleans derived from a raw path AT THE CONNECTOR.
+    The raw path never leaves; only these flags and salted hashes do."""
+    import re
+    p = raw_path.replace("\\", "/").lower()
+    name = p.rsplit("/", 1)[-1]
+    ext = name.rsplit(".", 1)[-1] if "." in name else None
+    is_test = bool(re.search(r"(^|/)(tests?|__tests__|spec|specs)(/|$)", p)
+                   or re.search(r"(_test|\.test|_spec|\.spec|test_)[^/]*$", name)
+                   or name.endswith("test.java"))
+    is_docs = (ext in _DOCS_EXT) or bool(re.search(r"(^|/)(docs?|documentation)(/|$)", p))
+    is_agent = any(m in p or name == m.strip("/") for m in _AGENT_MARKERS) \
+        or name in ("claude.md", "agents.md")
+    is_config = (not is_docs and not is_agent
+                 and (ext in _CONFIG_EXT or name in _CONFIG_NAMES
+                      or bool(re.search(r"(^|/)(\.github|\.circleci|config|configs)(/|$)", p))))
+    return {"extension": ext, "is_test_path": is_test, "is_docs_path": is_docs,
+            "is_config_path": is_config, "is_agent_config_path": is_agent}
+
+
+def file_refs(salt: str, raw_path: str) -> dict:
+    """Salted refs for a file and its top-level directory."""
+    import hashlib
+    norm = raw_path.replace("\\", "/")
+    top = norm.lstrip("/").split("/", 1)[0] if "/" in norm.lstrip("/") else "<root>"
+    def h(v):
+        return "f_" + hashlib.sha256((salt + "|" + v).encode()).hexdigest()[:12]
+    return {"file_ref": h(norm), "top_dir_ref": h("dir:" + top)}
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
