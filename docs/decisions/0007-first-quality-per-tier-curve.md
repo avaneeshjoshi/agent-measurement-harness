@@ -83,3 +83,16 @@ before any result (`~/caliper-eval/predictions.json`).
   task-level grid (30×3) is the seed for a starter routing policy — but no
   routing_policy record is emitted until n_runs≥3 variance data exists (finding 6 +
   the n_runs caveat gate it).
+
+## Postscript (2026-08-10): sonnet-5 pricing correction
+
+The LiteLLM cross-check (pricing snapshot 2026-08-10-litellm) surfaced that the
+hand sheet priced claude-sonnet-5 at post-intro list ($3/$15) while the billed
+rate through 2026-08-31 is the intro rate ($2/$10). Convention adopted:
+**cost figures use the billed rate at run date.** Every sonnet-5 rate scales by
+exactly 2/3, so this run's sonnet figures restate as: total $15.85 → **$10.57**,
+per-solve $0.83 → **$0.56** — sonnet at **28% of fable's cost** (was 42%),
+strengthening the mid-tier conclusion. Fable and haiku figures are unchanged (no
+promotional rates). The eval_result records are NOT rewritten — they carry
+pricing_as_of 2026-08-09 and remain reproducible under that sheet; this
+postscript and the updated demo artifact are the corrected citations.
