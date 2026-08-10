@@ -21,7 +21,7 @@ caliper = "cli.main:main"
 packages = ["cli", "connectors", "harness", "harness.replay", "harness.classifier", "harness.report"]
 
 [tool.setuptools.package-data]
-"harness.replay" = ["pricing.json"]
+"harness.replay" = ["pricing.json", "pricing_snapshots/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

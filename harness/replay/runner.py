@@ -58,8 +58,18 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 
-def load_pricing() -> dict:
-    return json.loads((Path(__file__).parent / "pricing.json").read_text())
+def load_pricing(version: str | None = None) -> dict:
+    """Load a dated pricing snapshot. Latest by filename when version=None;
+    pass a version substring (e.g. "2026-08-10-hand") to pin. Snapshots are
+    dated records: old entries are never rewritten, so historical pricing
+    stays reproducible."""
+    snap_dir = Path(__file__).parent / "pricing_snapshots"
+    files = sorted(snap_dir.glob("*.json"))
+    if version:
+        files = [f for f in files if version in f.name]
+    if not files:
+        raise FileNotFoundError(f"no pricing snapshot matching {version!r}")
+    return json.loads(files[-1].read_text())
 
 
 def price_usage(usage: dict, model_id: str, pricing: dict) -> float | None:
@@ -70,15 +80,30 @@ def price_usage(usage: dict, model_id: str, pricing: dict) -> float | None:
     if not p or not usage:
         return None
     m = 1_000_000
-    cost = (usage.get("input_tokens", 0) / m) * p["input"] \
-         + (usage.get("output_tokens", 0) / m) * p["output"] \
-         + (usage.get("cache_read_input_tokens", 0) / m) * p["cache_read"]
-    cc = usage.get("cache_creation") or {}
-    if cc:
-        cost += (cc.get("ephemeral_5m_input_tokens", 0) / m) * p["cache_write_5m"]
-        cost += (cc.get("ephemeral_1h_input_tokens", 0) / m) * p["cache_write_1h"]
-    else:
-        cost += (usage.get("cache_creation_input_tokens", 0) / m) * p["cache_write_1h"]
+
+    def add(tokens, rate):
+        # a bucket with traffic but no rate makes the whole figure unknowable:
+        # unpriced (None), never a partial number that reads as complete
+        if not tokens:
+            return 0.0
+        if rate is None:
+            raise _Unpriced()
+        return (tokens / m) * rate
+
+    class _Unpriced(Exception):
+        pass
+    try:
+        cost = add(usage.get("input_tokens", 0), p.get("input")) \
+             + add(usage.get("output_tokens", 0), p.get("output")) \
+             + add(usage.get("cache_read_input_tokens", 0), p.get("cache_read"))
+        cc = usage.get("cache_creation") or {}
+        if cc:
+            cost += add(cc.get("ephemeral_5m_input_tokens", 0), p.get("cache_write_5m"))
+            cost += add(cc.get("ephemeral_1h_input_tokens", 0), p.get("cache_write_1h"))
+        else:
+            cost += add(usage.get("cache_creation_input_tokens", 0), p.get("cache_write_1h"))
+    except _Unpriced:
+        return None
     return round(cost, 6)
 
 
