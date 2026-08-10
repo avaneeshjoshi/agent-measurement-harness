@@ -45,6 +45,120 @@ from .util import (
 )
 
 
+def build_prompt_units(records: list[dict], session_id: str, git_branch,
+                       salt: str) -> list[dict]:
+    """Prompt units from a codex rollout: user_message events delimit
+    windows; window features come from the events/items between them."""
+    from .util import file_refs, iso_utc, ms_between, path_flags
+
+    idx = [i for i, r in enumerate(records)
+           if r.get("type") == "event_msg"
+           and (r.get("payload") or {}).get("type") == "user_message"]
+    units = []
+    for n, i in enumerate(idx):
+        rec = records[i]
+        end = idx[n + 1] if n + 1 < len(idx) else len(records)
+        window = records[i + 1:end]
+        prev_ts = next((records[j].get("timestamp") for j in range(i - 1, -1, -1)
+                        if records[j].get("timestamp")), None)
+        ts = rec.get("timestamp")
+        gap = ms_between(iso_utc(prev_ts), iso_utc(ts)) if prev_ts and ts else None
+
+        agent_msgs = 0
+        tool_counts: dict[str, int] = {}
+        models = set()
+        interrupted = False
+        active_ms = None
+        files: dict[str, dict] = {}
+        # per-window tokens: sum of last_token_usage deltas is unreliable;
+        # use per-request last_token_usage sums (each token_count is one request)
+        tokens = {"input": 0, "output": 0, "cache_read": 0, "cache_creation": 0}
+        saw_tokens = False
+        last_ts = ts
+        current_model = None
+        # model context can be set by a turn_context BEFORE the user_message
+        for j in range(i, -1, -1):
+            if records[j].get("type") == "turn_context":
+                current_model = (records[j].get("payload") or {}).get("model")
+                break
+        for w in window:
+            if w.get("timestamp"):
+                last_ts = w["timestamp"]
+            p = w.get("payload") or {}
+            wtype = w.get("type")
+            if wtype == "turn_context" and p.get("model"):
+                current_model = p["model"]
+            elif wtype == "event_msg":
+                et = p.get("type")
+                if et == "agent_message":
+                    agent_msgs += 1
+                    if current_model:
+                        models.add(current_model)
+                elif et == "token_count":
+                    last = (p.get("info") or {}).get("last_token_usage") or {}
+                    if last:
+                        saw_tokens = True
+                        raw_in = int(last.get("input_tokens") or 0)
+                        cached = int(last.get("cached_input_tokens") or 0)
+                        tokens["input"] += max(0, raw_in - cached)
+                        tokens["cache_read"] += cached
+                        tokens["cache_creation"] += int(last.get("cache_write_input_tokens") or 0)
+                        tokens["output"] += int(last.get("output_tokens") or 0)
+                elif et == "task_complete":
+                    d = p.get("duration_ms")
+                    if isinstance(d, (int, float)):
+                        active_ms = (active_ms or 0) + int(d)
+                elif et == "turn_aborted":
+                    interrupted = True
+                elif et == "mcp_tool_call_end":
+                    inv = p.get("invocation") or {}
+                    name = f"mcp__{inv.get('server', '?')}__{inv.get('tool', '?')}"
+                    tool_counts[name] = tool_counts.get(name, 0) + 1
+                elif et == "patch_apply_end":
+                    for line in (p.get("stdout") or "").splitlines():
+                        parts = line.split(None, 1)
+                        if len(parts) == 2 and parts[0] in ("A", "M", "D"):
+                            fp = parts[1].strip()
+                            if fp not in files:
+                                entry = {**file_refs(salt, fp), **path_flags(fp)}
+                                entry["is_new_file"] = parts[0] == "A"
+                                files[fp] = entry
+            elif wtype == "response_item":
+                pt = p.get("type")
+                if pt in ("function_call", "custom_tool_call"):
+                    name = p.get("name") or "?"
+                    tool_counts[name] = tool_counts.get(name, 0) + 1
+                elif pt in ("web_search_call", "tool_search_call"):
+                    tool_counts[pt] = tool_counts.get(pt, 0) + 1
+
+        units.append({
+            "schema_version": "0.1.0",
+            "session_id": session_id,
+            "source_tool": "codex",
+            "turn_index": n,
+            "started_at": iso_utc(ts),
+            "window_ended_at": iso_utc(last_ts),
+            "gap_ms_before": gap,
+            "git_branch": git_branch,
+            "prompt_source": None,
+            "origin_kind": None,
+            "window": {
+                "assistant_messages": agent_msgs,
+                "tool_calls": sum(tool_counts.values()),
+                "tool_counts": tool_counts,
+                "interrupted": interrupted,
+                "active_ms": active_ms,
+                "tokens": tokens if saw_tokens else None,
+                "models": sorted(models),
+                "files_edited": list(files.values()),
+                # codex patches are path-level only (ADR-0004): line counts absent
+                "lines_added": None,
+                "lines_removed": None,
+            },
+        })
+    return units
+
+
 class CodexPlugin(SourcePlugin):
     name = "codex"
     log_format = "codex_jsonl"
@@ -239,4 +353,7 @@ class CodexPlugin(SourcePlugin):
 
         for row in content_rows:
             row.update({"source_tool": "codex", "session_id": session_id})
-        return [Emission(record=record, content_rows=content_rows)]
+        units = build_prompt_units(list(self.read(artifact)), session_id,
+                                   git.get("branch"), self.salt)
+        return [Emission(record=record, content_rows=content_rows,
+                         prompt_units=units)]
