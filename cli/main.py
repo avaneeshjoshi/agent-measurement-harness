@@ -300,10 +300,20 @@ def main(argv: list[str] | None = None) -> int:
                               help="Generate the self-contained first-look HTML.")
     p_report.add_argument("--out", default=None)
 
+    p_pricing = sub.add_parser("pricing",
+                               help="Price-sheet management (build-time fetch).")
+    p_pricing.add_argument("action", choices=["update"])
+
     args = parser.parse_args(argv)
-    if args.command not in ("extract", "signals", "replay", "classify", "report"):
+    if args.command not in ("extract", "signals", "replay", "classify",
+                            "report", "pricing"):
         parser.print_help()
         return 1
+
+    if args.command == "pricing":
+        from harness.replay.pricing_update import update
+        update()
+        return 0
 
     if args.command == "report":
         from harness.report.generate import collect
