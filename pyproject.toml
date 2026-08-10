@@ -18,7 +18,7 @@ dev = ["pytest>=7"]
 caliper = "cli.main:main"
 
 [tool.setuptools]
-packages = ["cli", "connectors", "harness", "harness.replay"]
+packages = ["cli", "connectors", "harness", "harness.replay", "harness.classifier"]
 
 [tool.setuptools.package-data]
 "harness.replay" = ["pricing.json"]
