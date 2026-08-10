@@ -97,9 +97,11 @@ _CONFIG_EXT = {"json", "jsonl", "yaml", "yml", "toml", "ini", "cfg", "conf",
                "properties", "env", "lock", "gradle", "xml"}
 _CONFIG_NAMES = {"dockerfile", "makefile", "gemfile", "rakefile", "procfile",
                  ".gitignore", ".gitattributes", ".editorconfig", ".env"}
+# Narrow deliberately: generic dirs like /memory/ or /skills/ appear in
+# ordinary repos (rules-0.1.1 fix — they misflagged product work as
+# agent_meta_work). Only unambiguous agent-tooling paths qualify.
 _AGENT_MARKERS = (".claude/", ".claude\\", "claude.md", ".cursorrules",
-                  ".cursor/", "/skills/", ".mcp.json", "agents.md",
-                  "/memory/", ".codex/")
+                  ".cursor/", ".mcp.json", ".codex/")
 
 
 def path_flags(raw_path: str) -> dict:
