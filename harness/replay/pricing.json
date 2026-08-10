@@ -1,0 +1,12 @@
+{
+  "pricing_version": "2026-08-09",
+  "pricing_source": "Anthropic list prices (platform.claude.com/docs/en/pricing; claude-api skill cache 2026-06-24). Cache: reads 0.1x input, writes 1.25x (5m TTL) / 2.0x (1h TTL).",
+  "currency": "USD_per_million_tokens",
+  "models": {
+    "claude-fable-5":  {"input": 10.0, "output": 50.0, "cache_read": 1.0,  "cache_write_5m": 12.5, "cache_write_1h": 20.0},
+    "claude-opus-5":   {"input": 5.0,  "output": 25.0, "cache_read": 0.5,  "cache_write_5m": 6.25, "cache_write_1h": 10.0},
+    "claude-sonnet-5": {"input": 3.0,  "output": 15.0, "cache_read": 0.3,  "cache_write_5m": 3.75, "cache_write_1h": 6.0},
+    "claude-haiku-4-5": {"input": 1.0, "output": 5.0,  "cache_read": 0.1,  "cache_write_5m": 1.25, "cache_write_1h": 2.0}
+  },
+  "notes": "claude-sonnet-5 has intro pricing $2/$10 through 2026-08-31; sheet carries list price. Per-model cache-write TTL split taken from the CLI's reported usage breakdown when present, else 1h TTL assumed (matches observed Claude Code traffic, ADR-0005 era logs)."
+}

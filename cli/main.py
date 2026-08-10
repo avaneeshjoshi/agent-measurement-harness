@@ -268,10 +268,40 @@ def main(argv: list[str] | None = None) -> int:
     p_signals.add_argument("--repo", action="append", default=[],
                            help="Additional repo path(s) to analyze.")
 
+    p_replay = sub.add_parser("replay",
+                              help="Replay mined tasks across model tiers "
+                                   "(harness/replay).")
+    p_replay.add_argument("action", choices=["mine", "run"])
+    p_replay.add_argument("--repo", default=str(Path.home() / "caliper-eval" / "commons-lang"))
+    p_replay.add_argument("--tasks", default=str(Path.home() / "caliper-eval" / "tasks" / "tasks.jsonl"))
+    p_replay.add_argument("--models", default="claude-fable-5:frontier,claude-haiku-4-5:small",
+                          help="Comma list of model_id:tier pairs.")
+    p_replay.add_argument("--limit", type=int, default=None,
+                          help="Run only the first N tasks (pilot gate).")
+    p_replay.add_argument("--target-n", type=int, default=30)
+    p_replay.add_argument("--out", default=None)
+
     args = parser.parse_args(argv)
-    if args.command not in ("extract", "signals"):
+    if args.command not in ("extract", "signals", "replay"):
         parser.print_help()
         return 1
+
+    if args.command == "replay":
+        from harness.replay import mining, runner
+        repo = Path(args.repo)
+        tasks_path = Path(args.tasks)
+        if args.action == "mine":
+            mining.mine(repo, tasks_path, target_n=args.target_n)
+            return 0
+        tasks = [json.loads(l) for l in tasks_path.read_text().splitlines() if l.strip()]
+        if args.limit:
+            tasks = tasks[:args.limit]
+        models = [tuple(m.split(":")) for m in args.models.split(",")]
+        out = Path(args.out) if args.out else \
+            repo_root() / "data" / "derived" / "replay" / "eval_results.jsonl"
+        runner.run_matrix(tasks, models, repo, Path.home() / "caliper-eval" / "runs", out)
+        print(f"results appended to {out}")
+        return 0
 
     root = repo_root()
     data_dir = Path(args.data_dir) if args.data_dir else root / "data" / "extracted"

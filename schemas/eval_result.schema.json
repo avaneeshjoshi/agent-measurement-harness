@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "caliper:eval_result:0.1.0",
+  "$id": "caliper:eval_result:0.2.0",
   "title": "EvalResult",
-  "description": "One replay cell: a task re-run at (model tier x skill on/off), carrying objective-track results, judged-track results, or both. Judge outputs always carry the calibration statistic they were validated against and whether they cleared the agreement gate — a judged score without its calibration context is not a legal record. Repetition-level results are kept raw; aggregates always carry n and a CI.",
+  "description": "One replay cell: a task re-run at (model tier x skill on/off), carrying objective-track results, judged-track results, or both. Judge outputs always carry the calibration statistic they were validated against and whether they cleared the agreement gate — a judged score without its calibration context is not a legal record. Repetition-level results are kept raw; aggregates always carry n and a CI. 0.2.0 (first real replay run, 2026-08-09): cost gains cache token buckets — ADR-0005 established that cache traffic dominates real agent usage, so input/output alone materially misprices a run — plus cli_reported_cost_usd as a cross-check against the harness's own price-sheet computation.",
   "type": "object",
   "required": [
     "schema_version",
@@ -149,9 +149,12 @@
       "type": ["object", "null"],
       "additionalProperties": false,
       "properties": {
-        "tokens_input": { "type": ["integer", "null"], "minimum": 0 },
+        "tokens_input": { "type": ["integer", "null"], "minimum": 0, "description": "Non-cached input tokens (same bucket semantics as session schema tokens.input)." },
         "tokens_output": { "type": ["integer", "null"], "minimum": 0 },
-        "cost_usd_estimate": { "type": ["number", "null"], "minimum": 0 },
+        "tokens_cache_read": { "type": ["integer", "null"], "minimum": 0, "description": "Added 0.2.0 — cache reads dominate agent traffic (ADR-0005); pricing without them is wrong by orders of magnitude." },
+        "tokens_cache_creation": { "type": ["integer", "null"], "minimum": 0 },
+        "cost_usd_estimate": { "type": ["number", "null"], "minimum": 0, "description": "Computed from the versioned price sheet over ALL four token buckets." },
+        "cli_reported_cost_usd": { "type": ["number", "null"], "minimum": 0, "description": "Cost as reported by the agent harness itself (e.g. claude -p total_cost_usd), kept as a cross-check; divergence from cost_usd_estimate is a price-sheet bug signal." },
         "pricing_source": { "type": ["string", "null"] },
         "pricing_as_of": { "type": ["string", "null"], "format": "date" }
       }

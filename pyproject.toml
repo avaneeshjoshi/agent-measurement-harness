@@ -18,7 +18,10 @@ dev = ["pytest>=7"]
 caliper = "cli.main:main"
 
 [tool.setuptools]
-packages = ["cli", "connectors"]
+packages = ["cli", "connectors", "harness", "harness.replay"]
+
+[tool.setuptools.package-data]
+"harness.replay" = ["pricing.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
