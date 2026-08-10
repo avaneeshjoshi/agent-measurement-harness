@@ -1,0 +1,1 @@
+{"predictions_recorded_at": "2026-08-09", "by": "avaneesh", "pass_rate": {"claude-fable-5": 0.89, "claude-sonnet-5": 0.75, "claude-haiku-4-5": 0.50}, "failure_mode": "haiku breaks mostly on high-churn and multi-file tasks"}
