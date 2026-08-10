@@ -89,6 +89,8 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
             continue
 
         store = SessionStore(data_dir / name)
+        unit_store = SessionStore(data_dir / name, filename="prompt_units.jsonl",
+                                  key=lambda r: f"{r['session_id']}#{r['turn_index']}")
         content_store = ContentStore(data_dir / name) if include_content else None
 
         emissions = []
@@ -117,6 +119,10 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
             outcome = store.upsert(rec)
             src_manifest["records"]["emitted"] += 1
             src_manifest["records"][outcome] += 1
+            for unit in emission.prompt_units:
+                # units ride the session's idempotency: unchanged sessions
+                # were skipped upstream, so any unit reaching here is fresh
+                unit_store._merged[unit_store.key(unit)] = unit
             if content_store and emission.content_rows:
                 content_store.add(emission.content_rows)
 
@@ -128,6 +134,8 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
                 dr["latest_ended_at"] = e
 
         src_manifest["sessions_on_disk"] = store.write()
+        if unit_store._merged:
+            src_manifest["prompt_units_on_disk"] = unit_store.write()
         if content_store:
             src_manifest["content_rows_written"] = content_store.write()
         src_manifest["skipped"] = [asdict(s) for s in plugin.skips]
