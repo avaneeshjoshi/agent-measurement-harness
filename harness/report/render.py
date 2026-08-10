@@ -30,6 +30,9 @@ h1 { font-size:24px; margin:0 0 4px; } h2 { font-size:17px; margin:34px 0 4px; }
 .sub { color:var(--ink2); margin:0; max-width:74ch; }
 .meta { font:12px ui-monospace,Menlo,monospace; color:var(--muted); margin:6px 0 0; }
 .note { font-size:13px; color:var(--ink2); margin:6px 0 10px; max-width:80ch; }
+.hero { display:flex; gap:26px; align-items:baseline; flex-wrap:wrap; margin:18px 0 0; }
+.hero .big { font-size:40px; font-weight:660; letter-spacing:-.01em; }
+.hero .cap { font-size:12.5px; color:var(--ink2); max-width:340px; }
 .banner { background:var(--card); border:1px solid var(--ring); border-left:3px solid var(--acc2);
   border-radius:6px; padding:10px 14px; margin:14px 0 0; font-size:13.5px; color:var(--ink2); }
 .banner b { color:var(--ink); }
@@ -190,6 +193,17 @@ read-only from <code>data/extracted/</code> and <code>data/derived/</code> — p
 no new measurement.</p>
 <p class="meta">generated {H.escape(s['generated_at'])} · {s['n_sessions']} sessions ·
 report {H.escape('first-look-0.1.0')}</p>
+<div class="hero"><div><div class="big">{_fmt(s['headline']['total_cost'], money=True)}</div>
+<div class="cap">total list-price equivalent, {s['headline']['priced_sessions']} priced sessions</div></div>
+<div class="cap"><b>What that number cannot see:</b>
+{s['headline']['unpriced_sessions']} sessions with tokens but no publishable rate
+({s['headline']['unpriced_tokens']:,} tokens — incl. codex-auto-review:
+{s['headline']['autoreview']['sessions']} sessions / {s['headline']['autoreview']['tokens']:,} tokens,
+an internal Codex model with no public price; left unpriced rather than guessed at a
+proxy rate) and {s['headline']['no_token_sessions']} Cursor sessions that log no tokens
+at all — <b>{s['headline']['cursor_share_all']:.0%} of all sessions,
+{s['headline']['cursor_share_organic']:.0%} of organic ones</b>. The total is a floor,
+not a sum.</div></div>
 <div class="banner"><b>These are list-price equivalents, not charges.</b> Priced from the
 versioned snapshot ({H.escape(s['pricing']['as_of'])}) over all four token buckets; on a
 subscription this is what the traffic <i>would</i> have cost at API rates, not what was billed.
@@ -249,7 +263,9 @@ not anyone else's traffic (ADR-0002, ADR-0009).</li>
 strong on exploratory/browser work, blind to intent distinctions. Mix rows inherit
 that uncertainty (ADR-0009).</li>
 <li><b>Cursor records no tokens or turns</b> — its spend is not recorded (not zero),
-and its mix is session-grain only.</li>
+and its mix is session-grain only. That gap is {s['headline']['cursor_share_all']:.0%}
+of all sessions ({s['headline']['cursor_share_organic']:.0%} of organic traffic): a
+structural hole, not a footnote.</li>
 <li><b>Log retention is ~days:</b> sessions before Jul 25 survive only as previously
 extracted records; prompt-grain data for them is gone (ADR-0009).</li>
 <li><b>Survival/rework</b> exclude generated-file skew per-commit medians; young
