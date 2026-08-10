@@ -325,7 +325,16 @@ def main(argv: list[str] | None = None) -> int:
             root_dir / "data" / "extracted" / "report" / "first_look.html"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(html)
-        print(f"first-look report -> {out} ({len(html) / 1024:.0f} KB)")
+        from .style import S, arrow, header, path as spath
+        h = summary["headline"]
+        total = h["total_cost"]
+        unpriced = h["unpriced_sessions"] + h["no_token_sessions"]
+        total_s = S.bold(f"${total:,.2f}")
+        print(header("caliper report", "first look"))
+        print(f"  {S.bgreen('✓')} {summary['n_sessions']} sessions · "
+              f"{total_s} list-equivalent "
+              + S.dim(f"({unpriced} sessions not priced)"))
+        print(f"  {arrow()} {spath(out)} {S.dim(f'({len(html) / 1024:.0f} KB)')}")
         return 0
 
     if args.command == "classify":
@@ -344,11 +353,16 @@ def main(argv: list[str] | None = None) -> int:
             for r in records:
                 fh.write(json.dumps(r) + "\n")
         from collections import Counter
+        from .style import S, arrow, header, path as spath
         by_unit = Counter(r["unit"] for r in records)
         uncls = Counter(r["unit"] for r in records if r["status"] == "unclassified")
-        print(f"{len(records)} task_class records -> {out}")
+        print(header("caliper classify",
+                     f"rules {records[0]['classifier_version'] if records else '—'}"))
         for u, n in sorted(by_unit.items()):
-            print(f"  {u}: {n} ({uncls.get(u, 0)} unclassified)")
+            un = uncls.get(u, 0)
+            share = S.yellow(f"{un} unclassified ({un / n:.0%})") if un else S.dim("0 unclassified")
+            print(f"  {S.bcyan(u.ljust(8))} {S.bold(str(n))} records  {share}")
+        print(f"  {arrow()} {spath(out)}")
         return 0
 
     if args.command == "replay":
@@ -377,18 +391,27 @@ def main(argv: list[str] | None = None) -> int:
         conn = GitHistoryConnector(salt=load_salt(data_dir),
                                    extra_repos=[Path(p) for p in args.repo])
         manifest = signals(data_dir, schema_path, connector=conn)
+        from .style import S, arrow, header, path as spath
+        print(header("caliper signals", f"run {manifest['run_id']}"))
         for ref, m in manifest["repos"].items():
-            print(f"{ref}  commits={m['commits_analyzed']}"
-                  f"  rework_rate={m['rework']['rate']}"
-                  f"  reverted={m['reverted_commits']}"
-                  f"  attribution={m['attribution']}"
-                  f"  tools={','.join(m['tools_referencing'])}")
+            rw = m["rework"]["rate"]
+            rw_s = S.yellow(f"rework {rw:.0%}") if rw else S.dim("rework —")
+            rev = m["reverted_commits"]
+            rev_s = S.red(f"{rev} reverted") if rev else S.dim("0 reverted")
+            a = m["attribution"]
+            attr_s = (f"attr {a.get('known', 0)}k/"
+                      f"{a.get('partial', 0)}p/{a.get('unknown', 0)}u")
+            print(f"  {S.bcyan(ref[:18].ljust(18))} "
+                  f"{S.bold(str(m['commits_analyzed']))} commits  {rw_s}  {rev_s}  "
+                  f"{S.dim(attr_s)}  {S.dim(','.join(m['tools_referencing']))}")
+        print(S.bold("  session → repo joins"))
         for tool, j in manifest["session_join"].items():
-            print(f"join {tool:12s} sessions={j['sessions']}"
-                  f" repo_join={j['repo_join']} ({j['repo_join_rate']})"
-                  f" commit_window={j['commit_in_session_window']}"
-                  f" ({j['commit_window_rate']})")
-        print(f"manifest: {data_dir / 'manifests' / (manifest['run_id'] + '.json')}")
+            rate = j["repo_join_rate"] or 0
+            style = S.green if rate >= 0.8 else (S.yellow if rate >= 0.5 else S.red)
+            cw = f"commit-window {j['commit_window_rate'] or 0:.0%}"
+            print(f"    {S.cyan(tool.ljust(12))} {style(f'{rate:.0%}')} repo "
+                  f"({j['repo_join']}/{j['sessions']})  {S.dim(cw)}")
+        print(f"  {arrow()} manifest {spath(data_dir / 'manifests' / (manifest['run_id'] + '.json'))}")
         return 0
 
     schema_path = root / "schemas" / "session.schema.json"
@@ -407,17 +430,22 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest = extract(sources, data_dir, schema_path, args.include_content)
 
+    from .style import S, arrow, count, header, path as spath
+    print(header("caliper extract", f"run {manifest['run_id']}"))
     for name, m in manifest["sources"].items():
         rng = m["date_range"]
         span = ""
         if rng["earliest_started_at"]:
-            span = f"  [{rng['earliest_started_at'][:10]} .. {(rng['latest_ended_at'] or '')[:10]}]"
-        print(f"{name:12s} artifacts={m['artifacts_read']}/{m['artifacts_discovered']}"
-              f"  emitted={m['records']['emitted']}"
-              f" (new={m['records']['new']} updated={m['records']['updated']}"
-              f" unchanged={m['records']['unchanged']} invalid={m['records']['invalid']})"
-              f"  skipped={len(m['skipped'])}{span}")
-    print(f"manifest: {data_dir / 'manifests' / (manifest['run_id'] + '.json')}")
+            span = S.dim(f"{rng['earliest_started_at'][:10]} → {(rng['latest_ended_at'] or '')[:10]}")
+        r = m["records"]
+        parts = [count(r["new"], "new"), count(r["updated"], "updated"),
+                 count(r["unchanged"], "unchanged"), count(r["invalid"], "invalid"),
+                 count(len(m["skipped"]), "skipped")]
+        arts = f"({m['artifacts_read']}/{m['artifacts_discovered']} artifacts)"
+        print(f"  {S.bcyan(name.ljust(12))} "
+              f"{S.bold(str(r['emitted']))} records {S.dim(arts)} "
+              + "  ".join(parts) + f"  {span}")
+    print(f"  {arrow()} manifest {spath(data_dir / 'manifests' / (manifest['run_id'] + '.json'))}")
     return 0
 
 
