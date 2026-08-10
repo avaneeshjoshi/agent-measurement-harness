@@ -452,7 +452,8 @@ def main(argv: list[str] | None = None) -> int:
             for m in manifest["sources"].values()
             if m["date_range"]["latest_ended_at"]]
     span_all = f"{min(starts)[:10]} → {max(ends)[:10]}" if starts and ends else ""
-    print(f"  {S.bold(str(total_sessions))} sessions · {n_tools} tools"
+    tool_word = "tool" if n_tools == 1 else "tools"
+    print(f"  {S.bold(str(total_sessions))} sessions · {n_tools} {tool_word}"
           + (f" · {S.dim(span_all)}" if span_all else "") + "\n")
     for name, m in manifest["sources"].items():
         r = m["records"]
