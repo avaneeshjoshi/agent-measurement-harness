@@ -34,7 +34,7 @@ Segments are defined by **observable boundaries only — no semantic or content 
 2. **turn_gap** — more than **30 minutes** of wall clock between the last record before T and T.
 3. **branch_change** — `gitBranch` at T differs from the previous prompt turn's.
 4. **file_set_jump** — the files edited in T's response window and those edited so far in the current segment are both non-empty and disjoint **at both the file and top-level-directory level**. (Segmentation is offline; looking ahead into T's window is allowed.)
-5. **interrupt** — the previous response window contained a user interruption (an `interrupted` tool result or an interruption marker record).
+5. **interrupt** — the previous response window contained a user interruption. **0.1.0 as implemented (and as the ADR-0002 calibration reference ran): `interrupted` tool results only.** Interruption *marker records* are captured separately in prompt_unit 0.1.1 and are a candidate segmenter 0.2.0 signal (ADR-0009) — the original text of this rule named both, but the 0.1.0 reference behavior did not split on markers, and version identity follows the data.
 
 Known v0 limitations, recorded rather than patched: `file_set_jump` under-segments repos where one directory holds everything and over-segments scaffolding that touches many new files; `interrupt` may split mid-task corrections that are really the same intent. These are measurement questions for the unit-choice comparison, not bugs to silently tune away.
 
