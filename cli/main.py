@@ -296,10 +296,27 @@ def main(argv: list[str] | None = None) -> int:
     p_classify.add_argument("--data-dir", default=None)
     p_classify.add_argument("--out", default=None)
 
+    p_report = sub.add_parser("report",
+                              help="Generate the self-contained first-look HTML.")
+    p_report.add_argument("--out", default=None)
+
     args = parser.parse_args(argv)
-    if args.command not in ("extract", "signals", "replay", "classify"):
+    if args.command not in ("extract", "signals", "replay", "classify", "report"):
         parser.print_help()
         return 1
+
+    if args.command == "report":
+        from harness.report.generate import collect
+        from harness.report.render import render
+        root_dir = repo_root()
+        summary = collect(root_dir)
+        html = render(summary)
+        out = Path(args.out) if args.out else \
+            root_dir / "data" / "extracted" / "report" / "first_look.html"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(html)
+        print(f"first-look report -> {out} ({len(html) / 1024:.0f} KB)")
+        return 0
 
     if args.command == "classify":
         from jsonschema import Draft202012Validator
