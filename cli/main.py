@@ -289,10 +289,40 @@ def main(argv: list[str] | None = None) -> int:
     p_replay.add_argument("--target-n", type=int, default=30)
     p_replay.add_argument("--out", default=None)
 
+    p_classify = sub.add_parser("classify",
+                                help="Label extracted traffic (harness/classifier).")
+    p_classify.add_argument("--unit", default="all",
+                            choices=["prompt", "segment", "session", "all"])
+    p_classify.add_argument("--data-dir", default=None)
+    p_classify.add_argument("--out", default=None)
+
     args = parser.parse_args(argv)
-    if args.command not in ("extract", "signals", "replay"):
+    if args.command not in ("extract", "signals", "replay", "classify"):
         parser.print_help()
         return 1
+
+    if args.command == "classify":
+        from jsonschema import Draft202012Validator
+        from harness.classifier.classify import classify_all
+        root_dir = repo_root()
+        data_dir = Path(args.data_dir) if args.data_dir else root_dir / "data" / "extracted"
+        units = ("prompt", "segment", "session") if args.unit == "all" else (args.unit,)
+        records = classify_all(data_dir, units)
+        validator = load_validator(root_dir / "schemas" / "task_class.schema.json")
+        for r in records:
+            validator.validate(r)
+        out = Path(args.out) if args.out else root_dir / "data" / "derived" / "classes" / "task_classes.jsonl"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "w") as fh:
+            for r in records:
+                fh.write(json.dumps(r) + "\n")
+        from collections import Counter
+        by_unit = Counter(r["unit"] for r in records)
+        uncls = Counter(r["unit"] for r in records if r["status"] == "unclassified")
+        print(f"{len(records)} task_class records -> {out}")
+        for u, n in sorted(by_unit.items()):
+            print(f"  {u}: {n} ({uncls.get(u, 0)} unclassified)")
+        return 0
 
     if args.command == "replay":
         from harness.replay import mining, runner
