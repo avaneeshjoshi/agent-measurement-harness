@@ -1,65 +1,217 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "caliper:prompt_unit:0.1.0",
+  "$id": "caliper:prompt_unit:0.1.1",
   "title": "PromptUnit",
-  "description": "One user prompt turn plus its response window (conventions.md), as CONTENT-FREE per-unit metadata emitted by connectors. Exists so the classifier can label prompt/segment units without touching raw logs (connectors stay the only source-reading layer) and without any content: no prompt text, no code, no paths in the clear. Turn indices are 0-based ordinals over user prompt turns per conventions.md, EXCLUDING task-notification records (matching the ADR-0002 calibration indexing). File identity is salted-hashed; path-derived booleans (is_test_path etc.) are computed connector-side so raw paths never leave the connector.",
+  "description": "One user prompt turn plus its response window (conventions.md), as CONTENT-FREE per-unit metadata emitted by connectors. Exists so the classifier can label prompt/segment units without touching raw logs (connectors stay the only source-reading layer) and without any content: no prompt text, no code, no paths in the clear. Turn indices are 0-based ordinals over user prompt turns per conventions.md, EXCLUDING task-notification records (matching the ADR-0002 calibration indexing). File identity is salted-hashed; path-derived booleans (is_test_path etc.) are computed connector-side so raw paths never leave the connector. 0.1.1: window.interrupted narrowed to interrupted TOOL RESULTS (plus codex turn_aborted); new window.interrupt_marker carries interruption-marker records separately \u2014 segmenter 0.1.0 splits on the former only, matching the ADR-0002 calibration reference behavior.",
   "type": "object",
-  "required": ["schema_version", "session_id", "source_tool", "turn_index", "started_at", "window"],
+  "required": [
+    "schema_version",
+    "session_id",
+    "source_tool",
+    "turn_index",
+    "started_at",
+    "window"
+  ],
   "additionalProperties": false,
   "properties": {
-    "schema_version": { "type": "string", "pattern": "^0\\.[0-9]+\\.[0-9]+$" },
-    "session_id": { "type": "string" },
-    "source_tool": { "type": "string", "enum": ["claude_code", "cursor", "codex", "other"] },
-    "turn_index": { "type": "integer", "minimum": 0, "description": "0-based over user prompt turns, task-notifications excluded." },
-    "started_at": { "type": "string", "format": "date-time", "description": "Timestamp of the prompt record." },
-    "window_ended_at": { "type": ["string", "null"], "format": "date-time", "description": "Timestamp of the last record in the response window." },
-    "gap_ms_before": { "type": ["integer", "null"], "minimum": 0, "description": "Wall clock from the last record before this prompt to the prompt — the segmenter's turn_gap input." },
-    "git_branch": { "type": ["string", "null"] },
-    "prompt_source": { "type": ["string", "null"], "description": "promptSource where recorded (typed/queued/...); null = unrecorded." },
-    "origin_kind": { "type": ["string", "null"], "description": "origin.kind where recorded (human/automated/...); null = unrecorded." },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^0\\.[0-9]+\\.[0-9]+$"
+    },
+    "session_id": {
+      "type": "string"
+    },
+    "source_tool": {
+      "type": "string",
+      "enum": [
+        "claude_code",
+        "cursor",
+        "codex",
+        "other"
+      ]
+    },
+    "turn_index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "0-based over user prompt turns, task-notifications excluded."
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the prompt record."
+    },
+    "window_ended_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "Timestamp of the last record in the response window."
+    },
+    "gap_ms_before": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "Wall clock from the last record before this prompt to the prompt \u2014 the segmenter's turn_gap input."
+    },
+    "git_branch": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "prompt_source": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "promptSource where recorded (typed/queued/...); null = unrecorded."
+    },
+    "origin_kind": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "origin.kind where recorded (human/automated/...); null = unrecorded."
+    },
     "window": {
       "type": "object",
       "description": "Activity between this prompt and the next prompt turn.",
-      "required": ["assistant_messages", "tool_calls"],
+      "required": [
+        "assistant_messages",
+        "tool_calls"
+      ],
       "additionalProperties": false,
       "properties": {
-        "assistant_messages": { "type": "integer", "minimum": 0 },
-        "tool_calls": { "type": "integer", "minimum": 0 },
-        "tool_counts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 1 }, "description": "Per-tool call counts; MCP prefixes kept." },
-        "interrupted": { "type": "boolean", "description": "Window contained an interrupted tool result or an interruption marker — the segmenter's interrupt input." },
-        "active_ms": { "type": ["integer", "null"], "minimum": 0, "description": "Turn duration where the log records it." },
+        "assistant_messages": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_counts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "Per-tool call counts; MCP prefixes kept."
+        },
+        "interrupted": {
+          "type": "boolean",
+          "description": "Window contained an interrupted tool result (claude) or turn_aborted (codex) \u2014 segmenter 0.1.0's interrupt input."
+        },
+        "active_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Turn duration where the log records it."
+        },
         "tokens": {
-          "type": ["object", "null"],
+          "type": [
+            "object",
+            "null"
+          ],
           "additionalProperties": false,
           "properties": {
-            "input": { "type": "integer", "minimum": 0 },
-            "output": { "type": "integer", "minimum": 0 },
-            "cache_read": { "type": "integer", "minimum": 0 },
-            "cache_creation": { "type": "integer", "minimum": 0 }
+            "input": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "output": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cache_read": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cache_creation": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
-        "models": { "type": "array", "items": { "type": "string" } },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "files_edited": {
           "type": "array",
           "description": "One entry per distinct file edited in the window. Identity is salted-hashed; booleans are derived from the raw path connector-side.",
           "items": {
             "type": "object",
-            "required": ["file_ref", "top_dir_ref"],
+            "required": [
+              "file_ref",
+              "top_dir_ref"
+            ],
             "additionalProperties": false,
             "properties": {
-              "file_ref": { "type": "string" },
-              "top_dir_ref": { "type": "string", "description": "Salted hash of the top-level directory — the segmenter's file_set_jump input." },
-              "extension": { "type": ["string", "null"] },
-              "is_test_path": { "type": "boolean" },
-              "is_docs_path": { "type": "boolean" },
-              "is_config_path": { "type": "boolean" },
-              "is_agent_config_path": { "type": "boolean", "description": "Agent tooling config: .claude/, CLAUDE.md, skills, MCP/settings files." },
-              "is_new_file": { "type": ["boolean", "null"], "description": "Created in this window (Write to a previously absent file); null when the source can't distinguish." }
+              "file_ref": {
+                "type": "string"
+              },
+              "top_dir_ref": {
+                "type": "string",
+                "description": "Salted hash of the top-level directory \u2014 the segmenter's file_set_jump input."
+              },
+              "extension": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "is_test_path": {
+                "type": "boolean"
+              },
+              "is_docs_path": {
+                "type": "boolean"
+              },
+              "is_config_path": {
+                "type": "boolean"
+              },
+              "is_agent_config_path": {
+                "type": "boolean",
+                "description": "Agent tooling config: .claude/, CLAUDE.md, skills, MCP/settings files."
+              },
+              "is_new_file": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Created in this window (Write to a previously absent file); null when the source can't distinguish."
+              }
             }
           }
         },
-        "lines_added": { "type": ["integer", "null"], "minimum": 0 },
-        "lines_removed": { "type": ["integer", "null"], "minimum": 0 }
+        "lines_added": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "lines_removed": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "interrupt_marker": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Window contained an interruption marker record (claude only; null where the source has no such concept). Candidate segmenter 0.2.0 signal; NOT split on in 0.1.0, matching calibration."
+        }
       }
     }
   }
