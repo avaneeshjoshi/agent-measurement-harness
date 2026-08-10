@@ -19,9 +19,16 @@ def build_name_map(data_dir: Path) -> dict[str, str]:
     salt = load_salt(data_dir)
     conn = GitHistoryConnector(salt=salt)
     cands = conn.collect_candidate_paths()
+    _, cwd_to_root = conn.discover_repos()
     names: dict[str, str] = {}
     for cwd in cands:
         ref = project_ref(salt, cwd)
+        if cwd not in cwd_to_root and "caliper-eval" not in cwd:
+            # scratch dirs, one-off folders, home dir: real work locations
+            # but not projects — grouping them stops the project table
+            # filling with directory noise
+            names.setdefault(ref, "scratch / no repo")
+            continue
         if "caliper-eval" in cwd:
             # eval workdir basenames are model ids — collapse the whole
             # harness cohort to one display name or the project list fills
