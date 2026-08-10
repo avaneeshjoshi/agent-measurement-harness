@@ -1,4 +1,4 @@
-"""Ruleset rules-0.1.0 — readable, versioned, each rule with its rationale.
+"""Ruleset rules-0.1.1 — readable, versioned, each rule with its rationale.
 
 Design constraints:
 - Content-free features only (features.py); every emitted record lists them.
@@ -35,6 +35,16 @@ def classify_features(f: dict) -> dict:
     if browser >= MIN_BROWSER_CALLS and browser >= f["tool_calls"] * 0.3:
         return _r("ui_verification_loop", 0.7, "R01-browser-loop",
                   f"{browser} browser-automation calls dominate the window")
+
+    # R01b browser_verification (presence form, rules-0.1.1): the human-label
+    # definition is "editing WITH browser checking" — at prompt grain the
+    # browser calls are diluted among edits, so ANY browser presence in an
+    # edit-bearing window marks the verification loop, at lower confidence.
+    # Windows with zero browser calls labeled ui_verification_loop by humans
+    # remain honest misses: flow context is invisible to single-window metadata.
+    if edits and browser >= 1:
+        return _r("ui_verification_loop", 0.55, "R01b-browser-present-edits",
+                  f"{browser} browser call(s) alongside edits: edit-and-check loop")
 
     # R02 agent_meta: edited files are predominantly agent-tooling config.
     # Rationale (ADR-0001 provisional class): tending the agent itself.
