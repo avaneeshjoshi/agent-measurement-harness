@@ -42,14 +42,40 @@ def header(title: str, sub: str = "") -> str:
     return line
 
 
-def count(n: int, kind: str) -> str:
-    """A colored count that goes quiet when zero."""
+def count(n: int, kind: str) -> str | None:
+    """A colored count. Zero returns None — silence means clean; callers
+    filter Nones so '0 invalid 0 skipped' noise never prints."""
+    if not n:
+        return None
     styles = {"new": S.green, "updated": S.yellow, "unchanged": S.dim,
               "invalid": S.bred, "skipped": S.yellow, "solved": S.bgreen,
               "failed": S.red, "unclassified": S.yellow}
-    style = styles.get(kind, str)
-    label = f"{n} {kind}"
-    return style(label) if n else S.dim(label)
+    return styles.get(kind, str)(f"{n} {kind}")
+
+
+def relpath(p, root) -> str:
+    """Repo-relative (or ~-relative) path — the absolute prefix is never
+    useful on screen."""
+    import os
+    from pathlib import Path
+    p, root = Path(p), Path(root)
+    try:
+        return str(p.relative_to(root))
+    except ValueError:
+        home = Path.home()
+        try:
+            return "~/" + str(p.relative_to(home))
+        except ValueError:
+            return str(p)
+
+
+def block(label: str, first: str, *rest: str, pad: int = 13) -> str:
+    """Claude-Code-style stacked block: label on the first line, continuation
+    lines indented to align under the first value column."""
+    lines = [f"  {S.bcyan(label.ljust(pad))} {first}"]
+    indent = " " * (pad + 3)
+    lines += [f"{indent}{r}" for r in rest if r]
+    return "\n".join(lines)
 
 
 def kv(key: str, value: str, pad: int = 14) -> str:
