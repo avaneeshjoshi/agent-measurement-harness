@@ -13,8 +13,13 @@ def test_dated_model_ids_price_against_undated_sheet_keys():
     tok = {"input": 1_000_000, "output": 0, "cache_read": 0, "cache_creation": 0}
     assert _price(tok, ["claude-haiku-4-5-20251001"], pricing) == 1.0
     assert _price(tok, ["claude-sonnet-4-5-20250929"], pricing) == 3.0
-    # unknown vendors stay unpriced — never guessed
-    assert _price(tok, ["gpt-5.6-sol"], pricing) is None
+    # OpenAI models price from the LiteLLM snapshot
+    assert _price(tok, ["gpt-5.6-sol"], pricing) == 5.0
+    # models absent from every sheet stay unpriced — never guessed
+    assert _price(tok, ["codex-auto-review"], pricing) is None
+    # traffic in a bucket with no published rate -> whole session unpriced
+    cw = {"input": 0, "output": 0, "cache_read": 0, "cache_creation": 1_000_000}
+    assert _price(cw, ["gpt-5.5"], pricing) is None
     assert _price(tok, ["<synthetic>", "claude-fable-5"], pricing) == 10.0
 
 
