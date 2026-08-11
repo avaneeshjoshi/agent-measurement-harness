@@ -30,9 +30,52 @@ class _S:
         self.bgreen = code("1;32")
         self.byellow = code("1;33")
         self.bred = code("1;31")
+        # violet accent (256-color); the interactive/identity color
+        self.accent = code("38;5;105")
+        self.baccent = code("1;38;5;105")
 
 
 S = _S()
+
+# geometric bullets: filled hex = a completed step, hollow hex = a child item
+DONE = "⬢"
+ITEM = "⬡"
+
+
+def visible_len(s: str) -> int:
+    """Display width ignoring ANSI escapes."""
+    import re
+    return len(re.sub(r"\033\[[0-9;]*m", "", s))
+
+
+def sep(*parts) -> str:
+    """Join non-empty parts with a dim middle dot, reference-style."""
+    dot = S.dim(" · ")
+    return dot.join(str(p) for p in parts if p)
+
+
+def box(*lines: str, pad: int = 1) -> str:
+    """Bordered panel like the reference's title/prompt boxes."""
+    width = max((visible_len(l) for l in lines), default=0) + pad * 2
+    top = S.dim("┌" + "─" * width + "┐")
+    bot = S.dim("└" + "─" * width + "┘")
+    body = []
+    for l in lines:
+        fill = " " * (width - pad - visible_len(l) - pad)
+        body.append(S.dim("│") + " " * pad + l + fill + " " * pad + S.dim("│"))
+    return "\n".join([top, *body, bot])
+
+
+def step(text: str) -> str:
+    """A completed top-level step: filled hex + text."""
+    return f"{DONE} {text}"
+
+
+def child(name: str, *details) -> str:
+    """An indented child line: accent hollow hex, bold name, dim details."""
+    tail = sep(*details)
+    line = f"  {S.accent(ITEM)} {S.bold(name)}"
+    return f"{line}{S.dim(' · ') + tail if tail else ''}"
 
 
 def header(title: str, sub: str = "") -> str:
