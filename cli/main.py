@@ -366,12 +366,13 @@ def main(argv: list[str] | None = None) -> int:
                       S.dim(f"rules {rules_v}"))))
         print()
         print(step("Classified 3 unit grains"))
+        print()
         for u, n in sorted(by_unit.items()):
             un = uncls.get(u, 0)
             share = (S.yellow(f"{un} unclassified ({un / n:.0%})") if un
                      else S.dim("0 unclassified"))
             print(child(u, f"{n} records", share))
-        print()
+            print()
         print(S.dim(f"→ {relpath(out, root_dir)}"))
         return 0
 
@@ -400,14 +401,16 @@ def main(argv: list[str] | None = None) -> int:
         schema_path = root / "schemas" / "production_signal.schema.json"
         conn = GitHistoryConnector(salt=load_salt(data_dir),
                                    extra_repos=[Path(p) for p in args.repo])
-        manifest = signals(data_dir, schema_path, connector=conn)
-        from .style import S, box, child, relpath, sep, step
+        from .style import S, box, child, relpath, sep, spinner, step
+        with spinner("Analyzing repos (blame is slow on big files)"):
+            manifest = signals(data_dir, schema_path, connector=conn)
         n_commits = sum(m["commits_analyzed"] for m in manifest["repos"].values())
         print(box(S.bold("caliper signals"),
                   sep(f"{S.bold(str(n_commits))} commits",
                       f"{len(manifest['repos'])} repos")))
         print()
         print(step(f"Analyzed {len(manifest['repos'])} repos"))
+        print()
         for ref, m in manifest["repos"].items():
             rw = m["rework"]["rate"]
             details = [f"{m['commits_analyzed']} commits"]
@@ -419,16 +422,17 @@ def main(argv: list[str] | None = None) -> int:
             details.append(S.dim(f"attr {a.get('known', 0)}k/"
                                  f"{a.get('partial', 0)}p/{a.get('unknown', 0)}u"))
             print(child(ref[:13], *details))
-        print()
+            print()
         print(step("Joined sessions to repos"))
+        print()
         for tool, j in manifest["session_join"].items():
             rate = j["repo_join_rate"] or 0
             style = S.green if rate >= 0.8 else (S.yellow if rate >= 0.5 else S.red)
             cw = S.dim(f"commit-window {j['commit_window_rate'] or 0:.0%}")
             print(child(tool, style(f"{rate:.0%} repo"),
                         f"{j['repo_join']}/{j['sessions']}", cw))
+            print()
         mpath = relpath(data_dir / "manifests" / (manifest["run_id"] + ".json"), root)
-        print()
         print(S.dim(f"→ {mpath}"))
         return 0
 
@@ -446,9 +450,10 @@ def main(argv: list[str] | None = None) -> int:
     else:
         sources = list(PLUGINS)
 
-    manifest = extract(sources, data_dir, schema_path, args.include_content)
+    from .style import S, box, child, count, relpath, sep, spinner, step
+    with spinner(f"Extracting {', '.join(sources)}"):
+        manifest = extract(sources, data_dir, schema_path, args.include_content)
 
-    from .style import S, box, child, count, relpath, sep, step
     total_sessions = sum(m.get("sessions_on_disk", 0)
                          for m in manifest["sources"].values())
     n_tools = sum(1 for m in manifest["sources"].values()
@@ -466,6 +471,7 @@ def main(argv: list[str] | None = None) -> int:
                   f"{n_tools} {tool_word}", S.dim(span_all))))
     print()
     print(step(f"Extracted {n_tools} {tool_word}"))
+    print()
     for name, m in manifest["sources"].items():
         r = m["records"]
         changes = [c for c in (count(r["new"], "new"),
@@ -478,8 +484,8 @@ def main(argv: list[str] | None = None) -> int:
                 f"{(rng['latest_ended_at'] or '')[:10]}"
                 if rng["earliest_started_at"] else "")
         print(child(name, f"{r['emitted']} records", change_s, S.dim(span)))
+        print()
     mpath = relpath(data_dir / "manifests" / (manifest["run_id"] + ".json"), root)
-    print()
     print(S.dim(f"→ {mpath}"))
     return 0
 
