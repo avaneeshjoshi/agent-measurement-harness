@@ -78,6 +78,42 @@ def child(name: str, *details) -> str:
     return f"{line}{S.dim(' · ') + tail if tail else ''}"
 
 
+import contextlib
+import threading
+import time
+
+
+@contextlib.contextmanager
+def spinner(text: str):
+    """Hex-pulse activity indicator (⬡→⬢) while a slow step runs. TTY-only:
+    piped output sees nothing. The line is cleared on exit so the completed
+    ⬢ step line replaces it."""
+    if not _enabled():
+        yield
+        return
+    stop = threading.Event()
+
+    def run():
+        i = 0
+        frames = (ITEM, DONE)
+        while not stop.is_set():
+            f = S.accent(frames[i % 2])
+            sys.stdout.write(f"\r{f} {S.dim(text)}")
+            sys.stdout.flush()
+            stop.wait(0.4)
+            i += 1
+
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        t.join(timeout=1)
+        sys.stdout.write("\r\033[2K")
+        sys.stdout.flush()
+
+
 def count(n: int, kind: str) -> str | None:
     """A colored count. Zero returns None — silence means clean; callers
     filter Nones so '0 invalid 0 skipped' noise never prints."""
