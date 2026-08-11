@@ -325,17 +325,20 @@ def main(argv: list[str] | None = None) -> int:
             root_dir / "data" / "extracted" / "report" / "first_look.html"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(html)
-        from .style import S, arrow, header, relpath
+        from .style import S, box, relpath, sep, step
         h = summary["headline"]
         total = h["total_cost"]
         unpriced = h["unpriced_sessions"] + h["no_token_sessions"]
         total_s = S.bold(f"${total:,.2f}")
-        print(header("caliper report", "first look"))
-        print(f"  {S.bgreen('✓')} {summary['n_sessions']} sessions · "
-              f"{total_s} list-equivalent "
-              + S.dim(f"({unpriced} sessions not priced)"))
-        rp = relpath(out, root_dir)
-        print(f"  {arrow()} {S.dim(rp)} {S.dim(f'({len(html) / 1024:.0f} KB)')}")
+        print(box(S.bold("caliper report"),
+                  sep(f"{summary['n_sessions']} sessions",
+                      f"{total_s} list-equivalent",
+                      S.dim(f"{unpriced} not priced"))))
+        print()
+        kb = f"{len(html) / 1024:.0f} KB"
+        print(step(sep("Wrote first-look report", S.dim(kb))))
+        print()
+        print(S.dim(f"→ {relpath(out, root_dir)}"))
         return 0
 
     if args.command == "classify":
@@ -354,16 +357,22 @@ def main(argv: list[str] | None = None) -> int:
             for r in records:
                 fh.write(json.dumps(r) + "\n")
         from collections import Counter
-        from .style import S, arrow, header, relpath
+        from .style import S, box, child, relpath, sep, step
         by_unit = Counter(r["unit"] for r in records)
         uncls = Counter(r["unit"] for r in records if r["status"] == "unclassified")
-        print(header("caliper classify",
-                     f"rules {records[0]['classifier_version'] if records else '—'}"))
+        rules_v = records[0]["classifier_version"] if records else "—"
+        print(box(S.bold("caliper classify"),
+                  sep(f"{S.bold(str(len(records)))} records",
+                      S.dim(f"rules {rules_v}"))))
+        print()
+        print(step("Classified 3 unit grains"))
         for u, n in sorted(by_unit.items()):
             un = uncls.get(u, 0)
-            share = S.yellow(f"{un} unclassified ({un / n:.0%})") if un else S.dim("0 unclassified")
-            print(f"  {S.bcyan(u.ljust(8))} {S.bold(str(n))} records  {share}")
-        print(f"  {arrow()} {S.dim(relpath(out, root_dir))}")
+            share = (S.yellow(f"{un} unclassified ({un / n:.0%})") if un
+                     else S.dim("0 unclassified"))
+            print(child(u, f"{n} records", share))
+        print()
+        print(S.dim(f"→ {relpath(out, root_dir)}"))
         return 0
 
     if args.command == "replay":
@@ -392,14 +401,16 @@ def main(argv: list[str] | None = None) -> int:
         conn = GitHistoryConnector(salt=load_salt(data_dir),
                                    extra_repos=[Path(p) for p in args.repo])
         manifest = signals(data_dir, schema_path, connector=conn)
-        from .style import S, arrow, block, header, relpath
-        print(header("caliper signals", f"run {manifest['run_id']}"))
+        from .style import S, box, child, relpath, sep, step
         n_commits = sum(m["commits_analyzed"] for m in manifest["repos"].values())
-        print(f"  {S.bold(str(n_commits))} commits · "
-              f"{len(manifest['repos'])} repos\n")
+        print(box(S.bold("caliper signals"),
+                  sep(f"{S.bold(str(n_commits))} commits",
+                      f"{len(manifest['repos'])} repos")))
+        print()
+        print(step(f"Analyzed {len(manifest['repos'])} repos"))
         for ref, m in manifest["repos"].items():
             rw = m["rework"]["rate"]
-            details = []
+            details = [f"{m['commits_analyzed']} commits"]
             if rw:
                 details.append(S.yellow(f"rework {rw:.0%}"))
             if m["reverted_commits"]:
@@ -407,20 +418,18 @@ def main(argv: list[str] | None = None) -> int:
             a = m["attribution"]
             details.append(S.dim(f"attr {a.get('known', 0)}k/"
                                  f"{a.get('partial', 0)}p/{a.get('unknown', 0)}u"))
-            print(block(ref[:13],
-                        S.bold(str(m["commits_analyzed"])) + " commits",
-                        " · ".join(details),
-                        S.dim(", ".join(m["tools_referencing"]))))
-            print()
-        print(S.bold("  session → repo joins"))
+            print(child(ref[:13], *details))
+        print()
+        print(step("Joined sessions to repos"))
         for tool, j in manifest["session_join"].items():
             rate = j["repo_join_rate"] or 0
             style = S.green if rate >= 0.8 else (S.yellow if rate >= 0.5 else S.red)
-            cw = f"commit-window {j['commit_window_rate'] or 0:.0%}"
-            print(f"    {S.cyan(tool.ljust(12))} {style(f'{rate:.0%}')} repo "
-                  f"({j['repo_join']}/{j['sessions']}) · {S.dim(cw)}")
+            cw = S.dim(f"commit-window {j['commit_window_rate'] or 0:.0%}")
+            print(child(tool, style(f"{rate:.0%} repo"),
+                        f"{j['repo_join']}/{j['sessions']}", cw))
         mpath = relpath(data_dir / "manifests" / (manifest["run_id"] + ".json"), root)
-        print(f"  {arrow()} {S.dim(mpath)}")
+        print()
+        print(S.dim(f"→ {mpath}"))
         return 0
 
     schema_path = root / "schemas" / "session.schema.json"
@@ -439,8 +448,7 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest = extract(sources, data_dir, schema_path, args.include_content)
 
-    from .style import S, arrow, block, count, header, relpath
-    print(header("caliper extract", f"run {manifest['run_id']}"))
+    from .style import S, box, child, count, relpath, sep, step
     total_sessions = sum(m.get("sessions_on_disk", 0)
                          for m in manifest["sources"].values())
     n_tools = sum(1 for m in manifest["sources"].values()
@@ -453,30 +461,26 @@ def main(argv: list[str] | None = None) -> int:
             if m["date_range"]["latest_ended_at"]]
     span_all = f"{min(starts)[:10]} → {max(ends)[:10]}" if starts and ends else ""
     tool_word = "tool" if n_tools == 1 else "tools"
-    print(f"  {S.bold(str(total_sessions))} sessions · {n_tools} {tool_word}"
-          + (f" · {S.dim(span_all)}" if span_all else "") + "\n")
+    print(box(S.bold("caliper extract"),
+              sep(f"{S.bold(str(total_sessions))} sessions",
+                  f"{n_tools} {tool_word}", S.dim(span_all))))
+    print()
+    print(step(f"Extracted {n_tools} {tool_word}"))
     for name, m in manifest["sources"].items():
         r = m["records"]
         changes = [c for c in (count(r["new"], "new"),
                                count(r["updated"], "updated"),
                                count(r["invalid"], "invalid"),
                                count(len(m["skipped"]), "skipped")) if c]
-        if changes:
-            changes.append(S.dim(f"{r['unchanged']} unchanged"))
-            change_line = " · ".join(changes)
-        else:
-            change_line = S.dim("all unchanged")
+        change_s = " · ".join(changes) if changes else S.dim("all unchanged")
         rng = m["date_range"]
-        span = (S.dim(f"{rng['earliest_started_at'][:10]} → "
-                      f"{(rng['latest_ended_at'] or '')[:10]}")
+        span = (f"{rng['earliest_started_at'][:10]} → "
+                f"{(rng['latest_ended_at'] or '')[:10]}"
                 if rng["earliest_started_at"] else "")
-        print(block(name,
-                    f"{S.bold(str(r['emitted']))} records · "
-                    + S.dim(f"{m['artifacts_read']} artifacts"),
-                    change_line, span))
-        print()
+        print(child(name, f"{r['emitted']} records", change_s, S.dim(span)))
     mpath = relpath(data_dir / "manifests" / (manifest["run_id"] + ".json"), root)
-    print(f"  {arrow()} {S.dim(mpath)}")
+    print()
+    print(S.dim(f"→ {mpath}"))
     return 0
 
 
