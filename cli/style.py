@@ -103,7 +103,3 @@ def relpath(p, root) -> str:
             return "~/" + str(p.relative_to(home))
         except ValueError:
             return str(p)
-
-
-def rule(width: int = 56) -> str:
-    return S.dim("─" * width)
