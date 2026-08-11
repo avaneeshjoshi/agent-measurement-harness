@@ -78,13 +78,6 @@ def child(name: str, *details) -> str:
     return f"{line}{S.dim(' · ') + tail if tail else ''}"
 
 
-def header(title: str, sub: str = "") -> str:
-    line = S.bold(f"◆ {title}")
-    if sub:
-        line += "  " + S.dim(sub)
-    return line
-
-
 def count(n: int, kind: str) -> str | None:
     """A colored count. Zero returns None — silence means clean; callers
     filter Nones so '0 invalid 0 skipped' noise never prints."""
@@ -110,27 +103,6 @@ def relpath(p, root) -> str:
             return "~/" + str(p.relative_to(home))
         except ValueError:
             return str(p)
-
-
-def block(label: str, first: str, *rest: str, pad: int = 13) -> str:
-    """Claude-Code-style stacked block: label on the first line, continuation
-    lines indented to align under the first value column."""
-    lines = [f"  {S.bcyan(label.ljust(pad))} {first}"]
-    indent = " " * (pad + 3)
-    lines += [f"{indent}{r}" for r in rest if r]
-    return "\n".join(lines)
-
-
-def kv(key: str, value: str, pad: int = 14) -> str:
-    return f"  {S.dim(key.ljust(pad))} {value}"
-
-
-def path(p) -> str:
-    return S.dim(str(p))
-
-
-def arrow() -> str:
-    return S.dim("→")
 
 
 def rule(width: int = 56) -> str:
