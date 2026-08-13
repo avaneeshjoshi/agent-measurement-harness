@@ -307,6 +307,8 @@ def main(argv: list[str] | None = None) -> int:
     p_policy = sub.add_parser("policy",
                               help="Review the routing policy against your "
                                    "traffic and decide on it.")
+    p_policy.add_argument("action", nargs="?", choices=["apply"],
+                          help="'apply' accepts the policy without the review flow")
     grp = p_policy.add_mutually_exclusive_group()
     grp.add_argument("--yes", action="store_true", help="apply without asking")
     grp.add_argument("--no", action="store_true", help="decline without asking")
@@ -314,7 +316,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "policy":
         from .policy_flow import run_policy_flow
-        return run_policy_flow(repo_root(), yes=args.yes, no=args.no)
+        apply_now = args.yes or args.action == "apply"
+        return run_policy_flow(repo_root(), yes=apply_now, no=args.no)
 
     if args.command not in ("extract", "signals", "replay", "classify",
                             "report", "pricing", "policy"):
