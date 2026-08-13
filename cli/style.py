@@ -132,6 +132,21 @@ def child(name: str, *details) -> str:
     return f"{line}{S.dim(' · ') + tail if tail else ''}"
 
 
+_EIGHTHS = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"]
+
+
+def bar(frac: float, width: int = 24, color=None) -> str:
+    """Horizontal bar with eighth-block precision on a dim track."""
+    frac = max(0.0, min(1.0, frac))
+    cells = frac * width
+    full = int(cells)
+    eighth = int((cells - full) * 8)
+    fill = "█" * full + _EIGHTHS[eighth]
+    paint = color or S.accent
+    track = S.dim("░" * (width - full - (1 if eighth else 0)))
+    return paint(fill) + track
+
+
 import contextlib
 import threading
 import time
