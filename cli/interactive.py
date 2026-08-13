@@ -23,24 +23,27 @@ def _apply_key(key: str, idx: int, n: int) -> tuple[int, bool | None]:
     return idx, None
 
 
-def _read_key(stdin) -> str:
+def _read_key(fd: int) -> str:
+    """Read one keypress from the RAW fd. Never sys.stdin here: its buffer
+    eats the '[A' tail of an arrow's escape sequence where select() can't
+    see it, which turns every arrow into a bare ESC."""
+    import os
     import select as _select
-    ch = stdin.read(1)
-    if ch in ("\r", "\n"):
+    ch = os.read(fd, 1)
+    if ch in (b"\r", b"\n"):
         return "enter"
-    if ch == "\x03":
+    if ch == b"\x03":
         raise KeyboardInterrupt
-    if ch == "\x1b":
-        # arrow keys arrive as ESC [ A/B; a bare ESC has no follow-up bytes
-        r, _, _ = _select.select([stdin], [], [], 0.05)
+    if ch == b"\x1b":
+        r, _, _ = _select.select([fd], [], [], 0.05)
         if not r:
             return "esc"
-        seq = stdin.read(1)
-        if seq == "[":
-            final = stdin.read(1)
-            return {"A": "up", "B": "down"}.get(final, "")
+        seq = os.read(fd, 1)
+        if seq == b"[":
+            final = os.read(fd, 1)
+            return {b"A": "up", b"B": "down"}.get(final, "")
         return ""
-    return ch.lower()
+    return ch.decode(errors="ignore").lower()
 
 
 def _render(title: str, prompt: str, options: list[str], idx: int) -> str:
@@ -72,7 +75,7 @@ def choose(title: str, prompt: str, options: list[str], default: int = 0) -> int
     try:
         tty.setcbreak(fd)
         while True:
-            key = _read_key(sys.stdin)
+            key = _read_key(fd)
             if key == "esc":
                 idx = len(options) - 1
                 break
