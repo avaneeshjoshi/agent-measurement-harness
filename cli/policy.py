@@ -77,7 +77,38 @@ def analyze(repo_root: Path) -> dict | None:
 
     curve = {p["model_tier"]: p for p in policy["evidence"]["quality_curve"]
              if p["metric"].endswith("full_run_n1")}
+
+    # per-tier detail straight from the eval records (full 90-run grid)
+    eval_path = repo_root / "data" / "derived" / "replay" / "eval_results.jsonl"
+    tiers: dict[str, dict] = {}
+    if eval_path.exists():
+        for line in eval_path.read_text().splitlines():
+            r = json.loads(line)
+            t = r["cell"]["model_tier"]
+            d = tiers.setdefault(t, {"model": r["cell"]["model_id"], "n": 0,
+                                     "solved": 0, "cost": 0.0, "turns": [],
+                                     "wall_s": 0.0})
+            run = r["tracks"]["objective"]["runs"][0]
+            d["n"] += 1
+            d["solved"] += int(r["tracks"]["objective"]["aggregate"]["value"])
+            d["cost"] += r["cost"]["cost_usd_estimate"] or 0
+            if run.get("turns") is not None:
+                d["turns"].append(run["turns"])
+            d["wall_s"] += run.get("wall_seconds") or 0
+    for t, d in tiers.items():
+        d["mean_turns"] = (sum(d["turns"]) / len(d["turns"])) if d["turns"] else None
+        d.pop("turns")
+        # ADR-0007 postscript: sonnet-5 restated at billed intro rate (x 2/3)
+        if d["model"] == "claude-sonnet-5":
+            d["cost_billed"] = d["cost"] * 2 / 3
+            d["restated"] = True
+        else:
+            d["cost_billed"] = d["cost"]
+            d["restated"] = False
+        d["per_solve"] = d["cost_billed"] / d["solved"] if d["solved"] else None
+
     return {
+        "tiers": tiers,
         "policy": policy,
         "n_sessions": len(sessions),
         "in_scope": len(in_scope_ids),
