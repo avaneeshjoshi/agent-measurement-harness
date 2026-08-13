@@ -304,6 +304,13 @@ def main(argv: list[str] | None = None) -> int:
                                help="Price-sheet management (build-time fetch).")
     p_pricing.add_argument("action", choices=["update"])
 
+    p_setup = sub.add_parser("setup", help="First-run setup: trust screen, "
+                                            "backfill, first look.")
+    p_setup.add_argument("--full", action="store_true",
+                         help="full backfill without asking (incl. git signals)")
+    p_setup.add_argument("--quick", action="store_true",
+                         help="quick backfill without asking (sessions only)")
+
     p_policy = sub.add_parser("policy",
                               help="Review the routing policy against your "
                                    "traffic and decide on it.")
@@ -314,13 +321,18 @@ def main(argv: list[str] | None = None) -> int:
     grp.add_argument("--no", action="store_true", help="decline without asking")
 
     args = parser.parse_args(argv)
+    if args.command == "setup":
+        from .setup_flow import run_setup
+        mode = "full" if args.full else ("quick" if args.quick else None)
+        return run_setup(repo_root(), mode=mode)
+
     if args.command == "policy":
         from .policy_flow import run_policy_flow
         apply_now = args.yes or args.action == "apply"
         return run_policy_flow(repo_root(), yes=apply_now, no=args.no)
 
     if args.command not in ("extract", "signals", "replay", "classify",
-                            "report", "pricing", "policy"):
+                            "report", "pricing", "policy", "setup"):
         parser.print_help()
         return 1
 
@@ -465,8 +477,21 @@ def main(argv: list[str] | None = None) -> int:
         sources = list(PLUGINS)
 
     from .style import S, box, child, count, relpath, sep, spinner, step
-    with spinner(f"Extracting {', '.join(sources)}"):
-        manifest = extract(sources, data_dir, schema_path, args.include_content)
+    manifest = {"run_id": None, "sources": {}}
+    for src_name in sources:
+        with spinner(f"Extracting {src_name}"):
+            m = extract([src_name], data_dir, schema_path, args.include_content)
+        manifest["run_id"] = m["run_id"]
+        manifest["sources"].update(m["sources"])
+        sm = m["sources"][src_name]
+        r = sm["records"]
+        changes = [c for c in (count(r["new"], "new"),
+                               count(r["updated"], "updated"),
+                               count(r["invalid"], "invalid"),
+                               count(len(sm["skipped"]), "skipped")) if c]
+        change_s = " · ".join(changes) if changes else S.dim("all unchanged")
+        print(child(src_name, f"{r['emitted']} records", change_s))
+        print()
 
     total_sessions = sum(m.get("sessions_on_disk", 0)
                          for m in manifest["sources"].values())
@@ -480,27 +505,14 @@ def main(argv: list[str] | None = None) -> int:
             if m["date_range"]["latest_ended_at"]]
     span_all = f"{min(starts)[:10]} → {max(ends)[:10]}" if starts and ends else ""
     tool_word = "tool" if n_tools == 1 else "tools"
-    print(box(S.bold("caliper extract"),
-              sep(f"{S.bold(str(total_sessions))} sessions",
-                  f"{n_tools} {tool_word}", S.dim(span_all))))
+    print(step(sep(f"Extracted {S.bold(str(total_sessions))} sessions",
+                   f"{n_tools} {tool_word}", S.dim(span_all))))
     print()
-    print(step(f"Extracted {n_tools} {tool_word}"))
-    print()
-    for name, m in manifest["sources"].items():
-        r = m["records"]
-        changes = [c for c in (count(r["new"], "new"),
-                               count(r["updated"], "updated"),
-                               count(r["invalid"], "invalid"),
-                               count(len(m["skipped"]), "skipped")) if c]
-        change_s = " · ".join(changes) if changes else S.dim("all unchanged")
-        rng = m["date_range"]
-        span = (f"{rng['earliest_started_at'][:10]} → "
-                f"{(rng['latest_ended_at'] or '')[:10]}"
-                if rng["earliest_started_at"] else "")
-        print(child(name, f"{r['emitted']} records", change_s, S.dim(span)))
-        print()
     mpath = relpath(data_dir / "manifests" / (manifest["run_id"] + ".json"), root)
     print(S.dim(f"→ {mpath}"))
+    print()
+    from .policy_nudge import policy_nudge
+    policy_nudge(root)
     return 0
 
 
