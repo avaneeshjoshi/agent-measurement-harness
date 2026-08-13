@@ -41,7 +41,6 @@ def _stage(label, fn):
 
 def run_setup(repo_root: Path, mode: str | None = None) -> int:
     from .main import extract as run_extract, signals as run_signals
-    from .policy_nudge import policy_nudge
 
     data_dir = repo_root / "data" / "extracted"
     already = (data_dir / "claude_code" / "sessions.jsonl").exists() or \
@@ -137,5 +136,57 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
     print()
     print(S.dim(f"    open it: {report_path}"))
     print()
+
+    _highlights(summary)
+    from .policy_nudge import policy_nudge
     policy_nudge(repo_root)
     return 0
+
+
+def _highlights(summary: dict) -> None:
+    """The headline cuts, on screen — the first look is the detail view."""
+    from .policy_flow import DASHBOARD_URL, _chart
+
+    print(step("Where the spend went"))
+    print()
+    by_tool = summary["spend"]["by_tool"]
+    costs = {t: d.get("cost_x1000", 0) / 1000 for t, d in by_tool.items()}
+    peak = max(costs.values()) or 1
+    rows = []
+    for tool, d in by_tool.items():
+        c = costs[tool]
+        if c:
+            right = sep(S.bold(f"${c:,.2f}"), S.dim(f"{d['sessions']} sessions"))
+        else:
+            right = sep(S.dim("not recorded"),
+                        S.dim(f"{d.get('sessions_no_tokens', 0)} sessions without tokens"))
+        rows.append((tool, c / peak, S.accent, right))
+    print(_chart(rows))
+    print()
+
+    counts: dict[str, int] = {}
+    for cohort, mix in summary["mix"]["session"].items():
+        if cohort.endswith("/organic"):
+            for task, n in mix.items():
+                counts[task] = counts.get(task, 0) + n
+    total = sum(counts.values())
+    if total:
+        print(step("What the work was " + S.dim("· organic sessions · content-free classifier")))
+        print()
+        top = sorted(counts.items(), key=lambda kv: -kv[1])[:3]
+        rows = [(task.replace("_", " "), n / total, S.cyan,
+                 sep(S.bold(f"{n / total:.0%}"), S.dim(f"{n} sessions")))
+                for task, n in top]
+        print(_chart(rows))
+        print()
+
+    auto = sum(summary["auto_mix"].get("automated", {}).values())
+    if auto:
+        print(S.dim(f"    {auto} sessions look automated (CI-launched) — "
+                    "they answer different questions than human traffic"))
+        print()
+    preview = S.yellow("(preview — dashboard not live yet)")
+    print(S.dim(f"→ deeper cuts — per-repo spend, rework rates, the full mix: "
+                f"{DASHBOARD_URL} ") + preview)
+    print(S.dim("    your first look above is that dashboard's first card"))
+    print()
