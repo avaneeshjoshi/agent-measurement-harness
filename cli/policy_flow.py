@@ -1,14 +1,30 @@
-"""The policy conversation: scan verdict → policy evidence → dashboard tease
-→ the apply question. Reference-styled (boxed question, hex bullets)."""
+"""The policy conversation: scan verdict → charts and per-tier stats → the
+apply question. All numbers come from records on disk; the dashboard link
+and apply engine are labeled stubs."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from .policy import analyze, record_decision
-from .style import S, box, child, sep, spinner, step
+from .style import S, bar, box, sep, spinner, step
 
 DASHBOARD_URL = "https://caliper.dev/dashboard"
+TIER_COLOR = {}  # populated lazily from S
+
+
+def _tier_colors():
+    return {"frontier": S.cyan, "mid": S.accent, "small": S.yellow}
+
+
+def _chart(rows, width: int = 22):
+    """rows: (label, frac, color, right_text). Aligned bar block."""
+    label_w = max(len(r[0]) for r in rows)
+    out = []
+    for label, frac, color, right in rows:
+        out.append(f"    {S.dim(label.ljust(label_w))}  "
+                   f"{bar(frac, width, color)}  {right}")
+    return "\n".join(out)
 
 
 def run_policy_flow(repo_root: Path, yes: bool = False, no: bool = False) -> int:
@@ -22,6 +38,7 @@ def run_policy_flow(repo_root: Path, yes: bool = False, no: bool = False) -> int
     o = a["overspend"]
     rec = p["recommendation"]
     scope = p["scope"]["task_type"].replace("_", " ")
+    colors = _tier_colors()
 
     print(box(S.bold("caliper policy"),
               sep(S.accent(p["policy_id"]), S.dim(f"status {p['status']}"),
@@ -33,59 +50,76 @@ def run_policy_flow(repo_root: Path, yes: bool = False, no: bool = False) -> int
                + S.dim(f"· {a['in_scope']} in scope ({scope})")))
     print()
     if o["sessions"]:
-        delta = o["delta"]
-        organic = o["sessions"] - o["eval_sessions"]
-        cohort_note = (S.dim(f"{o['eval_sessions']} of these are Caliper's own "
-                             "eval runs") if o["eval_sessions"] else "")
-        print(child("overspend",
-                    S.byellow(f"${delta:,.2f}"),
-                    f"{o['sessions']} frontier sessions on work the policy routes to mid",
-                    S.dim(f"${o['actual']:,.2f} actual vs ${o['at_mid']:,.2f} at mid")))
+        peak = max(o["actual"], o["at_mid"]) or 1
+        delta_s = S.byellow(f"${o['delta']:,.2f} overspend")
+        detail_s = S.dim(f"· {o['sessions']} frontier sessions on work the "
+                         "policy routes to mid")
+        print(f"    {delta_s} {detail_s}")
         print()
-        if cohort_note:
-            print(f"    {cohort_note}")
+        print(_chart([
+            ("actual (frontier)", o["actual"] / peak, colors["frontier"],
+             S.bold(f"${o['actual']:,.2f}")),
+            ("at mid tier", o["at_mid"] / peak, colors["mid"],
+             S.bold(f"${o['at_mid']:,.2f}")),
+        ]))
+        print()
+        if o["eval_sessions"]:
+            print(S.dim(f"    {o['eval_sessions']} of {o['sessions']} are "
+                        "Caliper's own eval runs"))
             print()
-    else:
-        print(child("overspend", S.green("none"),
-                    "no frontier sessions on in-scope work"))
-        print()
     if a["below_floor"]["sessions"]:
-        print(child("below floor",
-                    S.yellow(f"{a['below_floor']['sessions']} sessions"),
-                    "small-tier runs on work the policy floors at mid",
-                    S.dim("quality risk, not savings")))
+        print(f"    {S.yellow(f'{a['below_floor']['sessions']} sessions below the floor')} "
+              + S.dim("· small-tier runs on floored work · quality risk, not savings"))
         print()
 
-    # ---- the policy -----------------------------------------------------
+    # ---- quality per tier -----------------------------------------------
+    tiers = a.get("tiers") or {}
+    order = [t for t in ("frontier", "mid", "small") if t in tiers]
+    if order:
+        n = tiers[order[0]]["n"]
+        print(step(f"Quality per tier "
+                   + S.dim(f"· {n} tasks each · hidden-test replay · ADR-0007")))
+        print()
+        rows = []
+        for t in order:
+            d = tiers[t]
+            frac = d["solved"] / d["n"]
+            ci = a["curve"].get(t, {}).get("ci") or {}
+            ci_s = (S.dim(f"CI {ci['lower']:.0%}–{ci['upper']:.0%}")
+                    if ci else "")
+            right = sep(S.bold(f"{frac:.0%}"), f"{d['solved']}/{d['n']}", ci_s)
+            rows.append((f"{t} · {d['model']}", frac, colors[t], right))
+        print(_chart(rows))
+        print()
+        print(S.dim("    frontier vs mid: not statistically distinguishable "
+                    "(p=0.645) · mid vs small: real drop (p=0.026) · ADR-0008"))
+        print()
+
+        # ---- cost per tier ----------------------------------------------
+        print(step("Cost per tier " + S.dim("· billed rates · sonnet restated "
+                                            "per ADR-0007 postscript")))
+        print()
+        peak_cost = max(d["cost_billed"] for d in tiers.values()) or 1
+        rows = []
+        for t in order:
+            d = tiers[t]
+            per_solve = (S.dim(f"${d['per_solve']:.2f}/solve")
+                         if d["per_solve"] else S.dim("no solves"))
+            turns = (S.dim(f"{d['mean_turns']:.1f} turns avg")
+                     if d["mean_turns"] else "")
+            right = sep(S.bold(f"${d['cost_billed']:,.2f}"), per_solve, turns)
+            rows.append((t, d["cost_billed"] / peak_cost, colors[t], right))
+        print(_chart(rows))
+        print()
+
+    # ---- recommendation -------------------------------------------------
     print(step(f"Draft policy: route {scope} to "
                + S.accent(rec["model_tier"]) + S.dim(f" ({rec['model_id_example']})")
-               + S.dim(f" · escalate {rec['escalation_tier']}")))
+               + S.dim(f" · escalate {rec['escalation_tier']} · floor at mid")))
     print()
-    c = a["curve"]
-    if "frontier" in c and "mid" in c:
-        f_, m_ = c["frontier"], c["mid"]
-        print(child("quality",
-                    f"frontier {f_['value']:.0%} vs mid {m_['value']:.0%}",
-                    S.dim(f"n={f_['n']} tasks each · not statistically "
-                          "distinguishable (ADR-0008)")))
-        print()
-    cp = p["evidence"]["cost_projection"]
-    if cp and cp["current_cost_per_task_usd"]:
-        ratio = cp["projected_cost_per_task_usd"] / cp["current_cost_per_task_usd"]
-        print(child("cost",
-                    f"mid runs at {ratio:.0%} of frontier per task",
-                    S.dim(f"${cp['current_cost_per_task_usd']:.2f} → "
-                          f"${cp['projected_cost_per_task_usd']:.2f}")))
-        print()
-    if "small" in c and "mid" in c:
-        drop = c["mid"]["value"] - c["small"]["value"]
-        print(child("floor",
-                    f"small tier loses {drop:.0f} pts" if drop > 1
-                    else f"small tier loses {drop:.0%}",
-                    S.dim("p=0.026 — do not route below mid (ADR-0008)")))
-        print()
-    print(child("caveats", S.dim(sep("replay-only evidence", "contaminated tasks",
-                                     "solo traffic", f"ADRs {', '.join(p['adr_refs'])}"))))
+    print(S.dim("    caveats: " )
+          + S.dim(sep("replay-only evidence", "contaminated public-repo tasks",
+                      "solo traffic", f"ADRs {', '.join(p['adr_refs'])}")))
     print()
     print(S.dim(f"→ full curve, task grid, per-repo spend: {DASHBOARD_URL} ")
           + S.yellow("(preview — dashboard not live yet)"))
@@ -107,7 +141,6 @@ def run_policy_flow(repo_root: Path, yes: bool = False, no: bool = False) -> int
             print()
             picked = 1
         if picked is None:
-            # not a TTY: render the box statically and take a typed answer
             print(box(S.dim("Question"), "",
                       S.bold(f"Apply {p['policy_id']} to your agent configs?"),
                       "", f"  {S.accent('[x]')} {options[0]}",
@@ -124,14 +157,15 @@ def run_policy_flow(repo_root: Path, yes: bool = False, no: bool = False) -> int
     print()
 
     out = record_decision(repo_root, p["policy_id"], answer)
-    print()
     if answer:
-        print(step(sep(S.bgreen("Decision recorded: apply"),
-                       S.dim("the apply engine (native config writes) is "
-                             "future work — no agent config was modified"))))
+        print(step(sep(S.bgreen("Policy accepted"),
+                       S.dim("decision recorded — the apply engine (native "
+                             "config writes) is future work; no agent config "
+                             "was modified"))))
     else:
-        print(step(sep("Decision recorded: not yet",
-                       S.dim("re-run `caliper policy` anytime"))))
+        print(step(sep(f"{p['policy_id']} stays ready",
+                       S.dim("apply it anytime with")
+                       + " " + S.accent("caliper policy apply"))))
     print()
     print(S.dim(f"→ {out.name} (local only)"))
     return 0
