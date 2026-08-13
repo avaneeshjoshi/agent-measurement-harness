@@ -162,6 +162,33 @@ def _highlights(summary: dict) -> None:
     print(_chart(rows))
     print()
 
+    by_model = {m: d for m, d in summary["spend"]["by_model"].items()
+                if m != "<synthetic>"}
+    if by_model:
+        print(step("Which models did the work"))
+        print()
+        ranked = sorted(by_model.items(),
+                        key=lambda kv: -(kv[1].get("cost_x1000", 0)))
+        top, rest = ranked[:5], ranked[5:]
+        peak_m = max(d.get("cost_x1000", 0) for _, d in top) / 1000 or 1
+        rows = []
+        for model, d in top:
+            c = d.get("cost_x1000")
+            right = (sep(S.bold(f"${c / 1000:,.2f}"), S.dim(f"{d['sessions']} sessions"))
+                     if c is not None else
+                     sep(S.dim("not priced"), S.dim(f"{d['sessions']} sessions")))
+            rows.append((model, (c or 0) / 1000 / peak_m, S.accent, right))
+        print(_chart(rows))
+        print()
+        if rest:
+            n_sess = sum(d["sessions"] for _, d in rest)
+            n_unpriced = sum(1 for _, d in rest if d.get("cost_x1000") is None)
+            tail = S.dim(f"    + {len(rest)} more models · {n_sess} sessions")
+            if n_unpriced:
+                tail += S.dim(f" · {n_unpriced} not priced")
+            print(tail)
+            print()
+
     counts: dict[str, int] = {}
     for cohort, mix in summary["mix"]["session"].items():
         if cohort.endswith("/organic"):
