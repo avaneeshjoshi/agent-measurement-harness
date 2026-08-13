@@ -33,17 +33,23 @@ def run_policy_flow(repo_root: Path, yes: bool = False, no: bool = False) -> int
     if a is None:
         print(S.dim("no routing_policy record found — run the eval pipeline first"))
         return 1
+    print(box(S.bold("caliper policy"),
+              sep(S.accent(a["policy"]["policy_id"]),
+                  S.dim(f"status {a['policy']['status']}"),
+                  S.dim(a["policy"]["scope"]["task_type"].replace("_", " ")))))
+    print()
+    return present_policy(repo_root, a, yes=yes, no=no)
 
+
+def present_policy(repo_root: Path, a: dict, yes: bool = False,
+                   no: bool = False) -> int:
+    """The verdict -> evidence -> question sequence. Called by the standalone
+    `caliper policy` and inline by `caliper setup` after the first look."""
     p = a["policy"]
     o = a["overspend"]
     rec = p["recommendation"]
     scope = p["scope"]["task_type"].replace("_", " ")
     colors = _tier_colors()
-
-    print(box(S.bold("caliper policy"),
-              sep(S.accent(p["policy_id"]), S.dim(f"status {p['status']}"),
-                  S.dim(scope))))
-    print()
 
     # ---- the verdict ----------------------------------------------------
     print(step(f"Scanned {a['n_sessions']} sessions "
