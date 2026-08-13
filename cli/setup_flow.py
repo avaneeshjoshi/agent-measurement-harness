@@ -138,9 +138,7 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
     print()
 
     _highlights(summary)
-    from .policy_nudge import policy_nudge
-    policy_nudge(repo_root)
-    return 0
+    return _policy_step(repo_root)
 
 
 def _highlights(summary: dict) -> None:
@@ -190,3 +188,47 @@ def _highlights(summary: dict) -> None:
                 f"{DASHBOARD_URL} ") + preview)
     print(S.dim("    your first look above is that dashboard's first card"))
     print()
+
+
+def _policy_step(repo_root: Path) -> int:
+    """The pivot from observation to action: ask, then draft and present."""
+    from .policy import analyze
+    from .policy_flow import present_policy
+    from .policy_nudge import policy_nudge
+
+    question = "Caliper has quality-per-tier evidence covering part of this traffic. Draft a routing policy?"
+    options = ["Draft it — see the numbers before deciding anything",
+               "Not now"]
+    from .interactive import choose
+    picked = choose("Question", question, options)
+    if picked is None:  # no TTY — typed fallback so scripted runs still flow
+        print(box(S.dim("Question"), "", S.bold(question), "",
+                  f"  {S.accent('[x]')} {options[0]}",
+                  f"  {S.dim('[ ] ' + options[1])}"))
+        print()
+        try:
+            raw = input(f"  draft it? {S.dim('[Y/n]')} ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            raw = "n"
+        picked = 1 if raw in ("n", "no") else 0
+    print()
+    if picked != 0:
+        print(step(sep("Skipped for now",
+                       S.dim("draft it anytime with") + " " + S.accent("caliper policy"))))
+        print()
+        policy_nudge(repo_root)
+        return 0
+
+    with spinner("Drafting policy — checking your traffic against tier evidence"):
+        a = analyze(repo_root)
+    if a is None:
+        print(S.dim("    no eval evidence on disk yet — run the eval pipeline first"))
+        return 1
+    p = a["policy"]
+    print(step(sep("Policy drafted", S.accent(p["policy_id"]),
+                   S.dim(p["scope"]["task_type"].replace("_", " ")))))
+    print(S.dim("    UX prototype: drafted from committed eval evidence — in "
+                "production this stage runs the eval pipeline and takes longer"))
+    print()
+    return present_policy(repo_root, a)
