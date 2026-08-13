@@ -92,23 +92,36 @@ def run_policy_flow(repo_root: Path, yes: bool = False, no: bool = False) -> int
     print()
 
     # ---- the question ---------------------------------------------------
-    print(box(S.dim("Question"), "",
-              S.bold(f"Apply {p['policy_id']} to your agent configs?"), "",
-              f"  {S.accent('[x]')} Apply — route {scope} to {rec['model_tier']}",
-              f"  {S.dim('[ ] Not yet')}"))
-    print()
-
     if yes:
         answer = True
     elif no:
         answer = False
     else:
+        from .interactive import choose
+        options = [f"Apply — route {scope} to {rec['model_tier']}", "Not yet"]
         try:
-            raw = input(f"  apply? {S.dim('[y/N]')} ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
+            picked = choose("Question",
+                            f"Apply {p['policy_id']} to your agent configs?",
+                            options)
+        except KeyboardInterrupt:
             print()
-            raw = ""
-        answer = raw in ("y", "yes")
+            picked = 1
+        if picked is None:
+            # not a TTY: render the box statically and take a typed answer
+            print(box(S.dim("Question"), "",
+                      S.bold(f"Apply {p['policy_id']} to your agent configs?"),
+                      "", f"  {S.accent('[x]')} {options[0]}",
+                      f"  {S.dim('[ ] ' + options[1])}"))
+            print()
+            try:
+                raw = input(f"  apply? {S.dim('[y/N]')} ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                raw = ""
+            answer = raw in ("y", "yes")
+        else:
+            answer = picked == 0
+    print()
 
     out = record_decision(repo_root, p["policy_id"], answer)
     print()
