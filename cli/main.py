@@ -304,9 +304,20 @@ def main(argv: list[str] | None = None) -> int:
                                help="Price-sheet management (build-time fetch).")
     p_pricing.add_argument("action", choices=["update"])
 
+    p_policy = sub.add_parser("policy",
+                              help="Review the routing policy against your "
+                                   "traffic and decide on it.")
+    grp = p_policy.add_mutually_exclusive_group()
+    grp.add_argument("--yes", action="store_true", help="apply without asking")
+    grp.add_argument("--no", action="store_true", help="decline without asking")
+
     args = parser.parse_args(argv)
+    if args.command == "policy":
+        from .policy_flow import run_policy_flow
+        return run_policy_flow(repo_root(), yes=args.yes, no=args.no)
+
     if args.command not in ("extract", "signals", "replay", "classify",
-                            "report", "pricing"):
+                            "report", "pricing", "policy"):
         parser.print_help()
         return 1
 
