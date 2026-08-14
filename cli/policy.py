@@ -13,7 +13,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 TIER_OF_MODEL = {"claude-fable-5": "frontier", "claude-opus": "frontier",
-                 "claude-sonnet": "mid", "claude-haiku": "small"}
+                 "claude-sonnet": "mid", "claude-haiku": "small",
+                 # open-weight: weights are runnable outside the vendor; folds
+                 # in strict open-source too (ADR-0010) — routing economics
+                 # and quality measurement treat them identically
+                 "qwen": "open_weight", "deepseek": "open_weight",
+                 "llama": "open_weight", "meta-llama": "open_weight",
+                 "kimi": "open_weight", "glm": "open_weight",
+                 "mistral": "open_weight", "mixtral": "open_weight",
+                 "gpt-oss": "open_weight", "olmo": "open_weight"}
 
 
 def _tier(model_ids: list[str]) -> str | None:
@@ -22,6 +30,22 @@ def _tier(model_ids: list[str]) -> str | None:
             if m.startswith(prefix):
                 return tier
     return None
+
+
+def accessible_tiers(sessions: dict) -> dict[str, list[str]]:
+    """Access is proven by traffic, not declared: a tier is accessible iff a
+    model of that tier actually appears in extracted sessions (ADR-0010).
+    `caliper connect` (future) will be the path for proving access to models
+    not yet used. Returns tier -> sorted model ids that proved it."""
+    from harness.report.generate import _dominant_models
+
+    proof: dict[str, set[str]] = {}
+    for s in sessions.values():
+        for m in _dominant_models(s):
+            t = _tier([m])
+            if t:
+                proof.setdefault(t, set()).add(m)
+    return {t: sorted(ms) for t, ms in proof.items()}
 
 
 def analyze(repo_root: Path) -> dict | None:
@@ -109,6 +133,7 @@ def analyze(repo_root: Path) -> dict | None:
 
     return {
         "tiers": tiers,
+        "access": accessible_tiers(sessions),
         "policy": policy,
         "n_sessions": len(sessions),
         "in_scope": len(in_scope_ids),
