@@ -13,8 +13,16 @@ DASHBOARD_URL = "https://caliper.dev/dashboard"
 TIER_COLOR = {}  # populated lazily from S
 
 
+TIERS = ("frontier", "mid", "small", "open_weight")
+
+
 def _tier_colors():
-    return {"frontier": S.cyan, "mid": S.accent, "small": S.yellow}
+    return {"frontier": S.cyan, "mid": S.accent, "small": S.yellow,
+            "open_weight": S.green}
+
+
+def _tier_label(t: str) -> str:
+    return t.replace("_", " ")
 
 
 def _chart(rows, width: int = 22):
@@ -80,7 +88,8 @@ def present_policy(repo_root: Path, a: dict, yes: bool = False,
 
     # ---- quality per tier -----------------------------------------------
     tiers = a.get("tiers") or {}
-    order = [t for t in ("frontier", "mid", "small") if t in tiers]
+    access = a.get("access") or {}
+    order = [t for t in TIERS if t in tiers]
     if order:
         n = tiers[order[0]]["n"]
         print(step(f"Quality per tier "
@@ -94,8 +103,27 @@ def present_policy(repo_root: Path, a: dict, yes: bool = False,
             ci_s = (S.dim(f"CI {ci['lower']:.0%}–{ci['upper']:.0%}")
                     if ci else "")
             right = sep(S.bold(f"{frac:.0%}"), f"{d['solved']}/{d['n']}", ci_s)
-            rows.append((f"{t} · {d['model']}", frac, colors[t], right))
+            rows.append((f"{_tier_label(t)} · {d['model']}", frac, colors[t], right))
         print(_chart(rows))
+        print()
+        for t in TIERS:  # unmeasured tiers stay visible, never silently absent
+            if t in tiers:
+                continue
+            name = colors[t](_tier_label(t))
+            if t in access:
+                models = ", ".join(access[t][:2])
+                print("    " + sep(name,
+                                   S.dim(f"access proven ({models})"),
+                                   S.yellow("quality not measured"),
+                                   S.dim("excluded from the recommendation "
+                                         "until evaluated")))
+            else:
+                print("    " + sep(name,
+                                   S.dim("no access proven in your traffic — "
+                                         "excluded from routing (ADR-0010)"),
+                                   S.dim("prove it by connecting an account: ")
+                                   + S.accent("caliper connect")
+                                   + " " + S.yellow("(future)")))
         print()
         print(S.dim("    frontier vs mid: not statistically distinguishable "
                     "(p=0.645) · mid vs small: real drop (p=0.026) · ADR-0008"))
@@ -114,7 +142,7 @@ def present_policy(repo_root: Path, a: dict, yes: bool = False,
             turns = (S.dim(f"{d['mean_turns']:.1f} turns avg")
                      if d["mean_turns"] else "")
             right = sep(S.bold(f"${d['cost_billed']:,.2f}"), per_solve, turns)
-            rows.append((t, d["cost_billed"] / peak_cost, colors[t], right))
+            rows.append((_tier_label(t), d["cost_billed"] / peak_cost, colors[t], right))
         print(_chart(rows))
         print()
 
