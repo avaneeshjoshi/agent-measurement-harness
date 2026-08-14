@@ -145,20 +145,21 @@ def _highlights(summary: dict) -> None:
     """The headline cuts, on screen — the first look is the detail view."""
     from .policy_flow import DASHBOARD_URL, _chart
 
-    print(step("Where the spend went"))
+    total = summary["headline"]["total_cost"] or 1
+    print(step(f"Where the {S.bold(f'${total:,.2f}')} went "
+               + S.dim("· list-equivalent · bars are share of total")))
     print()
     by_tool = summary["spend"]["by_tool"]
-    costs = {t: d.get("cost_x1000", 0) / 1000 for t, d in by_tool.items()}
-    peak = max(costs.values()) or 1
     rows = []
     for tool, d in by_tool.items():
-        c = costs[tool]
+        c = d.get("cost_x1000", 0) / 1000
         if c:
-            right = sep(S.bold(f"${c:,.2f}"), S.dim(f"{d['sessions']} sessions"))
+            right = sep(S.bold(f"${c:,.2f}"), S.bold(f"{c / total:.0%}"),
+                        S.dim(f"{d['sessions']} sessions"))
         else:
             right = sep(S.dim("not recorded"),
                         S.dim(f"{d.get('sessions_no_tokens', 0)} sessions without tokens"))
-        rows.append((tool, c / peak, S.accent, right))
+        rows.append((tool, c / total, S.accent, right))
     print(_chart(rows))
     print()
 
@@ -170,20 +171,25 @@ def _highlights(summary: dict) -> None:
         ranked = sorted(by_model.items(),
                         key=lambda kv: -(kv[1].get("cost_x1000", 0)))
         top, rest = ranked[:5], ranked[5:]
-        peak_m = max(d.get("cost_x1000", 0) for _, d in top) / 1000 or 1
         rows = []
         for model, d in top:
             c = d.get("cost_x1000")
-            right = (sep(S.bold(f"${c / 1000:,.2f}"), S.dim(f"{d['sessions']} sessions"))
-                     if c is not None else
-                     sep(S.dim("not priced"), S.dim(f"{d['sessions']} sessions")))
-            rows.append((model, (c or 0) / 1000 / peak_m, S.accent, right))
+            if c is not None:
+                right = sep(S.bold(f"${c / 1000:,.2f}"),
+                            S.bold(f"{c / 1000 / total:.0%}"),
+                            S.dim(f"{d['sessions']} sessions"))
+            else:
+                right = sep(S.dim("not priced"), S.dim(f"{d['sessions']} sessions"))
+            rows.append((model, (c or 0) / 1000 / total, S.accent, right))
         print(_chart(rows))
         print()
         if rest:
+            rest_cost = sum(d.get("cost_x1000") or 0 for _, d in rest) / 1000
             n_sess = sum(d["sessions"] for _, d in rest)
             n_unpriced = sum(1 for _, d in rest if d.get("cost_x1000") is None)
-            tail = S.dim(f"    + {len(rest)} more models · {n_sess} sessions")
+            tail = S.dim(f"    + {len(rest)} more models · "
+                         f"${rest_cost:,.2f} · {rest_cost / total:.0%} · "
+                         f"{n_sess} sessions")
             if n_unpriced:
                 tail += S.dim(f" · {n_unpriced} not priced")
             print(tail)
