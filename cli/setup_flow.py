@@ -210,6 +210,39 @@ def _highlights(summary: dict) -> None:
         print(S.dim(f"    {auto} sessions look automated (CI-launched) — "
                     "they answer different questions than human traffic"))
         print()
+
+    repos = summary.get("repos") or {}
+    if repos:
+        n_commits = sum(d["commits"] for d in repos.values())
+        print(step("Did the work hold up "
+                   + S.dim(f"· {n_commits} commits across {len(repos)} repos "
+                           "· read-only git signals")))
+        print()
+        measured = sorted((d for d in repos.values() if d["surv30_n"]),
+                          key=lambda d: -d["commits"])[:3]
+        if measured:
+            rows = [(d["path"], d["surv30_median"], S.green,
+                     sep(S.bold(f"{d['surv30_median']:.0%} survives 30 days"),
+                         S.dim(f"median of {d['surv30_n']} commits")))
+                    for d in measured]
+            print(_chart(rows))
+            print()
+        rw_m = sum(d["rework_m"] for d in repos.values())
+        rw_y = sum(d["rework_y"] for d in repos.values())
+        if rw_m:
+            print(S.dim(f"    rework: {rw_y} of {rw_m} measured commits "
+                        f"({rw_y / rw_m:.0%}) were edited again within 30 days"))
+            print()
+        n_unmeasured = sum(1 for d in repos.values() if not d["surv30_n"])
+        if n_unmeasured:
+            print(S.dim(f"    {n_unmeasured} repos too young to measure "
+                        "survival — not recorded, never assumed"))
+            print()
+    else:
+        print(S.dim("    impact metrics need git outcome signals — unlock with ")
+              + S.accent("caliper setup --full") + S.dim(" or ")
+              + S.accent("caliper signals"))
+        print()
     preview = S.yellow("(preview — dashboard not live yet)")
     print(S.dim(f"→ deeper cuts — per-repo spend, rework rates, the full mix: "
                 f"{DASHBOARD_URL} ") + preview)
