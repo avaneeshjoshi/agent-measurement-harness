@@ -45,9 +45,18 @@ def load_validator(schema_path: Path) -> Draft202012Validator:
 
 
 def extract(sources: list[str], data_dir: Path, schema_path: Path,
-            include_content: bool, plugins_override: dict | None = None) -> dict:
+            include_content: bool, plugins_override: dict | None = None,
+            since: dict[str, float] | None = None,
+            trigger: str = "manual") -> dict:
     """Run extraction. Returns the manifest dict. plugins_override lets tests
-    inject plugins pointed at fixture roots."""
+    inject plugins pointed at fixture roots. `since` is the per-source mtime
+    watermark (ADR-0011): artifacts older than it (minus slack) are filtered
+    so scheduled runs are O(new) — safe because the store merges from
+    existing records, so filtered files lose nothing."""
+    from connectors.base import CONNECTOR_VERSION, SESSION_SCHEMA_VERSION
+
+    from .collection import WATERMARK_SLACK_S, artifact_mtime
+
     validator = load_validator(schema_path)
     salt = load_salt(data_dir)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
@@ -57,6 +66,11 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
         "started_at": now_iso(),
         "include_content": include_content,
         "schema": schema_path.name,
+        # version stamps: canary baselines only pool same-version runs, so a
+        # contract bump's re-emit storm resets the baseline, never trips it
+        "trigger": trigger,
+        "connector_version": CONNECTOR_VERSION,
+        "schema_version": SESSION_SCHEMA_VERSION,
         "sources": {},
     }
 
@@ -87,6 +101,23 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
         if not artifacts:
             src_manifest["notes"]["status"] = "source not present on this machine"
             continue
+
+        if since is not None and since.get(name) is not None:
+            cutoff = since[name] - WATERMARK_SLACK_S
+            fresh = []
+            for a in artifacts:
+                try:
+                    stale = artifact_mtime(a.path) < cutoff
+                except OSError:
+                    stale = False  # can't stat: examine it rather than skip
+                if not stale:
+                    fresh.append(a)
+            filtered = len(artifacts) - len(fresh)
+            if filtered:
+                src_manifest["notes"]["artifacts_filtered_by_watermark"] = filtered
+            artifacts = fresh
+            if not artifacts:
+                continue  # nothing new; records on disk are untouched
 
         store = SessionStore(data_dir / name)
         unit_store = SessionStore(data_dir / name, filename="prompt_units.jsonl",
@@ -274,6 +305,8 @@ def main(argv: list[str] | None = None) -> int:
                                 "(dropped by default; session records stay content-free).")
     p_extract.add_argument("--data-dir", default=None,
                            help="Output root (default: ~/.caliper/extracted).")
+    p_extract.add_argument("--scheduled", action="store_true",
+                           help=argparse.SUPPRESS)  # the launchd entry (ADR-0011)
 
     p_signals = sub.add_parser("signals",
                                help="Compute production signals from local git "
@@ -344,10 +377,14 @@ def main(argv: list[str] | None = None) -> int:
                          "legacy tree to silence this"))
             print()
 
+    if args.command == "extract" and args.scheduled:
+        from .collection import run_scheduled
+        return run_scheduled(repo_root())
+
     # Gap warning on every interactive invocation (ADR-0011). Suppressed for
     # setup (it is about to backfill) and scheduled runs (they ARE the
     # collector — the gap still lands in their log via state).
-    if args.command != "setup" and not getattr(args, "scheduled", False):
+    if args.command != "setup":
         from .health import health_nudge
         health_nudge()
 
@@ -506,7 +543,16 @@ def main(argv: list[str] | None = None) -> int:
     else:
         sources = list(PLUGINS)
 
+    from .collection import acquire_lock, mark_covered
     from .style import S, box, child, count, relpath, sep, spinner, step
+
+    lock = acquire_lock(data_dir)
+    if lock is None:
+        print(S.byellow("another extract is already running")
+              + S.dim(" — the scheduled job, or a second terminal; "
+                      "try again in a moment"))
+        return 1
+    run_start = datetime.now(timezone.utc)
     manifest = {"run_id": None, "sources": {}}
     for src_name in sources:
         with spinner(f"Extracting {src_name}"):
@@ -541,6 +587,12 @@ def main(argv: list[str] | None = None) -> int:
     mpath = relpath(data_dir / "manifests" / (manifest["run_id"] + ".json"), root)
     print(S.dim(f"→ {mpath}"))
     print()
+    # a manual run is coverage evidence exactly like a scheduled one
+    covered = [n for n, m in manifest["sources"].items()
+               if not any(s.get("path") == "<discover>" for s in m["skipped"])]
+    mark_covered(data_dir, covered, run_start,
+                 full=set(sources) == set(PLUGINS))
+    lock.close()
     from .policy_nudge import policy_nudge
     policy_nudge(root)
     return 0

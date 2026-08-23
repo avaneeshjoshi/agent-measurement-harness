@@ -42,17 +42,36 @@ class SessionStore:
         self.counts = {"new": 0, "unchanged": 0, "updated": 0}
         self._merged: dict[str, dict] = dict(self.existing)
 
+    @staticmethod
+    def _same_payload(old: dict, new: dict) -> bool:
+        """Record equality ignoring the per-run stamps the unchanged path
+        deliberately preserves (sessions: provenance.extracted_at; signals:
+        measured_at). Needed because derived fields can change under an
+        unchanged source hash — e.g. fork_of is derived from the fork FAMILY,
+        so a watermark-filtered incremental run followed by a full pass
+        recomputes it (ADR-0011); without this check the corrected value
+        would be discarded as "unchanged"."""
+        def strip(r: dict) -> dict:
+            out = {k: v for k, v in r.items() if k != "measured_at"}
+            prov = dict(out.get("provenance") or {})
+            prov.pop("extracted_at", None)
+            out["provenance"] = prov
+            return out
+        return strip(old) == strip(new)
+
     def upsert(self, record: dict) -> str:
         sid = self.key(record)
         old = self.existing.get(sid)
         new_hash = record["provenance"]["content_hash"]
-        # Unchanged means: same source content AND same extractor contract.
-        # A schema or connector bump re-emits so new fields propagate.
+        # Unchanged means: same source content AND same extractor contract
+        # AND the same computed record. A schema or connector bump re-emits
+        # so new fields propagate; a changed derived field updates in place.
         if old is not None \
                 and old.get("provenance", {}).get("content_hash") == new_hash \
                 and old.get("schema_version") == record.get("schema_version") \
                 and old.get("provenance", {}).get("connector_version") \
-                    == record["provenance"]["connector_version"]:
+                    == record["provenance"]["connector_version"] \
+                and self._same_payload(old, record):
             self.counts["unchanged"] += 1
             return "unchanged"
         self._merged[sid] = record

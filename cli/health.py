@@ -104,8 +104,16 @@ def health_nudge() -> None:
     try:
         last = last_covered_from_disk(data_dir)
         gaps = collection_gap(last, datetime.now(timezone.utc))
+        state_path = data_dir / STATE_FILENAME
+        alarms = (json.loads(state_path.read_text()).get("pending_alarms")
+                  or []) if state_path.exists() else []
     except (OSError, ValueError, KeyError, json.JSONDecodeError):
         return  # health bookkeeping must never break the actual command
+    from .style import step
+    for a in alarms:
+        print(step(S.byellow(f"drift alarm · {a.get('source', '?')}")
+                   + " " + S.dim(str(a.get("detail", "")))))
+        print()
     if not gaps:
         return
     lines = []
