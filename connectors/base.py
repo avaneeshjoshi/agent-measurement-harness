@@ -84,9 +84,20 @@ class SourcePlugin:
 
     def __init__(self) -> None:
         self.skips = []
+        # Drift instrumentation (ADR-0011): raw records examined and the
+        # shapes we did NOT recognize. Emit loops previously ignored unknown
+        # record types silently — that silence is exactly how format drift
+        # degrades coverage without alerting (ADR-0005 §4).
+        self.unknowns: dict[str, int] = {}
+        self.raw_records_seen: int = 0
 
     def skip(self, path: Path | str, reason: str) -> None:
         self.skips.append(Skip(path=str(path), reason=reason))
+
+    def note_unknown(self, kind: str) -> None:
+        """Count a record shape this connector does not recognize. Counting
+        only — the record is still ignored, exactly as before."""
+        self.unknowns[kind] = self.unknowns.get(kind, 0) + 1
 
 
 def sha256_file(path: Path) -> str:

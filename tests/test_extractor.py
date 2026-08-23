@@ -256,3 +256,44 @@ def test_cursor_reads_snapshot_not_live_db(run_extract, cursor_dbs, monkeypatch)
 
     monkeypatch.setattr(cursor_mod.sqlite3, "connect", guarded)
     run_extract(sources=("cursor",))
+
+
+def test_fixture_logs_produce_no_unknown_shapes(run_extract):
+    """The known-ignored seed sets must cover everything in the fixtures —
+    otherwise day-one drift counters are noise (ADR-0011)."""
+    manifest, _ = run_extract()
+    for name, src in manifest["sources"].items():
+        assert "unknown_record_types" not in src["notes"], \
+            f"{name}: {src['notes'].get('unknown_record_types')}"
+        assert src["notes"].get("raw_records_seen", 0) > 0
+
+
+def test_unknown_record_type_counted_in_manifest(tmp_path):
+    """A record shape the connector doesn't recognize is counted per run —
+    the raw material for the drift canary (ADR-0011) — while emission
+    behavior stays exactly as before (still ignored, session still valid)."""
+    import json as _json
+    import shutil as _shutil
+
+    from cli.main import extract
+    from connectors import ClaudeCodePlugin
+    from tests.conftest import FIXTURES, SCHEMA
+
+    root = tmp_path / "claude_code"
+    _shutil.copytree(FIXTURES / "claude_code", root)
+    session_file = next(p for p in root.rglob("*.jsonl")
+                        if "subagents" not in str(p))
+    with open(session_file, "a") as fh:
+        fh.write(_json.dumps({"type": "vendor_new_thing",
+                              "timestamp": "2026-08-01T00:00:00Z"}) + "\n")
+        fh.write(_json.dumps({"type": "system", "subtype": "novel_subtype",
+                              "timestamp": "2026-08-01T00:00:01Z"}) + "\n")
+
+    manifest = extract(["claude_code"], tmp_path / "extracted", SCHEMA,
+                       include_content=False,
+                       plugins_override={"claude_code": ClaudeCodePlugin(
+                           root=root, salt="test-salt")})
+    notes = manifest["sources"]["claude_code"]["notes"]
+    assert notes["unknown_record_types"] == {"system:novel_subtype": 1,
+                                             "type:vendor_new_thing": 1}
+    assert manifest["sources"]["claude_code"]["records"]["invalid"] == 0

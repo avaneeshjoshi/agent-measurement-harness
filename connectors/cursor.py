@@ -107,6 +107,12 @@ class CursorPlugin(SourcePlugin):
                 if r["table"] == "_meta":
                     artifact.extra["scored_commits"] = r["scored_commits"]
                 else:
+                    self.raw_records_seen += 1
+                    # sources observed in the live DB: composer/tab/human
+                    # (ADR-0001 §Cursor); a new value is drift, not an error
+                    src = r.get("source")
+                    if src not in ("composer", "tab", "human"):
+                        self.note_unknown(f"source:{src}")
                     rows.append(r)
             artifact.extra["ai_code_hash_rows"] = len(rows)
             self._hash_rows = rows
@@ -129,6 +135,7 @@ class CursorPlugin(SourcePlugin):
         seen_conv_ids: set[str] = set()
 
         for row in self.read(artifact):
+            self.raw_records_seen += 1
             if row["table"] != "composerHeaders":
                 continue
             cid = row["composerId"]

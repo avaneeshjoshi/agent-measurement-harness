@@ -40,6 +40,20 @@ _BOOKKEEPING_TYPES = {
     "attachment", "ai-title", "last-prompt", "summary", "queued-prompt",
 }
 
+# Known-but-unused record shapes, for the drift counter ONLY (ADR-0011) —
+# deliberately NOT added to _BOOKKEEPING_TYPES, whose `continue` would change
+# which records feed session timestamps. Observed in 2026-08 logs; the drift
+# counter's first survey found all of these already present and uncounted —
+# live proof of ADR-0005 §4 drift.
+_KNOWN_IGNORED_TYPES = {
+    "queue-operation", "file-history-delta", "atis-latch", "frame-link",
+    "agent-name",
+}
+_KNOWN_IGNORED_SYSTEM_SUBTYPES = {
+    "stop_hook_summary", "away_summary", "compact_boundary",
+    "model_consent_fallback", "local_command", "api_error",
+}
+
 _INTERRUPT_MARKERS = ("[Request interrupted by user", "[Request cancelled",)
 
 
@@ -265,6 +279,7 @@ class ClaudeCodePlugin(SourcePlugin):
         content_rows: list[dict] = []
 
         for rec in recs:
+            self.raw_records_seen += 1
             rtype = rec.get("type")
             if rtype in _BOOKKEEPING_TYPES:
                 continue
@@ -354,6 +369,15 @@ class ClaudeCodePlugin(SourcePlugin):
                         if isinstance(block, dict) and block.get("type") == "tool_use":
                             tn = block.get("name", "?")
                             tool_counts[tn] = tool_counts.get(tn, 0) + 1
+
+            else:  # drift counter only — the record is ignored either way
+                if rtype == "system":
+                    sub = rec.get("subtype")
+                    if sub != "turn_duration" \
+                            and sub not in _KNOWN_IGNORED_SYSTEM_SUBTYPES:
+                        self.note_unknown(f"system:{sub}")
+                elif rtype not in _KNOWN_IGNORED_TYPES:
+                    self.note_unknown(f"type:{rtype}")
 
         if session_id is None:
             session_id = artifact.path.stem

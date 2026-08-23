@@ -186,6 +186,21 @@ class CodexPlugin(SourcePlugin):
                 except json.JSONDecodeError:
                     self.skip(f"{artifact.path}:{i + 1}", "malformed JSON line")
 
+    _KNOWN_IGNORED_TYPES = {"world_state", "compacted"}  # ADR-0004 §1/§9
+    # event/payload shapes Caliper deliberately ignores today — seeded from
+    # real 2026 logs so the drift counter (ADR-0011) alarms on genuinely
+    # novel shapes, not on known noise. Additions are connector maintenance
+    # per ADR-0005 §4.
+    _KNOWN_IGNORED_EVENTS = {
+        "task_started", "agent_reasoning", "thread_settings_applied",
+        "web_search_end", "context_compacted", "thread_rolled_back",
+        "image_generation_end",
+    }
+    _KNOWN_IGNORED_ITEMS = {
+        "message", "reasoning", "function_call_output",
+        "custom_tool_call_output", "tool_search_output",
+    }
+
     def emit(self, artifact: RawArtifact, include_content: bool = False) -> list[Emission]:
         first_meta: dict | None = None
         last_meta: dict | None = None
@@ -203,6 +218,7 @@ class CodexPlugin(SourcePlugin):
         content_rows: list[dict] = []
 
         for rec in self.read(artifact):
+            self.raw_records_seen += 1
             ts = rec.get("timestamp")
             if ts:
                 timestamps.append(ts)
@@ -262,6 +278,8 @@ class CodexPlugin(SourcePlugin):
                         parts = line.split(None, 1)
                         if len(parts) == 2 and parts[0] in ("A", "M", "D"):
                             patched_files.add(parts[1].strip())
+                elif etype not in self._KNOWN_IGNORED_EVENTS:
+                    self.note_unknown(f"event_msg:{etype}")
 
             elif rtype == "response_item":
                 ptype = payload.get("type")
@@ -270,6 +288,11 @@ class CodexPlugin(SourcePlugin):
                     tool_counts[name] = tool_counts.get(name, 0) + 1
                 elif ptype in ("web_search_call", "tool_search_call"):
                     tool_counts[ptype] = tool_counts.get(ptype, 0) + 1
+                elif ptype not in self._KNOWN_IGNORED_ITEMS:
+                    self.note_unknown(f"response_item:{ptype}")
+
+            elif rtype not in self._KNOWN_IGNORED_TYPES:
+                self.note_unknown(f"type:{rtype}")
 
         if first_meta is None:
             self.skip(artifact.path, "no session_meta record")

@@ -139,6 +139,13 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
         if content_store:
             src_manifest["content_rows_written"] = content_store.write()
         src_manifest["skipped"] = [asdict(s) for s in plugin.skips]
+        # drift instrumentation (ADR-0011): shapes the connector didn't
+        # recognize, and the denominator for rate comparisons
+        if getattr(plugin, "unknowns", None):
+            src_manifest["notes"]["unknown_record_types"] = \
+                dict(sorted(plugin.unknowns.items()))
+        if getattr(plugin, "raw_records_seen", 0):
+            src_manifest["notes"]["raw_records_seen"] = plugin.raw_records_seen
 
     manifest["finished_at"] = now_iso()
     manifest_dir = data_dir / "manifests"
