@@ -1,6 +1,7 @@
 """Classification orchestration: extracted records -> task_class records.
 
-Reads ONLY data/extracted/*/sessions.jsonl and prompt_units.jsonl. Never
+Reads ONLY the extracted trees (<data_dir>/*/sessions.jsonl and
+prompt_units.jsonl — ~/.caliper/extracted by default, ADR-0012). Never
 raw logs, never content sidecars (tests enforce). Sessions without prompt
 units (cursor; rotated-log claude sessions) get session-grain records from
 session aggregates only."""

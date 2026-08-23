@@ -2,7 +2,7 @@
 
 Labels units of agent work (prompt / segment / session) from CONTENT-FREE
 metadata only. Consumes session records and prompt-unit records from
-data/extracted/ (written by connectors); never reads raw logs, never reads
+the extracted tree (~/.caliper/extracted, written by connectors); never reads raw logs, never reads
 content sidecars — enforced by tests/test_classifier.py.
 
 Versions (independent axes per docs/conventions.md):

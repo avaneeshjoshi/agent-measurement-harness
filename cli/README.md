@@ -26,6 +26,8 @@ caliper pricing update                   # refresh the versioned price sheet
 caliper setup [--full|--quick]           # first-run flow: trust screen, backfill, first look
 caliper policy [apply] [--yes|--no]      # review the draft routing policy; a yes records the
                                          # decision locally — no agent config is touched yet
+caliper schedule [install|uninstall|status]   # hourly background collection (launchd;
+                                         # extraction-only or full, FDA as explicit choice)
 ```
 
 ## What signals does

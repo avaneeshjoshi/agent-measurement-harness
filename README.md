@@ -165,7 +165,7 @@ All components communicate **through data, not direct imports across layers**: e
 | [`cli/`](cli/) | The `caliper` command — extract, signals, classify, report, replay, policy, setup |
 | [`connectors/`](connectors/) | Ingestion: Claude Code, Cursor, and Codex logs plus local git history → normalized records |
 | [`harness/`](harness/) | The core Python package. Implemented: classifier, replay, report. Design READMEs only, no code yet: judge, signals*, trace, routing |
-| [`data/`](data/) | Fixtures, calibration sets, and derived evidence. **Never customer data**; extracted local traffic lives outside the repo at `~/.caliper/` (ADR-0011) |
+| [`data/`](data/) | Frozen per-ADR evidence, calibration sets, fixtures. **Never customer data**; everything Caliper computes about a user lives outside the repo at `~/.caliper/` (ADR-0012) |
 | [`dashboard/`](dashboard/) | **Design README only — no app exists yet.** The intended Next.js reporting UI |
 | [`notebooks/`](notebooks/) | **Design README only — no notebooks exist yet.** Intended exploratory analysis |
 | [`tests/`](tests/) | Test suite for the harness and schema validation |

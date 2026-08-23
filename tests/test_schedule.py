@@ -153,3 +153,23 @@ def test_status_healthy(darwin, capsys):
     runner = FakeRunner(print_stdout="\tstate = waiting\n"
                                      "\tlast exit code = 0\n")
     assert schedule.status(runner=runner) == 0
+
+
+def test_status_verifies_write_access(darwin, capsys, monkeypatch):
+    """`caliper schedule status` must prove the job can still write where it
+    should (ADR-0012) — an unwritable tree is a loud problem, not a shrug."""
+    import os as _os
+
+    from cli.paths import extracted_dir
+    _seed_installed(darwin, [sys.executable])
+    runner = FakeRunner(print_stdout="\tstate = waiting\n"
+                                     "\tlast exit code = 0\n")
+    ex = extracted_dir()
+    ex.mkdir(parents=True, exist_ok=True)
+    _os.chmod(ex, 0o500)
+    try:
+        assert schedule.status(runner=runner) == 1
+        assert "cannot write the extracted tree" in capsys.readouterr().out
+    finally:
+        _os.chmod(ex, 0o755)
+    assert schedule.status(runner=runner) == 0

@@ -189,7 +189,7 @@ def render(s: dict) -> str:
 <h1>Caliper — first look</h1>
 <p class="sub">Everything the logs on this machine can already say: what the agents were used for,
 what it would have cost at list prices, and what happened to the code afterward. Generated
-read-only from the extracted tree (<code>~/.caliper/extracted/</code>) and <code>data/derived/</code> — presentation only,
+read-only from <code>~/.caliper</code> (extracted + derived trees) and the repo's frozen evidence — presentation only,
 no new measurement.</p>
 <p class="meta">generated {H.escape(s['generated_at'])} · {s['n_sessions']} sessions{
     f" ({s['headline']['fork_children_netted']} fork "
@@ -238,7 +238,7 @@ mix very differently. Unclassified is a legal outcome and stays visible.</p>
 <h3>Automated vs human (organic sessions)</h3>
 <div class="wrap"><table><tr><th>cohort</th><th class="r">n</th><th>top classes</th></tr>
 {''.join(auto_rows)}</table></div>
-<p class="src">source: data/derived/classes/task_classes.jsonl × sessions.jsonl automated flag —
+<p class="src">source: ~/.caliper/derived/classes/task_classes.jsonl × sessions.jsonl automated flag —
 pooling these would distort the mix (ADR-0009: 86% vs 51% exploratory).</p>
 
 <h2>3 · Outcomes — beside what they cost</h2>

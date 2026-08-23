@@ -244,6 +244,16 @@ def status(runner=subprocess.run) -> int:
     if prog and not Path(prog[0]).exists():
         problems.append(f"program vanished ({prog[0]}) — a Python upgrade? "
                         "reinstall")
+    # the job must still be able to write where it should (ADR-0012)
+    from .paths import extracted_dir as _ex
+    for tree_name, d in (("extracted", _ex()), ("state", state_dir())):
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            probe = d / ".write_probe"
+            probe.write_text("")
+            probe.unlink()
+        except OSError as exc:
+            problems.append(f"cannot write the {tree_name} tree ({d}): {exc}")
     out = _launchctl(runner, "print", f"gui/{os.getuid()}/{sched['label']}")
     run_state = exit_code = None
     if out.returncode == 0:
