@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .collection import load_state, save_state
-from .paths import extracted_dir, logs_dir
+from .paths import extracted_dir, logs_dir, state_dir
 from .style import S, box, child, sep, step
 
 LABEL = "dev.caliper.extract"
@@ -78,7 +78,8 @@ def discover_repo_paths() -> list[str]:
     from connectors.git_history import GitHistoryConnector
     from connectors.util import load_salt
     try:
-        conn = GitHistoryConnector(salt=load_salt(extracted_dir()))
+        from .paths import salt_path
+        conn = GitHistoryConnector(salt=load_salt(salt_path()))
         repos, _ = conn.discover_repos()
         return sorted(str(r) for r in repos)
     except Exception:
@@ -138,7 +139,7 @@ def install(repo_root: Path, mode: str | None = None,
         print(S.dim("scheduling is macOS-only for now — Linux needs a "
                     "systemd user timer (ADR-0011)"))
         return 1
-    data_dir = extracted_dir()
+    sdir = state_dir()
     if mode is None:
         mode = choose_mode(discover_repo_paths(), choose=choose)
     if mode not in ("full", "extract_only"):
@@ -161,7 +162,7 @@ def install(repo_root: Path, mode: str | None = None,
                   S.dim((boot.stderr or boot.stdout or "").strip()[:200])))
         return 1
 
-    state = load_state(data_dir)
+    state = load_state(sdir)
     state["mode"] = mode
     state["schedule"] = {
         "label": LABEL, "plist_path": str(pp),
@@ -170,7 +171,7 @@ def install(repo_root: Path, mode: str | None = None,
         "installed_at": datetime.now(timezone.utc)
             .isoformat(timespec="seconds"),
     }
-    save_state(data_dir, state)
+    save_state(sdir, state)
 
     if mode == "full":
         _fda_instructions(runner)
@@ -183,14 +184,14 @@ def install(repo_root: Path, mode: str | None = None,
     deadline = time.monotonic() + verify_timeout_s
     heartbeat = None
     while time.monotonic() < deadline:
-        current = load_state(data_dir).get("last_heartbeat")
+        current = load_state(sdir).get("last_heartbeat")
         if current and current != before:
             heartbeat = current
             break
         time.sleep(0.5)
 
     if heartbeat:
-        alarms = load_state(data_dir).get("pending_alarms", [])
+        alarms = load_state(sdir).get("pending_alarms", [])
         checks = [a for a in alarms if a.get("kind") == "self_check"]
         if checks:
             print(box(S.byellow("Installed, but the job reported problems"),
@@ -214,7 +215,7 @@ def install(repo_root: Path, mode: str | None = None,
 
 
 def uninstall(runner=subprocess.run) -> int:
-    data_dir = extracted_dir()
+    data_dir = state_dir()
     _launchctl(runner, "bootout", f"gui/{os.getuid()}/{LABEL}")
     pp = plist_path()
     if pp.exists():
@@ -228,7 +229,7 @@ def uninstall(runner=subprocess.run) -> int:
 
 
 def status(runner=subprocess.run) -> int:
-    data_dir = extracted_dir()
+    data_dir = state_dir()
     state = load_state(data_dir)
     sched = state.get("schedule")
     if not sched:

@@ -120,7 +120,7 @@ def test_last_covered_falls_back_to_manifest_scan(tmp_path):
     # a signals manifest is not collection coverage and must be ignored
     _write_manifest(mdir, "20260820T000000Z-cc", "2026-08-20T00:00:01.000Z",
                     [], kind="signals")
-    covered = last_covered_from_disk(tmp_path)
+    covered = last_covered_from_disk(tmp_path, tmp_path)
     assert covered["claude_code"].isoformat().startswith("2026-08-12")
     assert covered["codex"].isoformat().startswith("2026-08-10")
 
@@ -131,12 +131,12 @@ def test_last_covered_prefers_state_file(tmp_path):
                     "2026-08-01T00:00:01.000Z", ["claude_code"])
     (tmp_path / STATE_FILENAME).write_text(json.dumps(
         {"last_covered": {"claude_code": "2026-08-22T09:00:00+00:00"}}))
-    covered = last_covered_from_disk(tmp_path)
+    covered = last_covered_from_disk(tmp_path, tmp_path)
     assert covered["claude_code"].isoformat().startswith("2026-08-22")
 
 
 def test_last_covered_empty_when_nothing_on_disk(tmp_path):
-    assert last_covered_from_disk(tmp_path) == {}
+    assert last_covered_from_disk(tmp_path, tmp_path) == {}
 
 
 # ---- drift canaries (ADR-0011) --------------------------------------------

@@ -72,13 +72,14 @@ def _cohort(rec: dict) -> str:
     return "eval_harness" if "caliper-eval" in paths else "organic"
 
 
-def collect(repo_root: Path, data_dir: Path) -> dict:
-    """repo_root locates committed evidence (data/derived); data_dir is the
-    extracted tree (~/.caliper/extracted by default — the CLI resolves it,
-    this layer stays path-agnostic, ADR-0011)."""
-    derived = repo_root / "data" / "derived"
+def collect(repo_root: Path, data_dir: Path, classes_path: Path,
+            names_path: Path, salt_file: Path) -> dict:
+    """All locations are resolved by the caller through cli.paths (ADR-0012)
+    — this layer stays path-agnostic. data_dir is the extracted tree;
+    classes_path the task_class records; names_path the local display-name
+    map; salt_file the ref salt."""
     pricing = load_pricing()
-    names = load_name_map(data_dir)
+    names = load_name_map(names_path, salt_file)
 
     sessions = {}
     for tool in TOOLS:
@@ -123,7 +124,7 @@ def collect(repo_root: Path, data_dir: Path) -> dict:
             unpriced_sessions += 1
 
     # ---- task mix -------------------------------------------------------
-    classes = _jsonl(derived / "classes" / "task_classes.jsonl")
+    classes = _jsonl(classes_path)
     mix = defaultdict(lambda: defaultdict(Counter))
     auto_mix = defaultdict(Counter)
     for r in classes:

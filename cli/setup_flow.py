@@ -97,7 +97,8 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
             (repo_root / "schemas" / "task_class.schema.json").read_text()))
         for rec in records:
             v.validate(rec)
-        out = repo_root / "data" / "derived" / "classes" / "task_classes.jsonl"
+        from .paths import derived_dir
+        out = derived_dir() / "classes" / "task_classes.jsonl"
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "w") as fh:
             for rec in records:
@@ -124,9 +125,11 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
     def do_report():
         from harness.report.generate import collect
         from harness.report.render import render
-        summary = collect(repo_root, data_dir)
+        from .paths import reports_dir, salt_path, state_dir, task_classes_path
+        summary = collect(repo_root, data_dir, task_classes_path(repo_root),
+                          state_dir() / ".project_names.json", salt_path())
         html = render(summary)
-        out = data_dir / "report" / "first_look.html"
+        out = reports_dir() / "first_look.html"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(html)
         return summary, out
@@ -269,15 +272,15 @@ def _collection_step(repo_root: Path) -> None:
 
     from .collection import load_state, save_state
     from .interactive import choose
-    from .paths import extracted_dir
+    from .paths import state_dir
 
     if _sys.platform != "darwin":
         print(S.dim("    background collection: macOS only for now — Linux "
                     "needs a systemd user timer (ADR-0011)"))
         print()
         return
-    data_dir = extracted_dir()
-    if load_state(data_dir).get("schedule"):
+    sdir = state_dir()
+    if load_state(sdir).get("schedule"):
         print(step(sep("Collection already scheduled",
                        S.dim("details:") + " " + S.accent("caliper schedule"))))
         print()
@@ -316,9 +319,9 @@ def _collection_step(repo_root: Path) -> None:
     if picked2 is None:
         picked2 = 1  # non-TTY: content collection is never a silent default
     print()
-    state = load_state(data_dir)
+    state = load_state(sdir)
     state["include_content"] = picked2 == 0
-    save_state(data_dir, state)
+    save_state(sdir, state)
     if picked2 == 0:
         print(step(sep("Content sidecars ON",
                        S.dim("prompt text stays local under ~/.caliper — "

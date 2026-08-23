@@ -53,7 +53,8 @@ def analyze(repo_root: Path) -> dict | None:
     from harness.replay.runner import load_pricing
     from harness.report.generate import _cohort, _dominant_models, _price
 
-    policies_path = repo_root / "data" / "derived" / "routing" / "routing_policies.jsonl"
+    from .paths import routing_policies_path
+    policies_path = routing_policies_path(repo_root)
     if not policies_path.exists():
         return None
     policy = [json.loads(l) for l in policies_path.read_text().splitlines()][-1]
@@ -68,7 +69,8 @@ def analyze(repo_root: Path) -> dict | None:
                 r = json.loads(line)
                 sessions[r["session_id"]] = r
 
-    classes_path = repo_root / "data" / "derived" / "classes" / "task_classes.jsonl"
+    from .paths import task_classes_path
+    classes_path = task_classes_path(repo_root)
     in_scope_ids = set()
     if classes_path.exists():
         scope_type = policy["scope"]["task_type"]
@@ -110,7 +112,8 @@ def analyze(repo_root: Path) -> dict | None:
              if p["metric"].endswith("full_run_n1")}
 
     # per-tier detail straight from the eval records (full 90-run grid)
-    eval_path = repo_root / "data" / "derived" / "replay" / "eval_results.jsonl"
+    from .paths import eval_results_path
+    eval_path = eval_results_path(repo_root)
     tiers: dict[str, dict] = {}
     if eval_path.exists():
         for line in eval_path.read_text().splitlines():
@@ -155,8 +158,8 @@ def analyze(repo_root: Path) -> dict | None:
 def record_decision(repo_root: Path, policy_id: str, applied: bool) -> Path:
     """Local-only decision log (gitignored tree) — the apply engine will
     consume this when it exists."""
-    from .paths import extracted_dir
-    out = extracted_dir() / ".policy_decisions.jsonl"
+    from .paths import state_dir
+    out = state_dir() / ".policy_decisions.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
     entry = {"policy_id": policy_id, "applied": applied,
              "decided_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),

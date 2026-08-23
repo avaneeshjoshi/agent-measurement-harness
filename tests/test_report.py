@@ -65,7 +65,11 @@ def test_fork_children_netted_from_spend_and_disclosed(run_extract):
     from tests.conftest import REPO
 
     _, data_dir = run_extract()
-    s = collect(REPO, data_dir)
+    names_path = data_dir / "names.json"
+    names_path.write_text("{}")
+    s = collect(REPO, data_dir,
+                classes_path=data_dir / "no-classes.jsonl",
+                names_path=names_path, salt_file=data_dir / ".salt")
     assert s["headline"]["fork_children_netted"] == 1
 
     # session counts stay full — the netting is disclosed, not hidden

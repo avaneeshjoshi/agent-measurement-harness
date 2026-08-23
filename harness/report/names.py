@@ -3,8 +3,8 @@
 Rebuilds the ref -> short-name mapping the same way the connectors hash:
 re-derive candidate cwds from the sources, hash with the extraction salt,
 keep only the LAST path component as the display name. The mapping file
-lives inside data/extracted/ (gitignored); raw paths never enter any
-committed artifact."""
+lives in the state tree under ~/.caliper (ADR-0012); raw paths never enter
+any committed artifact."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ from connectors.git_history import GitHistoryConnector
 from connectors.util import load_salt, project_ref
 
 
-def build_name_map(data_dir: Path) -> dict[str, str]:
-    salt = load_salt(data_dir)
+def build_name_map(map_path: Path, salt_file: Path) -> dict[str, str]:
+    salt = load_salt(salt_file)
     conn = GitHistoryConnector(salt=salt)
     cands = conn.collect_candidate_paths()
     _, cwd_to_root = conn.discover_repos()
@@ -37,13 +37,12 @@ def build_name_map(data_dir: Path) -> dict[str, str]:
         else:
             short = cwd.rstrip("/").rsplit("/", 1)[-1] or cwd
         names.setdefault(ref, short)
-    out = data_dir / ".project_names.json"
-    out.write_text(json.dumps(names, indent=2))
+    map_path.parent.mkdir(parents=True, exist_ok=True)
+    map_path.write_text(json.dumps(names, indent=2))
     return names
 
 
-def load_name_map(data_dir: Path) -> dict[str, str]:
-    p = data_dir / ".project_names.json"
-    if p.exists():
-        return json.loads(p.read_text())
-    return build_name_map(data_dir)
+def load_name_map(map_path: Path, salt_file: Path) -> dict[str, str]:
+    if map_path.exists():
+        return json.loads(map_path.read_text())
+    return build_name_map(map_path, salt_file)

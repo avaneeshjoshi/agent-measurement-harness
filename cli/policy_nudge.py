@@ -10,7 +10,8 @@ from .style import S, sep, step
 
 
 def policy_nudge(repo_root: Path) -> None:
-    policies = repo_root / "data" / "derived" / "routing" / "routing_policies.jsonl"
+    from .paths import routing_policies_path
+    policies = routing_policies_path(repo_root)
     if not policies.exists():
         return
     records = [json.loads(l) for l in policies.read_text().splitlines() if l.strip()]
@@ -18,8 +19,8 @@ def policy_nudge(repo_root: Path) -> None:
     if not drafts:
         return
     decided: set[str] = set()
-    from .paths import extracted_dir
-    decisions = extracted_dir() / ".policy_decisions.jsonl"
+    from .paths import state_dir
+    decisions = state_dir() / ".policy_decisions.jsonl"
     if decisions.exists():
         for line in decisions.read_text().splitlines():
             d = json.loads(line)

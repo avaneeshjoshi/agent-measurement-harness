@@ -144,16 +144,17 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
     from connectors.util import load_salt
 
     from .main import extract, repo_root
-    from .paths import extracted_dir
+    from .paths import extracted_dir, state_dir
 
     data_dir = extracted_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
-    lock = acquire_lock(data_dir)
+    sdir = state_dir()
+    lock = acquire_lock(sdir)
     if lock is None:
         _log("skip: another extract holds the lock")
         return 0
     try:
-        state = load_state(data_dir)
+        state = load_state(sdir)
         now = _now()
         iso = now.isoformat(timespec="seconds")
 
@@ -170,7 +171,8 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
             _log(f"FAILED self-check: data dir not writable: {exc!r}")
             return 1
 
-        salt = load_salt(data_dir)
+        from .paths import salt_path
+        salt = load_salt(salt_path(data_dir))
         plugins = plugins_override or \
             {name: cls(salt=salt) for name, cls in PLUGINS.items()}
         discovered: dict[str, list | None] = {}
@@ -220,7 +222,7 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
                 if arts is not None:
                     # a verified-idle scan IS coverage: nothing new existed
                     state["last_covered"][name] = iso
-            save_state(data_dir, state)
+            save_state(sdir, state)
             _log("idle: no new activity across sources — heartbeat only")
             return 0
 
@@ -240,7 +242,7 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
         state["last_heartbeat"] = iso
         if full:
             state["last_full_pass"] = iso
-        save_state(data_dir, state)
+        save_state(sdir, state)
 
         # canaries run after the state save — evaluate_canaries reloads and
         # merges state itself, so this order never clobbers its alarms
@@ -259,7 +261,7 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
                      f"{len(sm['repos'])} repos")
             except Exception as exc:
                 _log(f"signals FAILED: {exc!r}")
-                st2 = load_state(data_dir)
+                st2 = load_state(sdir)
                 st2["pending_alarms"] = [
                     a for a in st2.get("pending_alarms", [])
                     if a.get("key") != "signals:self_check:run"]
@@ -268,7 +270,7 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
                     "kind": "self_check",
                     "detail": f"scheduled signals run failed: {exc!r}",
                     "raised_at": iso})
-                save_state(data_dir, st2)
+                save_state(sdir, st2)
 
         parts = []
         for name, src in manifest["sources"].items():

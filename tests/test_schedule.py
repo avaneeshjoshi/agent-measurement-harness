@@ -14,7 +14,7 @@ import pytest
 
 import cli.schedule as schedule
 from cli.collection import load_state, save_state
-from cli.paths import extracted_dir
+from cli.paths import state_dir
 
 
 class FakeRunner:
@@ -76,16 +76,16 @@ def test_tcc_prefix_detection():
 def test_install_bootout_then_bootstrap_and_state(darwin):
     def kick_writes_heartbeat(cmd):
         if cmd[:2] == ["launchctl", "kickstart"]:
-            st = load_state(extracted_dir())
+            st = load_state(state_dir())
             st["last_heartbeat"] = "2026-08-23T12:00:00+00:00"
-            save_state(extracted_dir(), st)
+            save_state(state_dir(), st)
 
     runner = FakeRunner(side_effect=kick_writes_heartbeat)
     rc = schedule.install(Path("/repo"), mode="extract_only", runner=runner)
     assert rc == 0
     assert runner.verbs() == ["bootout", "bootstrap", "kickstart"]
     assert schedule.plist_path().exists()
-    state = load_state(extracted_dir())
+    state = load_state(state_dir())
     assert state["mode"] == "extract_only"
     assert state["schedule"]["label"] == schedule.LABEL
 
@@ -112,24 +112,24 @@ def test_install_refuses_off_macos(monkeypatch):
 
 def test_uninstall_bootout_unlink_and_state_clear(darwin):
     schedule.plist_path().write_bytes(b"x")
-    st = load_state(extracted_dir())
+    st = load_state(state_dir())
     st["schedule"] = {"label": schedule.LABEL}
-    save_state(extracted_dir(), st)
+    save_state(state_dir(), st)
     runner = FakeRunner()
     assert schedule.uninstall(runner=runner) == 0
     assert "bootout" in runner.verbs()
     assert not schedule.plist_path().exists()
-    assert load_state(extracted_dir())["schedule"] is None
+    assert load_state(state_dir())["schedule"] is None
 
 
 def _seed_installed(tmp_path, program):
     pp = tmp_path / f"{schedule.LABEL}.plist"
     pp.write_bytes(b"x")
-    st = load_state(extracted_dir())
+    st = load_state(state_dir())
     st["mode"] = "extract_only"
     st["schedule"] = {"label": schedule.LABEL, "plist_path": str(pp),
                       "program": program, "log_path": "/tmp/x.log"}
-    save_state(extracted_dir(), st)
+    save_state(state_dir(), st)
 
 
 def test_status_parses_bad_exit_code(darwin, capsys):

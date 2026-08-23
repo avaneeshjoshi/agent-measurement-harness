@@ -56,9 +56,10 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
     from connectors.base import CONNECTOR_VERSION, SESSION_SCHEMA_VERSION
 
     from .collection import WATERMARK_SLACK_S, artifact_mtime
+    from .paths import salt_path
 
     validator = load_validator(schema_path)
-    salt = load_salt(data_dir)
+    salt = load_salt(salt_path(data_dir))
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
 
     manifest: dict = {
@@ -192,8 +193,10 @@ def signals(data_dir: Path, schema_path: Path,
     tests inject one pointed at fixture roots."""
     from connectors.git_history import GitHistoryConnector
 
+    from .paths import salt_path
+
     validator = load_validator(schema_path)
-    salt = load_salt(data_dir)
+    salt = load_salt(salt_path(data_dir))
     conn = connector or GitHistoryConnector(salt=salt)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     manifest: dict = {"run_id": run_id, "kind": "signals",
@@ -374,20 +377,28 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    from .paths import extracted_dir, migrate_legacy
-    mig = migrate_legacy(repo_root())
-    if mig:
+    from .paths import (data_root, derived_dir, extracted_dir,
+                        migrate_legacy, reports_dir, state_dir)
+    actions = migrate_legacy(repo_root())
+    if actions:
         from .style import S as _S, sep as _sep, step as _step
-        if "moved" in mig:
-            print(_step(_sep("Moved extracted data to its new home",
-                             _S.dim(mig["target"]),
-                             _S.dim(f"{mig['moved']} files"))))
+        moved = sum(a.get("moved", 0) for a in actions) \
+            + sum(1 for a in actions if "deduped" in a)
+        if moved:
+            print(_step(_sep("Migrated data home",
+                             _S.dim(str(data_root())),
+                             _S.dim(f"{moved} files"))))
             print()
-        else:
-            print(_S.dim(f"note: extracted data exists in both {mig['legacy']} "
-                         f"and {mig['target']} — using the latter; remove the "
-                         "legacy tree to silence this"))
-            print()
+        for a in actions:
+            if "skipped" in a:
+                print(_S.dim(f"note: {a['legacy']} and {a['target']} are both "
+                             "populated — using the latter; remove the legacy "
+                             "copy to silence this"))
+                print()
+            elif "CONFLICT" in a:
+                print(_S.bred(f"CONFLICT: {a['CONFLICT']} — {a['detail']} "
+                              f"({a['legacy']} vs {a['target']})"))
+                print()
 
     if args.command == "extract" and args.scheduled:
         from .collection import run_scheduled
@@ -433,11 +444,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "report":
         from harness.report.generate import collect
         from harness.report.render import render
+        from .paths import salt_path, task_classes_path
         root_dir = repo_root()
-        summary = collect(root_dir, extracted_dir())
+        summary = collect(root_dir, extracted_dir(),
+                          task_classes_path(root_dir),
+                          state_dir() / ".project_names.json", salt_path())
         html = render(summary)
         out = Path(args.out) if args.out else \
-            extracted_dir() / "report" / "first_look.html"
+            reports_dir() / "first_look.html"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(html)
         from .style import S, box, relpath, sep, step
@@ -466,7 +480,8 @@ def main(argv: list[str] | None = None) -> int:
         validator = load_validator(root_dir / "schemas" / "task_class.schema.json")
         for r in records:
             validator.validate(r)
-        out = Path(args.out) if args.out else root_dir / "data" / "derived" / "classes" / "task_classes.jsonl"
+        out = Path(args.out) if args.out else \
+            derived_dir() / "classes" / "task_classes.jsonl"
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "w") as fh:
             for r in records:
@@ -503,7 +518,7 @@ def main(argv: list[str] | None = None) -> int:
             tasks = tasks[:args.limit]
         models = [tuple(m.split(":")) for m in args.models.split(",")]
         out = Path(args.out) if args.out else \
-            repo_root() / "data" / "derived" / "replay" / "eval_results.jsonl"
+            derived_dir() / "replay" / "eval_results.jsonl"
         runner.run_matrix(tasks, models, repo, Path.home() / "caliper-eval" / "runs", out)
         print(f"results appended to {out}")
         return 0
@@ -514,7 +529,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "signals":
         from connectors.git_history import GitHistoryConnector
         schema_path = root / "schemas" / "production_signal.schema.json"
-        conn = GitHistoryConnector(salt=load_salt(data_dir),
+        from .paths import salt_path as _sp
+        conn = GitHistoryConnector(salt=load_salt(_sp(data_dir)),
                                    extra_repos=[Path(p) for p in args.repo])
         from .style import S, box, child, relpath, sep, spinner, step
         with spinner("Analyzing repos (blame is slow on big files)"):
@@ -568,7 +584,8 @@ def main(argv: list[str] | None = None) -> int:
     from .collection import acquire_lock, mark_covered
     from .style import S, box, child, count, relpath, sep, spinner, step
 
-    lock = acquire_lock(data_dir)
+    lock_dir = state_dir() if data_dir == extracted_dir() else data_dir
+    lock = acquire_lock(lock_dir)
     if lock is None:
         print(S.byellow("another extract is already running")
               + S.dim(" — the scheduled job, or a second terminal; "
@@ -616,8 +633,12 @@ def main(argv: list[str] | None = None) -> int:
     # a manual run is coverage evidence exactly like a scheduled one
     covered = [n for n, m in manifest["sources"].items()
                if not any(s.get("path") == "<discover>" for s in m["skipped"])]
-    mark_covered(data_dir, covered, run_start,
-                 full=set(sources) == set(PLUGINS))
+    if data_dir != extracted_dir():
+        covered = []  # an override tree is a side experiment: home
+        #               coverage/watermark state must not advance (ADR-0012)
+    else:
+        mark_covered(state_dir(), covered, run_start,
+                     full=set(sources) == set(PLUGINS))
     from .health import evaluate_canaries
     for alarm in evaluate_canaries(data_dir, manifest,
                                    exclude_run_ids=run_ids, patch_file=False):

@@ -143,19 +143,19 @@ def collection_gap(last_covered: dict[str, datetime | None],
     return gaps
 
 
-def last_covered_from_disk(data_dir: Path) -> dict[str, datetime]:
+def last_covered_from_disk(state_d: Path, extracted: Path) -> dict[str, datetime]:
     """Per-source last-covered times. Prefers the collection state file
     (updated even by activity-gated no-op runs — a verified-idle tick IS
     coverage); falls back to scanning recent extract-run manifests so users
     from before the state file existed still get warned."""
-    state_path = data_dir / STATE_FILENAME
+    state_path = state_d / STATE_FILENAME
     if state_path.exists():
         state = json.loads(state_path.read_text())
         covered = state.get("last_covered") or {}
         return {src: datetime.fromisoformat(ts)
                 for src, ts in covered.items() if ts}
 
-    manifests = data_dir / "manifests"
+    manifests = extracted / "manifests"
     if not manifests.is_dir():
         return {}
     out: dict[str, datetime] = {}
@@ -357,12 +357,13 @@ def evaluate_canaries(data_dir: Path, manifest: dict,
 
     # persist: replace this run's sources' canary alarms, keep the rest
     from .collection import load_state, save_state
-    state = load_state(data_dir)
+    from .paths import state_dir as _state_dir
+    state = load_state(_state_dir())
     kept = [a for a in state.get("pending_alarms", [])
             if a.get("kind") not in _CANARY_KINDS
             or a.get("source") not in manifest["sources"]]
     state["pending_alarms"] = kept + alarms
-    save_state(data_dir, state)
+    save_state(_state_dir(), state)
 
     run_id = manifest.get("run_id")
     if patch_file and run_id and (mdir / f"{run_id}.json").exists():
@@ -376,17 +377,17 @@ def health_nudge() -> None:
     lapsed past the retention window. Called before dispatch for every
     command except `caliper setup` (about to backfill) and `--scheduled`
     runs (they ARE the collector)."""
-    from .paths import extracted_dir
+    from .paths import extracted_dir, state_dir
     from .style import S, box
 
     data_dir = extracted_dir()
-    if not data_dir.is_dir():
+    if not data_dir.is_dir() and not state_dir().is_dir():
         return
     try:
-        last = last_covered_from_disk(data_dir)
+        last = last_covered_from_disk(state_dir(), data_dir)
         gaps = collection_gap(last, datetime.now(timezone.utc),
                               windows=retention_windows())
-        state_path = data_dir / STATE_FILENAME
+        state_path = state_dir() / STATE_FILENAME
         alarms = (json.loads(state_path.read_text()).get("pending_alarms")
                   or []) if state_path.exists() else []
     except (OSError, ValueError, KeyError, json.JSONDecodeError):

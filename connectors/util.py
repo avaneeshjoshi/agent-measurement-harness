@@ -13,16 +13,19 @@ from pathlib import Path
 _SALT_ENV = "CALIPER_HASH_SALT"
 
 
-def load_salt(data_dir: Path) -> str:
+def load_salt(salt_file: Path) -> str:
+    """env override -> existing file -> create once (0400: the salt is the
+    join key for every ref and is never rewritten — ADR-0012). Callers
+    resolve the location through cli.paths.salt_path()."""
     env = os.environ.get(_SALT_ENV)
     if env:
         return env
-    salt_file = data_dir / ".salt"
     if salt_file.exists():
         return salt_file.read_text().strip()
     salt = os.urandom(16).hex()
     salt_file.parent.mkdir(parents=True, exist_ok=True)
     salt_file.write_text(salt)
+    os.chmod(salt_file, 0o400)
     return salt
 
 

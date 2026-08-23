@@ -14,7 +14,7 @@ from cli.collection import (WATERMARK_SLACK_S, acquire_lock, artifact_mtime,
                             load_state, mark_covered, run_scheduled,
                             save_state)
 from cli.main import extract
-from cli.paths import extracted_dir
+from cli.paths import extracted_dir, state_dir
 from connectors.claude_code import ClaudeCodePlugin
 from tests.conftest import FIXTURES, SCHEMA
 
@@ -141,20 +141,18 @@ def test_fork_link_healed_by_full_pass(tmp_path):
 def _seed_state(covered_and_watermarked: bool, include_content=False):
     data_dir = extracted_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
-    state = load_state(data_dir)
+    state = load_state(state_dir())
     now = datetime.now(timezone.utc)
     state["include_content"] = include_content
     if covered_and_watermarked:
         state["last_full_pass"] = now.isoformat(timespec="seconds")
         state["watermark"] = {"claude_code": now.timestamp()}
-    save_state(data_dir, state)
+    save_state(state_dir(), state)
     return data_dir
 
 
 def test_scheduled_skips_when_lock_held(tmp_path):
-    data_dir = extracted_dir()
-    data_dir.mkdir(parents=True, exist_ok=True)
-    lock = acquire_lock(data_dir)
+    lock = acquire_lock(state_dir())
     try:
         assert run_scheduled(Path.cwd(), plugins_override={}) == 0
     finally:
@@ -169,7 +167,7 @@ def test_scheduled_idle_tick_is_heartbeat_only(tmp_path, capsys):
                          plugins_override={"claude_code": _plugin(root)}) == 0
     assert "idle" in capsys.readouterr().out
     assert not (data_dir / "manifests").exists()  # gate ran, extract didn't
-    state = load_state(data_dir)
+    state = load_state(state_dir())
     assert state["last_heartbeat"] is not None
     # a verified-idle tick IS coverage (ADR-0011)
     assert state["last_covered"]["claude_code"] is not None
@@ -183,7 +181,7 @@ def test_scheduled_extracts_on_activity_and_respects_content_optin(tmp_path):
                          plugins_override={"claude_code": _plugin(root)}) == 0
     assert (data_dir / "claude_code" / "sessions.jsonl").exists()
     assert (data_dir / "claude_code" / "content.jsonl").exists()  # opt-in honored
-    state = load_state(data_dir)
+    state = load_state(state_dir())
     assert state["last_full_pass"] is not None
     assert state["watermark"]["claude_code"] > 0
     [manifest] = list((data_dir / "manifests").glob("*.json"))
@@ -198,7 +196,7 @@ def test_scheduled_discover_failure_raises_pending_alarm(tmp_path):
     data_dir = _seed_state(covered_and_watermarked=False)
     assert run_scheduled(Path.cwd(), plugins_override={
         "claude_code": Exploding(root=tmp_path, salt="test-salt")}) == 0
-    state = load_state(data_dir)
+    state = load_state(state_dir())
     kinds = {(a["kind"], a["source"]) for a in state["pending_alarms"]}
     assert ("self_check", "claude_code") in kinds
     # a failed source is NOT marked covered — the gap warning stays armed
