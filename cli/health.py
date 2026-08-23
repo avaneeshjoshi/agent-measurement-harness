@@ -14,11 +14,21 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-# ADR-0009 §infrastructure-1: a raw Claude Code log present on 2026-08-07 was
-# gone by 2026-08-10 — observed vendor retention is ~3 days. Collection older
-# than this may have permanently lost whatever the vendor rotated out. A
-# known limitation (ADR-0011), not a bug. Never inline this as a magic number.
-RETENTION_OBSERVED_DAYS = 3
+# Retention model (ADR-0011 postscript — correcting ADR-0009's n=1 reading):
+# measured on 2026-08-23, Claude Code deletes session logs at its
+# cleanupPeriodDays setting (default 30; deletion boundary observed between
+# 29d-old surviving and 45d-old deleted files). Codex and Cursor showed NO
+# rotation (files ≥6 months old; cumulative DBs). The old
+# RETENTION_OBSERVED_DAYS=3 over-generalized one July log crossing the
+# 30-day boundary. Thresholds are derived per source and per machine; every
+# warning states its derivation.
+CLAUDE_CLEANUP_DEFAULT_DAYS = 30
+# Warn once a lapse passes half the rotation window: early enough to act,
+# derived from the window rather than a second magic number.
+RETENTION_WARN_FRACTION = 0.5
+# Non-rotating sources: a lapse is a coverage problem, never a loss. Two
+# stale weeks is where the picture stops being current.
+COVERAGE_GAP_DAYS = 14
 
 STATE_FILENAME = ".collection.json"
 
@@ -44,29 +54,92 @@ COVERAGE_DROP_ABS = 0.3        # alarm on a >=30-point absolute drop
 
 
 @dataclass
+class RetentionWindow:
+    days: float | None  # None = no rotation observed for this source
+    basis: str          # stated in the warning itself — never a bare number
+
+
+@dataclass
 class Gap:
     source: str
     last_covered: datetime
-    lost_from: datetime
-    lost_to: datetime
+    kind: str  # "loss" | "at_risk" | "coverage"
+    window_days: float | None
+    basis: str
+    lost_from: datetime | None = None
+    lost_to: datetime | None = None
+
+
+def claude_cleanup_days(settings_path: Path | None = None) -> tuple[int, str]:
+    """This machine's actual Claude Code rotation window. Someone who set
+    cleanupPeriodDays=7 has a real 7-day window; someone at 365 should
+    barely ever be warned — so read the setting, default only as fallback,
+    and return the basis so the warning can state its derivation."""
+    path = settings_path or Path.home() / ".claude" / "settings.json"
+    try:
+        v = json.loads(path.read_text()).get("cleanupPeriodDays")
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0:
+            return int(v), f"your cleanupPeriodDays={int(v)}"
+    except (OSError, ValueError, json.JSONDecodeError):
+        pass
+    return CLAUDE_CLEANUP_DEFAULT_DAYS, (
+        f"Claude Code default {CLAUDE_CLEANUP_DEFAULT_DAYS}d — "
+        "cleanupPeriodDays unset")
+
+
+def retention_windows(settings_path: Path | None = None
+                      ) -> dict[str, RetentionWindow]:
+    days, basis = claude_cleanup_days(settings_path)
+    return {
+        "claude_code": RetentionWindow(days=days, basis=basis),
+        "codex": RetentionWindow(days=None, basis="no rotation observed — "
+                                 "files ≥6 months old on disk"),
+        "cursor": RetentionWindow(days=None, basis="cumulative databases, "
+                                  "no rotation"),
+    }
+
+
+_NON_ROTATING = RetentionWindow(days=None,
+                                basis="unknown source — treated as "
+                                      "non-rotating")
 
 
 def collection_gap(last_covered: dict[str, datetime | None],
-                   now: datetime) -> list[Gap]:
-    """Sources whose last covered time predates the retention window.
+                   now: datetime,
+                   windows: dict[str, RetentionWindow] | None = None
+                   ) -> list[Gap]:
+    """Per-source, per-machine gap classification.
 
-    The honest lost window is [last_covered, now − retention]: anything newer
-    may still be sitting in the vendor's logs, and rotation means we cannot
-    prove what existed — so callers phrase it "may be lost" (absent is not
-    zero applies to warnings too). No prior coverage → no gap: a fresh
-    machine is not a loss.
+    Rotating sources (Claude Code): "loss" once the lapse exceeds the
+    rotation window — the may-already-be-rotated span is
+    [last_covered, now − window], since anything newer may still be in the
+    logs and rotation means we cannot prove what existed (absent is not zero
+    applies to warnings too). "at_risk" past half the window: nothing lost
+    yet, time to act. Non-rotating sources (Codex, Cursor): a lapse is a
+    "coverage" gap — the picture is stale, nothing is lost. No prior
+    coverage → no gap: a fresh machine is not a loss.
     """
-    retention = timedelta(days=RETENTION_OBSERVED_DAYS)
+    windows = windows or {}
     gaps = []
     for source, ts in sorted(last_covered.items()):
-        if ts is not None and now - ts > retention:
-            gaps.append(Gap(source=source, last_covered=ts,
-                            lost_from=ts, lost_to=now - retention))
+        if ts is None:
+            continue
+        lapse = now - ts
+        w = windows.get(source, _NON_ROTATING)
+        if w.days is None:
+            if lapse > timedelta(days=COVERAGE_GAP_DAYS):
+                gaps.append(Gap(source=source, last_covered=ts,
+                                kind="coverage", window_days=None,
+                                basis=w.basis))
+            continue
+        window = timedelta(days=w.days)
+        if lapse > window:
+            gaps.append(Gap(source=source, last_covered=ts, kind="loss",
+                            window_days=w.days, basis=w.basis,
+                            lost_from=ts, lost_to=now - window))
+        elif lapse > window * RETENTION_WARN_FRACTION:
+            gaps.append(Gap(source=source, last_covered=ts, kind="at_risk",
+                            window_days=w.days, basis=w.basis))
     return gaps
 
 
@@ -311,7 +384,8 @@ def health_nudge() -> None:
         return
     try:
         last = last_covered_from_disk(data_dir)
-        gaps = collection_gap(last, datetime.now(timezone.utc))
+        gaps = collection_gap(last, datetime.now(timezone.utc),
+                              windows=retention_windows())
         state_path = data_dir / STATE_FILENAME
         alarms = (json.loads(state_path.read_text()).get("pending_alarms")
                   or []) if state_path.exists() else []
@@ -324,19 +398,39 @@ def health_nudge() -> None:
         print()
     if not gaps:
         return
-    lines = []
+    collect_hint = (S.dim("Collect now: ") + S.accent("caliper extract")
+                    + S.dim(" · keep it continuous: ")
+                    + S.accent("caliper schedule install"))
+    losses = [g for g in gaps if g.kind == "loss"]
+    if losses:
+        lines = [f"{g.source}: last collected {g.last_covered:%Y-%m-%d} — "
+                 f"logs rotate at ~{g.window_days:.0f}d ({g.basis}); "
+                 f"activity between then and {g.lost_to:%Y-%m-%d} may "
+                 "already be rotated away"
+                 for g in losses]
+        print(box(S.bred("Collection gap — a rotation window has passed"),
+                  "", *lines, "",
+                  S.dim("Rotation means what existed cannot be proven — "
+                        "\"may be lost\", never \"was\". Known limitation "
+                        "(ADR-0011 postscript), not a bug."),
+                  collect_hint))
+        print()
     for g in gaps:
-        lines.append(f"{g.source}: last collected "
-                     f"{g.last_covered:%Y-%m-%d %H:%M}Z — activity between "
-                     f"then and {g.lost_to:%Y-%m-%d} may be permanently lost")
-    print(box(S.bred("Collection gap — the retention window has passed"),
-              "",
-              *lines,
-              "",
-              S.dim(f"Vendor logs rotate after ~{RETENTION_OBSERVED_DAYS} "
-                    "days (observed, ADR-0009). This is the known retention "
-                    "limitation, not a bug."),
-              S.dim("Collect now: ") + S.accent("caliper extract")
-              + S.dim(" · keep it continuous: ")
-              + S.accent("caliper schedule install")))
-    print()
+        if g.kind == "at_risk":
+            deadline = g.last_covered + timedelta(days=g.window_days)
+            print(step(S.byellow(f"{g.source}: collection is lapsing")
+                       + " " + S.dim(f"last collected "
+                                     f"{g.last_covered:%Y-%m-%d}; logs "
+                                     f"rotate at ~{g.window_days:.0f}d "
+                                     f"({g.basis}) — collect before "
+                                     f"{deadline:%Y-%m-%d}")))
+            print()
+        elif g.kind == "coverage":
+            print(step(S.byellow(f"{g.source}: no collection since "
+                                 f"{g.last_covered:%Y-%m-%d}")
+                       + " " + S.dim(f"nothing is lost ({g.basis}) — "
+                                     "but the picture is stale")))
+            print()
+    if not losses:
+        print("    " + collect_hint)
+        print()

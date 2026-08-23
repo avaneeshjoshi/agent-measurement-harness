@@ -283,9 +283,10 @@ def _collection_step(repo_root: Path) -> None:
         print()
         return
 
-    question = ("Vendors rotate agent logs after ~3 days (ADR-0009) — "
-                "anything not collected in time is gone. Keep collection "
-                "continuous?")
+    question = ("Claude Code rotates session logs after ~30 days "
+                "(your cleanupPeriodDays; other tools keep theirs longer) — "
+                "anything not collected before rotation is gone. Keep "
+                "collection continuous?")
     options = ["Install hourly background collection — runs only when "
                "there's new activity",
                "Not now"]

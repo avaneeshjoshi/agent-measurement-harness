@@ -7,8 +7,10 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from cli.health import (RETENTION_OBSERVED_DAYS, STATE_FILENAME,
-                        collection_gap, last_covered_from_disk)
+from cli.health import (CLAUDE_CLEANUP_DEFAULT_DAYS, COVERAGE_GAP_DAYS,
+                        STATE_FILENAME, RetentionWindow, claude_cleanup_days,
+                        collection_gap, last_covered_from_disk,
+                        retention_windows)
 
 NOW = datetime(2026, 8, 23, 12, 0, tzinfo=timezone.utc)
 
@@ -22,24 +24,76 @@ def test_gap_none_without_prior_coverage():
     assert collection_gap({"claude_code": None}, NOW) == []
 
 
-def test_gap_under_threshold_silent():
-    covered = {"claude_code": _ago(days=RETENTION_OBSERVED_DAYS, minutes=-1)}
-    assert collection_gap(covered, NOW) == []
+WIN = {"claude_code": RetentionWindow(days=30, basis="test basis")}
 
 
-def test_gap_over_threshold_names_lost_window():
-    last = _ago(days=10)
-    [gap] = collection_gap({"codex": last}, NOW)
-    assert gap.source == "codex"
+def test_gap_loss_past_rotation_window_names_span_and_basis():
+    last = _ago(days=31)
+    [gap] = collection_gap({"claude_code": last}, NOW, windows=WIN)
+    assert gap.kind == "loss"
     assert gap.lost_from == last
-    # anything newer than now - retention may still be in the vendor's logs
-    assert gap.lost_to == NOW - timedelta(days=RETENTION_OBSERVED_DAYS)
+    # anything newer than now - window may still be in the vendor's logs
+    assert gap.lost_to == NOW - timedelta(days=30)
+    assert gap.basis == "test basis"  # the derivation travels with the gap
+
+
+def test_gap_at_risk_past_half_window():
+    [gap] = collection_gap({"claude_code": _ago(days=16)}, NOW, windows=WIN)
+    assert gap.kind == "at_risk"
+    assert gap.lost_from is None  # nothing lost yet
+
+
+def test_gap_silent_below_half_window():
+    assert collection_gap({"claude_code": _ago(days=14)}, NOW,
+                          windows=WIN) == []
+
+
+def test_gap_nonrotating_source_is_coverage_not_loss():
+    windows = retention_windows()
+    [gap] = collection_gap({"codex": _ago(days=COVERAGE_GAP_DAYS + 1)},
+                           NOW, windows=windows)
+    assert gap.kind == "coverage"
+    assert gap.lost_from is None
+    assert collection_gap({"codex": _ago(days=COVERAGE_GAP_DAYS - 1)},
+                          NOW, windows=windows) == []
+
+
+def test_gap_unknown_source_treated_as_nonrotating():
+    [gap] = collection_gap({"mystery_tool": _ago(days=20)}, NOW, windows=WIN)
+    assert gap.kind == "coverage"
 
 
 def test_gap_is_per_source():
-    covered = {"claude_code": _ago(hours=2), "cursor": _ago(days=5)}
-    gaps = collection_gap(covered, NOW)
-    assert [g.source for g in gaps] == ["cursor"]
+    covered = {"claude_code": _ago(hours=2), "cursor": _ago(days=20)}
+    gaps = collection_gap(covered, NOW, windows=retention_windows())
+    assert [(g.source, g.kind) for g in gaps] == [("cursor", "coverage")]
+
+
+def test_claude_cleanup_days_reads_user_setting(tmp_path):
+    p = tmp_path / "settings.json"
+    p.write_text(json.dumps({"cleanupPeriodDays": 7}))
+    days, basis = claude_cleanup_days(p)
+    assert days == 7
+    assert "your cleanupPeriodDays=7" in basis
+
+
+def test_claude_cleanup_days_falls_back_to_default(tmp_path):
+    days, basis = claude_cleanup_days(tmp_path / "missing.json")
+    assert days == CLAUDE_CLEANUP_DEFAULT_DAYS
+    assert "default" in basis and "unset" in basis
+    garbage = tmp_path / "settings.json"
+    garbage.write_text("{not json")
+    assert claude_cleanup_days(garbage)[0] == CLAUDE_CLEANUP_DEFAULT_DAYS
+    garbage.write_text(json.dumps({"cleanupPeriodDays": True}))  # bool trap
+    assert claude_cleanup_days(garbage)[0] == CLAUDE_CLEANUP_DEFAULT_DAYS
+
+
+def test_retention_windows_per_machine(tmp_path):
+    p = tmp_path / "settings.json"
+    p.write_text(json.dumps({"cleanupPeriodDays": 365}))
+    w = retention_windows(settings_path=p)
+    assert w["claude_code"].days == 365  # 365 -> a year of quiet, by design
+    assert w["codex"].days is None and w["cursor"].days is None
 
 
 def _write_manifest(mdir: Path, run_id: str, finished_at: str,

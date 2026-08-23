@@ -108,3 +108,13 @@ multiple engineers are the promotion gate, as ADR-0002 already said.
 - Follow-ups, in value order: neighborhood features for flow context (0.2.0),
   enterprise/multi-rater labels, LLM-judged labeling of a larger local sample to
   widen n before any learned classifier (conventions gate).
+
+## Postscript (2026-08-23)
+
+Infrastructure finding 1's "observed retention ≈ days" was an n=1
+over-generalization: the vanished log had crossed Claude Code's ~30-day
+`cleanupPeriodDays` boundary, not a 3-day window. Measurement and corrected
+per-source retention model in the ADR-0011 postscript. The structural
+conclusion stands — logs do rotate and continuous extraction remains a
+product requirement — but the window is ~10x wider than this finding
+implied.

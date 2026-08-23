@@ -210,3 +210,41 @@ line is the marker to revisit.
   watermark filtering, fork-link healing, lock contention, plist generation,
   and the TCC/verification flows — all pure-logic or injectable-runner tests;
   CI never touches launchctl.
+
+## Postscript (2026-08-23): the retention constant was wrong — corrected by measurement
+
+Challenged the same day it shipped, `RETENTION_OBSERVED_DAYS = 3` did not
+survive contact with the filesystem:
+
+- Raw Claude Code logs on this machine span **24.9 days** (205 files; 199 of
+  them 7–30 days old). Codex rollout files go back **193 days**; Cursor's
+  databases are cumulative. Neither Codex nor Cursor rotates at all.
+- The definitive measurement, from extraction provenance: every session
+  started 2026-07-09 has a **deleted** raw file (45+ days old at
+  measurement); every session from 2026-07-25 on **survives** (29 days old).
+  The deletion boundary sits at ~30 days — exactly Claude Code's
+  `cleanupPeriodDays` default, which is unset on this machine.
+
+So ADR-0009's observation (a log present Aug 7, gone by Aug 10) was real but
+misread: that log was from early July and crossed the **30-day** cleanup
+boundary in that window. Generalizing it to "retention ≈ 3 days" was an n=1
+over-generalization — the exact failure mode this product exists to catch,
+committed inside its own instrument. Recorded as a finding, not silently
+retuned.
+
+**Corrected model (implemented in `cli/health.py`):**
+
+- Per-source, per-machine windows, derivation stated in every warning:
+  `claude_code` = the user's actual `cleanupPeriodDays`
+  (`CLAUDE_CLEANUP_DEFAULT_DAYS = 30` only as fallback — someone at 7 has a
+  real 7-day window; someone at 365 should barely ever be warned);
+  `codex` and `cursor` = non-rotating.
+- Three gap kinds with distinct wording: **loss** (lapse past the rotation
+  window — red, names the may-already-be-rotated span), **at_risk** (lapse
+  past `RETENTION_WARN_FRACTION = 0.5` of the window — yellow, names the
+  collect-before date), **coverage** (non-rotating source stale past
+  `COVERAGE_GAP_DAYS = 14` — "nothing is lost, the picture is stale").
+- The urgency argument for continuous collection weakens (30 days, not 3)
+  but does not vanish: rotation is real, user-configurable downward, and a
+  laptop that sits closed for a vacation plus a short `cleanupPeriodDays`
+  still loses history silently without the scheduler.
