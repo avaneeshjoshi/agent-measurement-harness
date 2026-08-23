@@ -42,7 +42,7 @@ default output tree moves from `<repo>/data/extracted/` to
   and a failed verify cleans the partial target and leaves the legacy tree
   untouched. **A populated target is never overwritten** — both-populated
   prints a notice and uses the new home. Idempotent by construction.
-- Committed evidence stays in the repo: `data/derived/`, `data/calibration/`,
+- Committed evidence stays in the repo *(reorganized into `data/evidence/` by ADR-0012)*: `data/derived/`, `data/calibration/`,
   `data/fixtures/` are citable repo data. The `.gitignore` rule for
   `data/extracted/` remains as a guard for stragglers.
 - **`~/caliper-eval/` stays where it is.** It is a disposable eval workspace —

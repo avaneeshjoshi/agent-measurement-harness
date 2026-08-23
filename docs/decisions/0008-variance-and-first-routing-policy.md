@@ -1,6 +1,6 @@
 # ADR-0008: Variance subset (n_runs=3) — the fable/sonnet gap dissolves, the haiku cliff holds; first routing_policy record
 
-**Date:** 2026-08-10 · **Status:** accepted · **Records:** `data/derived/replay/eval_results_variance.jsonl` (90), `data/derived/routing/routing_policies.jsonl` (1)
+**Date:** 2026-08-10 · **Status:** accepted · **Records:** `data/derived/replay/eval_results_variance.jsonl` (90), `data/derived/routing/routing_policies.jsonl` (1) *(evidence relocated to `data/evidence/adr-0008/`, ADR-0012)*
 
 ## Context
 

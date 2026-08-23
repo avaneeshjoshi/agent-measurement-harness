@@ -1,6 +1,6 @@
 # ADR-0009: Classifier v0 — content-free agreement with human labels, and what metadata cannot see
 
-**Date:** 2026-08-10 · **Status:** accepted · **Artifacts:** `harness/classifier/` (rules-0.1.1, segmenter 0.1.0), `data/derived/classes/` (1446 task_class records, validation + traffic reports)
+**Date:** 2026-08-10 · **Status:** accepted · **Artifacts:** `harness/classifier/` (rules-0.1.1, segmenter 0.1.0), `data/derived/classes/` (1446 task_class records, validation + traffic reports) *(reports relocated to `data/evidence/adr-0009/`; the live task_classes file is user data under ~/.caliper — ADR-0012)*
 
 ## The experiment
 

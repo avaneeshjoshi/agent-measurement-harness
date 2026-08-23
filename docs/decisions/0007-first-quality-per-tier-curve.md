@@ -1,6 +1,6 @@
 # ADR-0007: First quality-per-tier curve — 30 real bug-fix tasks × 3 tiers on commons-lang
 
-**Date:** 2026-08-10 · **Status:** accepted · **Records:** `data/derived/replay/eval_results.jsonl` (90 records, eval_result 0.3.0)
+**Date:** 2026-08-10 · **Status:** accepted · **Records:** `data/derived/replay/eval_results.jsonl` (90 records, eval_result 0.3.0) *(evidence relocated to `data/evidence/adr-0007/`, ADR-0012)*
 
 ## Context
 

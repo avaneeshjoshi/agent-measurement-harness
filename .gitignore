@@ -7,3 +7,4 @@ dist/
 # Extracted local traffic never enters the repo (data/README.md: no customer
 # data, no local traffic; only fixtures/calibration/synthetic are committed).
 data/extracted/
+data/derived/

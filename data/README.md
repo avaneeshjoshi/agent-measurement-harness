@@ -1,20 +1,33 @@
 # data/
 
-The medium every component communicates through: connectors write normalized records here, harness stages read and write here, and the intended dashboard will read from here (no dashboard exists yet — see [`PROGRESS.md`](../PROGRESS.md)). Every record validates against a schema in `schemas/`; the test suite enforces it on every push and PR (`.github/workflows/ci.yml`).
+**The rule (ADR-0012): user data never touches the git tree.** If Caliper
+computed it from someone's traffic, their repos, or their machine, it lives
+under `~/.caliper/` — extracted records, derived outputs, reports, state,
+logs, and the salt. If it is a contract, a fixture, or evidence an ADR cites,
+it lives here. There is no third category, and no code path may write user
+data to a repo-relative path — `cli/paths.py` is the single path authority
+and boundary tests fail if anything bypasses it.
 
 ## What's here
 
 | Subdir | Contents |
 |---|---|
-| `extracted/` | **No longer written here** — connector output (sessions, prompt units, signals, manifests, the report) lives at `~/.caliper/extracted/` since ADR-0011: user data, not repo data. The gitignore rule remains as a guard, and a populated legacy tree is migrated automatically |
-| `derived/` | Harness output (committed): task classes, eval results, the routing policy record |
+| `evidence/` | Frozen per-ADR snapshots — never regenerated, never written by code. See [`evidence/README.md`](evidence/README.md) |
 | `calibration/` | The human-labeled sets — today the ADR-0002 unit-comparison labels; the 100–200 task judge-calibration set is planned and needs human raters |
 | `fixtures/` | Small hand-built source-log samples used by `tests/` |
 
-Planned, not yet existing: a `synthetic/` tree (generated Jira projects and telemetry sessions for an end-to-end demo).
+`extracted/` and `derived/` no longer exist here — both live under
+`~/.caliper/` and both are gitignored as a guard against stragglers. A
+populated legacy tree from an older checkout is migrated automatically,
+salt-preserving (`tests/test_paths.py`).
 
 ## Rules
 
-- **No customer data, ever, in this repo.** Development runs entirely on public OSS repos, synthetic project-management data, and synthetic telemetry. In customer deployments, content-level data exists only inside the customer's environment — this repo holds the tooling, not the traffic.
-- Extracted local traffic (`extracted/`) is never committed; fixtures, calibration sets, and the derived records that back cited numbers are.
-- Records are append-only and versioned by the schema version that produced them; re-runs write new artifacts rather than mutating old ones, so every reported number stays reproducible.
+- **No customer data, ever, in this repo.** Development runs entirely on
+  public OSS repos and this machine's own traffic — which stays in
+  `~/.caliper`, never here.
+- Evidence files are append-never: corrections are restatements in ADR
+  postscripts (the ADR-0007 pricing-postscript pattern), not rewrites.
+- Records are versioned by the schema that produced them; re-runs write new
+  artifacts under `~/.caliper`, so every committed number stays reproducible
+  from the frozen bytes beside its ADR.
