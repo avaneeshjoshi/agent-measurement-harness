@@ -1,3 +1,9 @@
+**Purpose:** What Caliper is — the problem, the architecture, the intended product, and the repo map.
+**Authoritative for:** The product thesis, how the pieces fit together, and what lives where in this repo.
+**Not authoritative for:** Current capability status — that is [`PROGRESS.md`](PROGRESS.md), and only ever `PROGRESS.md`. Design rationale lives in [`docs/decisions/`](docs/decisions/).
+**Update when:** The architecture, the intended product, or the repo layout changes — not when capability status changes.
+**Last reviewed:** 2026-08-23
+
 # Caliper
 
 An independent observability and evaluation layer for coding-agent traffic — Claude Code, Cursor, and Codex first-class, extensible to other harnesses (ADR-0003). It answers three questions no vendor dashboard can: **what are agents actually used for**, **is automatic model routing making good calls**, and **what did the spend actually deliver**.
@@ -11,7 +17,9 @@ The harness produces four things:
 
 Governing principle: **glass box by default.** Every classification rule, rubric, and routing recommendation is versioned, documented, and logged with rationale (`docs/decisions/`). Reporting is team-level and above — no individual rankings, ever.
 
-## How a user experiences Caliper
+## The intended product experience
+
+**This section is design narrative, not current capability.** It describes the product Caliper is being built toward, in present tense because that is how the design was written. What actually works today is stated — with evidence — in [`PROGRESS.md`](PROGRESS.md). As of the last review: install is `pip install -e .`, not npm; `caliper setup`, `extract`, `signals`, `classify`, `report`, `replay`, and `policy` are real; the apply step described below writes a decision log and **touches no agent configuration**; verified savings, org detection, and scheduled re-measurement are unbuilt.
 
 Caliper is designed around one constraint: **engineers do not change how they work.**
 No new steps in the coding loop, no prompts to remember, no process to follow. Caliper
@@ -152,22 +160,18 @@ All components communicate **through data, not direct imports across layers**: e
 
 | Directory | What it is |
 |---|---|
-| [`docs/`](docs/) | Proposal, methodology, taxonomy, and the glass-box decision log |
-| [`schemas/`](schemas/) | The shared contracts: event schema, task classification, eval results |
-| [`connectors/`](connectors/) | Ingestion: GitHub, Jira (synthetic), agent telemetry → normalized records |
-| [`harness/`](harness/) | The core Python package — classifier, replay, judge, signals, trace, routing |
-| [`data/`](data/) | Synthetic traffic, fixtures, calibration sets. **Never customer data.** |
-| [`dashboard/`](dashboard/) | Next.js reporting UI — the manager-facing decision buckets |
-| [`notebooks/`](notebooks/) | Exploratory analysis and curve plots |
+| [`docs/`](docs/) | Conventions, the glass-box decision log (ADRs), and the web-demo spec |
+| [`schemas/`](schemas/) | The shared contracts: sessions, prompt units, task classes, eval results, production signals, trace events, routing policies |
+| [`cli/`](cli/) | The `caliper` command — extract, signals, classify, report, replay, policy, setup |
+| [`connectors/`](connectors/) | Ingestion: Claude Code, Cursor, and Codex logs plus local git history → normalized records |
+| [`harness/`](harness/) | The core Python package. Implemented: classifier, replay, report. Design READMEs only, no code yet: judge, signals*, trace, routing |
+| [`data/`](data/) | Fixtures and calibration sets. **Never customer data**; extracted local traffic is gitignored |
+| [`dashboard/`](dashboard/) | **Design README only — no app exists yet.** The intended Next.js reporting UI |
+| [`notebooks/`](notebooks/) | **Design README only — no notebooks exist yet.** Intended exploratory analysis |
 | [`tests/`](tests/) | Test suite for the harness and schema validation |
+
+\* signal *computation* ships today inside `connectors/git_history.py` (`caliper signals`, ADR-0006); `harness/signals/` is the intended home it moves to when the normalize/compute split happens.
 
 ## Status
 
-Contracts-first stage, first component shipped: the six v0 schemas (session now 0.3.0),
-the conventions they follow (`docs/conventions.md`), four ADRs, a first hand-labeled
-calibration set (`data/calibration/`), and the **log extractor** — `pip install -e .`
-then `caliper extract` pulls Claude Code, Cursor, and Codex sessions on this machine
-into schema-valid records under `data/extracted/` (ADR-0004; `cli/` and `connectors/`).
-The `session` and `task_class` schemas remain flagged REVIEW REQUIRED pending
-field-by-field review. See each directory's README for what belongs there and its
-inputs/outputs.
+Lives in [`PROGRESS.md`](PROGRESS.md) — the single statement of what works, what is stubbed, and what is blocked, with evidence for every claim. Status is deliberately not duplicated here: a status section in a README goes stale because nothing forces an update; `PROGRESS.md` is updated in the same commit as any capability change (see `CLAUDE.md`).
