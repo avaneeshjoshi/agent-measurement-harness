@@ -15,7 +15,7 @@ On one machine, the measurement loop runs end to end: `caliper setup` extracts s
 Every entry here is implemented and has produced real numbers. A capability without an evidence line does not belong in this section.
 
 **Log extractor (`caliper extract`, `caliper setup`)** — three source connectors (Claude Code JSONL, Cursor state/tracking DBs, Codex rollout JSONL) plus per-prompt units for the two sources that have them. Read-only over sources (SQLite snapshot-copied, enforced by test), content-free by default, idempotent by content hash.
-*Evidence:* ADR-0004 (Codex structural validation, first run 2026-08-09: 21/43/21 sessions, 0 validation failures), ADR-0005 (cross-tool normalization). Current local tree: 227 claude_code + 45 cursor + 23 codex session records (session schema 0.4.0), 969 prompt units (prompt_unit 0.1.1). 11 extractor tests in the 35-test suite (all passing 2026-08-23).
+*Evidence:* ADR-0004 (Codex structural validation, first run 2026-08-09: 21/43/21 sessions, 0 validation failures), ADR-0005 (cross-tool normalization). Current local tree: 227 claude_code + 45 cursor + 23 codex session records (session schema 0.4.0), 969 prompt units (prompt_unit 0.1.1). 11 extractor tests in the 35-test suite (all passing 2026-08-23; the suite runs on every push and PR via `.github/workflows/ci.yml`).
 
 **Git-history production signals (`caliper signals`)** — blame-based survival at 30/60/90d horizons, 14-day rework, marker-only revert detection, evidence-only AI attribution, for exactly the repos the extracted sessions reference.
 *Evidence:* ADR-0006 — first run 2026-08-09: 7 repos, 88 commits, 0 validation failures (production_signal 0.2.0, on disk). Session→repo join rates: claude_code 95% (20/21), codex 81% (17/21), cursor 60% (26/43).
@@ -60,7 +60,6 @@ Each of these is deliberately fake or absent today, and each fake is labeled as 
 - **The classifier's 53% agreement is the downstream bottleneck.** Task-mix numbers, the policy flow's in-scope selection, and any future mix-weighted routing all inherit it. Strong on exploratory_qa and browser-verification, structurally blind to intent distinctions (bug-fix vs small feature, config vs code) — ADR-0009.
 - **Format drift degrades coverage silently.** `additionalProperties: false` catches *new* fields loudly, but when a vendor *removes* a field (Codex dropped its git block in 2026-08 builds, ADR-0005) extraction continues correctly with absent fields and nothing alerts — coverage just sinks.
 - **`session` and `task_class` schemas are still flagged REVIEW REQUIRED** (since ADR-0001). Everything downstream is built on provisionally-shaped records and a `0.1.0-provisional` taxonomy.
-- **No CI.** `data/README.md` and `schemas/README.md` claim validation "runs in CI"; no CI configuration exists in the repo. The 35 tests run locally only.
 
 ## Build order
 
