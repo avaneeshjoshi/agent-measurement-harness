@@ -10,7 +10,7 @@ Classifies agent work along the three taxonomy axes. The classification **unit**
 
 ## Inputs
 
-- Session records from `data/` (written by `connectors/telemetry`), validating against `schemas/session.schema.json`.
+- Session and prompt-unit records from `data/extracted/` (written by the source plugins in `connectors/`), validating against `schemas/session.schema.json` and `schemas/prompt_unit.schema.json`.
 - Class definitions from the provisional taxonomy in `schemas/task_class.schema.json` (a prose `docs/taxonomy.md` is planned, not yet written).
 
 ## Outputs
