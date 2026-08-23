@@ -184,6 +184,28 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
                                "detail": f"discover() failed: {exc!r}",
                                "raised_at": iso})
                 _log(f"{name}: discover failed: {exc!r}")
+
+        # FDA read check (ADR-0011 decision 6): in full mode, verify the
+        # background context can actually read the repos signals needs —
+        # TCC denials never prompt from launchd, they just fail
+        if state.get("mode") == "full":
+            for repo in ((state.get("schedule") or {})
+                         .get("repo_paths") or [])[:5]:
+                try:
+                    os.scandir(repo).close()
+                except PermissionError:
+                    alarms.append({
+                        "key": f"signals:self_check:fda:{repo}",
+                        "source": "signals", "kind": "self_check",
+                        "detail": (f"cannot read {repo} from the background "
+                                   "job — grant Full Disk Access to the "
+                                   "Python runtime, or reinstall with "
+                                   "`caliper schedule install --extract-only`"),
+                        "raised_at": iso})
+                    _log(f"self-check: cannot read {repo} (TCC) — "
+                         "Full Disk Access missing")
+                except OSError:
+                    pass  # deleted/moved repo is not a permission problem
         state["pending_alarms"] = alarms
 
         last_full = state.get("last_full_pass")
@@ -225,6 +247,28 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
         from .health import evaluate_canaries
         for alarm in evaluate_canaries(data_dir, manifest, now=now):
             _log(f"DRIFT ALARM {alarm['key']}: {alarm['detail']}")
+
+        # full mode: the daily full pass also refreshes outcome signals —
+        # the FDA-gated half of scheduled collection (ADR-0011 decision 6)
+        if full and state.get("mode") == "full":
+            try:
+                from .main import signals as run_signals
+                sm = run_signals(data_dir, repo_root() / "schemas"
+                                 / "production_signal.schema.json")
+                _log(f"signals: {sm['records']['emitted']} records across "
+                     f"{len(sm['repos'])} repos")
+            except Exception as exc:
+                _log(f"signals FAILED: {exc!r}")
+                st2 = load_state(data_dir)
+                st2["pending_alarms"] = [
+                    a for a in st2.get("pending_alarms", [])
+                    if a.get("key") != "signals:self_check:run"]
+                st2["pending_alarms"].append({
+                    "key": "signals:self_check:run", "source": "signals",
+                    "kind": "self_check",
+                    "detail": f"scheduled signals run failed: {exc!r}",
+                    "raised_at": iso})
+                save_state(data_dir, st2)
 
         parts = []
         for name, src in manifest["sources"].items():

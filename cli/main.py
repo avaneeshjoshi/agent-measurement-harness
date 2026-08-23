@@ -351,6 +351,18 @@ def main(argv: list[str] | None = None) -> int:
     p_setup.add_argument("--quick", action="store_true",
                          help="quick backfill without asking (sessions only)")
 
+    p_schedule = sub.add_parser("schedule",
+                                help="Manage the hourly background "
+                                     "collection job (launchd, ADR-0011).")
+    p_schedule.add_argument("action", nargs="?", default="status",
+                            choices=["install", "uninstall", "status"])
+    sgrp = p_schedule.add_mutually_exclusive_group()
+    sgrp.add_argument("--full", action="store_true",
+                      help="hourly sessions + daily git signals "
+                           "(may need Full Disk Access)")
+    sgrp.add_argument("--extract-only", action="store_true",
+                      help="hourly sessions only; no special permission")
+
     p_policy = sub.add_parser("policy",
                               help="Review the routing policy against your "
                                    "traffic and decide on it.")
@@ -397,6 +409,16 @@ def main(argv: list[str] | None = None) -> int:
         from .policy_flow import run_policy_flow
         apply_now = args.yes or args.action == "apply"
         return run_policy_flow(repo_root(), yes=apply_now, no=args.no)
+
+    if args.command == "schedule":
+        from .schedule import install, status, uninstall
+        if args.action == "install":
+            mode = "full" if args.full else \
+                ("extract_only" if args.extract_only else None)
+            return install(repo_root(), mode=mode)
+        if args.action == "uninstall":
+            return uninstall()
+        return status()
 
     if args.command not in ("extract", "signals", "replay", "classify",
                             "report", "pricing", "policy", "setup"):

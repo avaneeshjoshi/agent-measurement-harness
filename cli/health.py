@@ -336,5 +336,7 @@ def health_nudge() -> None:
               S.dim(f"Vendor logs rotate after ~{RETENTION_OBSERVED_DAYS} "
                     "days (observed, ADR-0009). This is the known retention "
                     "limitation, not a bug."),
-              S.dim("Collect now: ") + S.accent("caliper extract")))
+              S.dim("Collect now: ") + S.accent("caliper extract")
+              + S.dim(" · keep it continuous: ")
+              + S.accent("caliper schedule install")))
     print()
