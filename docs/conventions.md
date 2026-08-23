@@ -1,3 +1,9 @@
+**Purpose:** The rules every schema and every component follows when writing or reading data.
+**Authoritative for:** Versioning, uncertainty vocabulary, classification units, segmentation rules, provenance annotations, privacy boundaries, field style.
+**Not authoritative for:** Why a rule exists (`docs/decisions/`), current status (`PROGRESS.md`), the shapes themselves (`schemas/`).
+**Update when:** A convention changes — which requires an ADR — or a versioned rule (e.g. the segmenter) gets a new version.
+**Last reviewed:** 2026-08-23
+
 # Schema & data conventions (v0)
 
 Rules every component and every schema follows. Short on purpose — if a rule needs a page, it becomes an ADR in `decisions/`.
