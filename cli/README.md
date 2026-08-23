@@ -18,6 +18,16 @@ caliper signals                          # production signals from local git rep
 caliper signals --repo /path/to/repo     # analyze additional repos
 ```
 
+```bash
+caliper classify [--unit prompt|segment|session|all]   # label extracted traffic (ADR-0009)
+caliper report                           # self-contained first-look HTML
+caliper replay mine|run [...]            # mine tasks / replay them across tiers (ADR-0007)
+caliper pricing update                   # refresh the versioned price sheet
+caliper setup [--full|--quick]           # first-run flow: trust screen, backfill, first look
+caliper policy [apply] [--yes|--no]      # review the draft routing policy; a yes records the
+                                         # decision locally — no agent config is touched yet
+```
+
 ## What signals does
 
 Runs `connectors/git_history.py`: discovers the git repos the extracted sessions

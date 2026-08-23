@@ -2,15 +2,19 @@
 
 Ingestion. Everything that touches an external system lives here, and nothing else in the repo does — the harness itself never calls GitHub, Jira, or an agent tool directly.
 
-## What goes here
+## What's built
+
+Flat modules, not subpackages (the intended layout below comes later): `claude_code.py`, `cursor.py`, `codex.py` (session + prompt-unit extraction, driven by `caliper extract`) and `git_history.py` (local-git production signals, driven by `caliper signals`). Details in the next section.
+
+## Intended source layout (planned — none of these subpackages exist yet)
 
 One subpackage per source:
 
 | Connector | Source | Produces |
 |---|---|---|
 | `github/` | Repo + PR history (public OSS repos first; customer repos once deployed in their environment) — commits, PRs, reviews, reverts, CI status | Raw material for `harness/signals` and `harness/trace` |
-| `jira/` | Project-management metadata — ticket, priority, story points, issue type, initiative links. **Synthetic generator for now**; real integration only after a customer's security review approves it | Ticket context for `harness/trace` |
-| `telemetry/` | Agent/IDE session exports — session shape, model, tokens, patches accepted/rejected. One adapter per harness: Claude Code, Cursor, Codex first-class; new harnesses enter via `source_tool: other` and get promoted per ADR-0003. Synthetic for now | Session records for `harness/classifier` |
+| `jira/` | Project-management metadata — ticket, priority, story points, issue type, initiative links. Synthetic generator first; real integration only after a customer's security review approves it | Ticket context for `harness/trace` |
+| `telemetry/` | Agent/IDE session exports — session shape, model, tokens, patches accepted/rejected. One adapter per harness: Claude Code, Cursor, Codex first-class; new harnesses enter via `source_tool: other` and get promoted per ADR-0003. The local-log path is built (below) | Session records for `harness/classifier` |
 
 ## Local-log source plugins (built — the extractor's first milestone)
 

@@ -1,5 +1,11 @@
 # harness/replay/
 
+## Status (2026-08-10, ADR-0007/0008)
+
+BUILT: `mining.py` (historically-validated bug-fix task mining — hidden tests fail pre-fix, pass at fix), `runner.py` (headless replay across tiers under a locked config, per-cell idempotent appends), versioned pricing (`pricing_snapshots/`, `caliper pricing update`). First real results: 30 commons-lang tasks × 3 tiers (ADR-0007) plus the n_runs=3 variance subset (ADR-0008), records in `data/derived/replay/`.
+
+NOT built yet, described below as design: the skill on/off dimension, classifier-driven per-class sampling (mining is repo-history-based today), and the judge handoff for no-test tasks.
+
 The controlled-evaluation engine. Takes a sampled task suite per class and replays each task across model tiers under identical harness conditions, with and without the relevant skill attached — producing a 2 × tiers grid per task. This is where the quality-per-tier curves come from.
 
 ## What goes here

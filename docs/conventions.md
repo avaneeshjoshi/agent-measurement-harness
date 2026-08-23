@@ -10,7 +10,7 @@ Rules every component and every schema follows. Short on purpose — if a rule n
 
 ## Versioning
 
-- Every schema has a required `schema_version` field, semver starting at `0.1.0`. All six schemas are v0: **expected to change after engineer interviews**, and no component may hard-code against field presence beyond what a version's schema guarantees.
+- Every schema has a required `schema_version` field, semver starting at `0.1.0`. All seven schemas are v0: **expected to change after engineer interviews**, and no component may hard-code against field presence beyond what a version's schema guarantees.
 - Every data record states the `schema_version` it was written under. Re-runs write new artifacts; old records are never rewritten to a new version.
 - Three version axes are deliberately independent: the **schema** version (record shape), the **taxonomy** version (what the labels mean), and the **producer** version (`classifier_version`, `signals_version`, `tracer_version`, `router_version`, `judge_version`). Bumping one never implies bumping another.
 - Source log formats drift under us: real Claude Code logs show fields appearing between CLI versions (e.g. `promptSource` exists in 2026-08 logs, not 2026-07 ones). Connectors record `source_format_version` and treat absent fields as "unrecorded", never as defaults.

@@ -11,7 +11,7 @@ Classifies agent work along the three taxonomy axes. The classification **unit**
 ## Inputs
 
 - Session records from `data/` (written by `connectors/telemetry`), validating against `schemas/session.schema.json`.
-- Class definitions from `docs/taxonomy.md` (machine-readable form in `schemas/task_class.schema.json`).
+- Class definitions from the provisional taxonomy in `schemas/task_class.schema.json` (a prose `docs/taxonomy.md` is planned, not yet written).
 
 ## Outputs
 
@@ -19,9 +19,9 @@ Classifies agent work along the three taxonomy axes. The classification **unit**
 
 ## Consumed by
 
-- `harness/replay` — draws its per-class task samples from these labels.
-- `harness/routing` — weights the quality/cost curves by the real task mix.
-- `dashboard/` — the usage-distribution views by team, tool, and model.
+Today: `harness/report` (task-mix views in the first-look HTML) and `cli/policy` (in-scope session selection for the policy verdict).
+
+Planned: `harness/replay` drawing per-class task samples from these labels (today it mines tasks from repo history instead, ADR-0007); `harness/routing` weighting curves by the real task mix; `dashboard/` usage views.
 
 ## Status (2026-08-10, ADR-0009)
 
