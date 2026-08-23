@@ -5,6 +5,7 @@ skips cleanly elsewhere)."""
 from __future__ import annotations
 
 import json
+import os
 from collections import defaultdict
 from pathlib import Path
 
@@ -76,7 +77,11 @@ def test_precedence_gap_beats_interrupt():
 def test_reproduces_calibration_boundaries():
     """The 0.1.0 identity check: every validatable ADR-0002 segment must be
     reproduced exactly from extracted prompt units."""
-    units_path = REPO / "data" / "extracted" / "claude_code" / "prompt_units.jsonl"
+    # Machine-local reproduction check: reads this machine's real extracted
+    # units from the data home (ADR-0011) — not the CALIPER_HOME test sandbox.
+    units_path = (Path(os.environ.get("CALIPER_REAL_HOME")
+                       or Path.home() / ".caliper")
+                  / "extracted" / "claude_code" / "prompt_units.jsonl")
     if not units_path.exists():
         pytest.skip("no extracted prompt units on this machine")
     by_sid = defaultdict(list)
