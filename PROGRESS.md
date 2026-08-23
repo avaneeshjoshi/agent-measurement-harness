@@ -15,7 +15,7 @@ On one machine, the measurement loop runs end to end: `caliper setup` extracts s
 Every entry here is implemented and has produced real numbers. A capability without an evidence line does not belong in this section.
 
 **Log extractor (`caliper extract`, `caliper setup`)** — three source connectors (Claude Code JSONL, Cursor state/tracking DBs, Codex rollout JSONL) plus per-prompt units for the two sources that have them. Read-only over sources (SQLite snapshot-copied, enforced by test), content-free by default, idempotent by content hash.
-*Evidence:* ADR-0004 (Codex structural validation, first run 2026-08-09: 21/43/21 sessions, 0 validation failures), ADR-0005 (cross-tool normalization). Current local tree: 227 claude_code + 45 cursor + 23 codex session records (session schema 0.4.0), 969 prompt units (prompt_unit 0.1.1). 11 extractor tests in the 35-test suite (all passing 2026-08-23; the suite runs on every push and PR via `.github/workflows/ci.yml`).
+*Evidence:* ADR-0004 (Codex structural validation, first run 2026-08-09: 21/43/21 sessions, 0 validation failures), ADR-0005 (cross-tool normalization). Current local tree: 227 claude_code + 45 cursor + 23 codex session records (session schema 0.4.0), 969 prompt units (prompt_unit 0.1.1). Extractor tests in the suite cover read-only sources, idempotency, and the content boundary (all passing; the suite runs on every push and PR via `.github/workflows/ci.yml`). Extracted data lives outside the repo at `~/.caliper/extracted/` (user data, not repo data — ADR-0011); a populated legacy `data/extracted/` tree is migrated automatically, salt-preserving (`tests/test_paths.py`).
 
 **Git-history production signals (`caliper signals`)** — blame-based survival at 30/60/90d horizons, 14-day rework, marker-only revert detection, evidence-only AI attribution, for exactly the repos the extracted sessions reference.
 *Evidence:* ADR-0006 — first run 2026-08-09: 7 repos, 88 commits, 0 validation failures (production_signal 0.2.0, on disk). Session→repo join rates: claude_code 95% (20/21), codex 81% (17/21), cursor 60% (26/43).
@@ -31,7 +31,7 @@ Every entry here is implemented and has produced real numbers. A capability with
 *Evidence:* ADR-0009 — prompt-grain agreement 53.1% (κ 0.41) against 81 human labels; segment-grain 38.5% (κ 0.24); segmenter reproduces 13/13 validatable calibration segments byte-exactly (validation report on disk at `data/derived/classes/validation_report.json`). Current output: 1,571 task_class records (0.1.0) across three unit grains. (ADR-0009 cites 1,446 — that was the count at its run date; the committed jsonl has since been regenerated over newer extractions and is the current figure.)
 
 **First-look report (`caliper report`)** — self-contained HTML: spend by tool/model/project/day at list-price equivalents, task mix by cohort, git outcomes, coverage-and-honesty table.
-*Evidence:* generated from current records at `data/extracted/report/first_look.html` (295 sessions); absent data renders "not recorded", never zero (enforced by test in `tests/test_report.py`).
+*Evidence:* generated from current records at `~/.caliper/extracted/report/first_look.html` (295 sessions); absent data renders "not recorded", never zero (enforced by test in `tests/test_report.py`).
 
 **Policy conversation (`caliper policy`, end of `caliper setup`)** — scans classified traffic against rp-0001, shows the overspend verdict, the quality/cost-per-tier charts with CIs, tier access status, and asks the apply question.
 *Evidence:* rp-0001 on disk (routing_policy 0.1.0, status **draft**, router_version `manual-adr-0008` — see Stubbed). Tier access gating per ADR-0010: tiers appear in recommendations only when proven by extracted traffic; unmeasured tiers render their access status instead of disappearing. See Known gaps for what the overspend number currently measures.
@@ -44,7 +44,7 @@ Every entry here is implemented and has produced real numbers. A capability with
 Each of these is deliberately fake or absent today, and each fake is labeled as such on the screen where it appears.
 
 - **Router** — there is no routing engine. `harness/routing/` contains only a design README. The one routing_policy record (rp-0001) was hand-written against the schema (`router_version: manual-adr-0008`), not produced by code.
-- **Apply** — `caliper policy apply` writes a local decision log (`data/extracted/.policy_decisions.jsonl`, gitignored) and touches no agent configuration. The screen says so: "the apply engine (native config writes) is future work; no agent config was modified."
+- **Apply** — `caliper policy apply` writes a local decision log (`~/.caliper/extracted/.policy_decisions.jsonl`, outside the repo) and touches no agent configuration. The screen says so: "the apply engine (native config writes) is future work; no agent config was modified."
 - **Trace layer** — `trace_event.schema.json` exists as a contract; `harness/trace/` is a README; zero trace records exist anywhere.
 - **Judge track** — `harness/judge/` is a README. No judge code, no rubrics, no calibration set.
 - **Dashboard** — `dashboard/` is a README; no Next.js app exists. The CLI's dashboard link is labeled "(preview — dashboard not live yet)".

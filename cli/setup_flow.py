@@ -42,7 +42,8 @@ def _stage(label, fn):
 def run_setup(repo_root: Path, mode: str | None = None) -> int:
     from .main import extract as run_extract, signals as run_signals
 
-    data_dir = repo_root / "data" / "extracted"
+    from .paths import extracted_dir
+    data_dir = extracted_dir()
     already = (data_dir / "claude_code" / "sessions.jsonl").exists() or \
               (data_dir / "cursor" / "sessions.jsonl").exists()
 
@@ -120,7 +121,7 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
     def do_report():
         from harness.report.generate import collect
         from harness.report.render import render
-        summary = collect(repo_root)
+        summary = collect(repo_root, data_dir)
         html = render(summary)
         out = data_dir / "report" / "first_look.html"
         out.parent.mkdir(parents=True, exist_ok=True)

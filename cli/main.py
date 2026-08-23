@@ -266,13 +266,13 @@ def main(argv: list[str] | None = None) -> int:
                            help="Also write prompt text to a content sidecar "
                                 "(dropped by default; session records stay content-free).")
     p_extract.add_argument("--data-dir", default=None,
-                           help="Output root (default: <repo>/data/extracted).")
+                           help="Output root (default: ~/.caliper/extracted).")
 
     p_signals = sub.add_parser("signals",
                                help="Compute production signals from local git "
                                     "repos referenced by extracted sessions.")
     p_signals.add_argument("--data-dir", default=None,
-                           help="Output root (default: <repo>/data/extracted).")
+                           help="Output root (default: ~/.caliper/extracted).")
     p_signals.add_argument("--repo", action="append", default=[],
                            help="Additional repo path(s) to analyze.")
 
@@ -321,6 +321,22 @@ def main(argv: list[str] | None = None) -> int:
     grp.add_argument("--no", action="store_true", help="decline without asking")
 
     args = parser.parse_args(argv)
+
+    from .paths import extracted_dir, migrate_legacy
+    mig = migrate_legacy(repo_root())
+    if mig:
+        from .style import S as _S, sep as _sep, step as _step
+        if "moved" in mig:
+            print(_step(_sep("Moved extracted data to its new home",
+                             _S.dim(mig["target"]),
+                             _S.dim(f"{mig['moved']} files"))))
+            print()
+        else:
+            print(_S.dim(f"note: extracted data exists in both {mig['legacy']} "
+                         f"and {mig['target']} — using the latter; remove the "
+                         "legacy tree to silence this"))
+            print()
+
     if args.command == "setup":
         from .setup_flow import run_setup
         mode = "full" if args.full else ("quick" if args.quick else None)
@@ -345,10 +361,10 @@ def main(argv: list[str] | None = None) -> int:
         from harness.report.generate import collect
         from harness.report.render import render
         root_dir = repo_root()
-        summary = collect(root_dir)
+        summary = collect(root_dir, extracted_dir())
         html = render(summary)
         out = Path(args.out) if args.out else \
-            root_dir / "data" / "extracted" / "report" / "first_look.html"
+            extracted_dir() / "report" / "first_look.html"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(html)
         from .style import S, box, relpath, sep, step
@@ -371,7 +387,7 @@ def main(argv: list[str] | None = None) -> int:
         from jsonschema import Draft202012Validator
         from harness.classifier.classify import classify_all
         root_dir = repo_root()
-        data_dir = Path(args.data_dir) if args.data_dir else root_dir / "data" / "extracted"
+        data_dir = Path(args.data_dir) if args.data_dir else extracted_dir()
         units = ("prompt", "segment", "session") if args.unit == "all" else (args.unit,)
         records = classify_all(data_dir, units)
         validator = load_validator(root_dir / "schemas" / "task_class.schema.json")
@@ -420,7 +436,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     root = repo_root()
-    data_dir = Path(args.data_dir) if args.data_dir else root / "data" / "extracted"
+    data_dir = Path(args.data_dir) if args.data_dir else extracted_dir()
 
     if args.command == "signals":
         from connectors.git_history import GitHistoryConnector

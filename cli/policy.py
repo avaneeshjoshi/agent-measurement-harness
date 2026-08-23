@@ -61,7 +61,8 @@ def analyze(repo_root: Path) -> dict | None:
     pricing = load_pricing()
     sessions = {}
     for tool in ("claude_code", "cursor", "codex"):
-        p = repo_root / "data" / "extracted" / tool / "sessions.jsonl"
+        from .paths import extracted_dir
+        p = extracted_dir() / tool / "sessions.jsonl"
         if p.exists():
             for line in p.read_text().splitlines():
                 r = json.loads(line)
@@ -147,7 +148,9 @@ def analyze(repo_root: Path) -> dict | None:
 def record_decision(repo_root: Path, policy_id: str, applied: bool) -> Path:
     """Local-only decision log (gitignored tree) — the apply engine will
     consume this when it exists."""
-    out = repo_root / "data" / "extracted" / ".policy_decisions.jsonl"
+    from .paths import extracted_dir
+    out = extracted_dir() / ".policy_decisions.jsonl"
+    out.parent.mkdir(parents=True, exist_ok=True)
     entry = {"policy_id": policy_id, "applied": applied,
              "decided_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
              "note": "UX-prototype decision; no agent config was modified"}

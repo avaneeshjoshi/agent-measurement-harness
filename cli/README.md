@@ -10,7 +10,7 @@ caliper extract                          # all detected sources
 caliper extract --source claude-code     # one source
 caliper extract --source claude-code,cursor,codex
 caliper extract --include-content        # also write prompt-text sidecars
-caliper extract --data-dir /elsewhere    # output root (default: data/extracted/)
+caliper extract --data-dir /elsewhere    # output root (default: ~/.caliper/extracted/)
 ```
 
 ```bash
@@ -33,7 +33,7 @@ caliper policy [apply] [--yes|--no]      # review the draft routing policy; a ye
 Runs `connectors/git_history.py`: discovers the git repos the extracted sessions
 reference (session cwd → git toplevel), computes per-commit survival (30/60/90d,
 blame-based), 14-day rework, revert linkage, PR patterns, and evidence-only AI
-attribution, then writes `data/extracted/git_history/production_signals.jsonl`
+attribution, then writes `~/.caliper/extracted/git_history/production_signals.jsonl`
 (validating against `schemas/production_signal.schema.json`) plus a manifest with
 per-repo aggregates and session→repo join rates. Local git only — no forge APIs.
 
@@ -41,8 +41,8 @@ per-repo aggregates and session→repo join rates. Local git only — no forge A
 
 For each source plugin in `connectors/` (Claude Code, Cursor, Codex — ADR-0003):
 discover artifacts → read raw records → emit session records → validate against
-`schemas/session.schema.json` → merge into `data/extracted/<source_tool>/sessions.jsonl`.
-Every run writes `data/extracted/manifests/<run_id>.json`: what was read, what was
+`schemas/session.schema.json` → merge into `~/.caliper/extracted/<source_tool>/sessions.jsonl`.
+Every run writes `~/.caliper/extracted/manifests/<run_id>.json`: what was read, what was
 skipped and why, per-source counts and date ranges.
 
 Guarantees (enforced by `tests/test_extractor.py`):

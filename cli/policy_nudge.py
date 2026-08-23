@@ -18,7 +18,8 @@ def policy_nudge(repo_root: Path) -> None:
     if not drafts:
         return
     decided: set[str] = set()
-    decisions = repo_root / "data" / "extracted" / ".policy_decisions.jsonl"
+    from .paths import extracted_dir
+    decisions = extracted_dir() / ".policy_decisions.jsonl"
     if decisions.exists():
         for line in decisions.read_text().splitlines():
             d = json.loads(line)

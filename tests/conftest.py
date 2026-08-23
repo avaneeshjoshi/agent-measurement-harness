@@ -18,8 +18,12 @@ pytest_plugins: list[str] = []
 
 
 @pytest.fixture(autouse=True)
-def _fixed_salt(monkeypatch):
+def _fixed_salt(monkeypatch, tmp_path_factory):
     monkeypatch.setenv("CALIPER_HASH_SALT", "test-salt")
+    # Sandbox the data home (ADR-0011): tests must never read or migrate
+    # into the developer's real ~/.caliper.
+    monkeypatch.setenv("CALIPER_HOME",
+                       str(tmp_path_factory.mktemp("caliper-home")))
 
 
 @pytest.fixture()

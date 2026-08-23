@@ -6,7 +6,7 @@ The medium every component communicates through: connectors write normalized rec
 
 | Subdir | Contents |
 |---|---|
-| `extracted/` | Connector output: normalized sessions, prompt units, git production signals, run manifests, the first-look report. **Gitignored — local traffic never enters the repo** (enforced by test) |
+| `extracted/` | **No longer written here** — connector output (sessions, prompt units, signals, manifests, the report) lives at `~/.caliper/extracted/` since ADR-0011: user data, not repo data. The gitignore rule remains as a guard, and a populated legacy tree is migrated automatically |
 | `derived/` | Harness output (committed): task classes, eval results, the routing policy record |
 | `calibration/` | The human-labeled sets — today the ADR-0002 unit-comparison labels; the 100–200 task judge-calibration set is planned and needs human raters |
 | `fixtures/` | Small hand-built source-log samples used by `tests/` |

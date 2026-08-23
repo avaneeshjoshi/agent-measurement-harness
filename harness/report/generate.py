@@ -72,8 +72,10 @@ def _cohort(rec: dict) -> str:
     return "eval_harness" if "caliper-eval" in paths else "organic"
 
 
-def collect(repo_root: Path) -> dict:
-    data_dir = repo_root / "data" / "extracted"
+def collect(repo_root: Path, data_dir: Path) -> dict:
+    """repo_root locates committed evidence (data/derived); data_dir is the
+    extracted tree (~/.caliper/extracted by default — the CLI resolves it,
+    this layer stays path-agnostic, ADR-0011)."""
     derived = repo_root / "data" / "derived"
     pricing = load_pricing()
     names = load_name_map(data_dir)

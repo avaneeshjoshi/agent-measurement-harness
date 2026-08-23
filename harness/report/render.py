@@ -189,7 +189,7 @@ def render(s: dict) -> str:
 <h1>Caliper — first look</h1>
 <p class="sub">Everything the logs on this machine can already say: what the agents were used for,
 what it would have cost at list prices, and what happened to the code afterward. Generated
-read-only from <code>data/extracted/</code> and <code>data/derived/</code> — presentation only,
+read-only from the extracted tree (<code>~/.caliper/extracted/</code>) and <code>data/derived/</code> — presentation only,
 no new measurement.</p>
 <p class="meta">generated {H.escape(s['generated_at'])} · {s['n_sessions']} sessions ·
 report {H.escape('first-look-0.1.0')}</p>
@@ -219,8 +219,8 @@ not recorded, never as zero.</div>
 <i style="background:var(--cr)"></i>cache read
 <i style="background:var(--cw)"></i>cache write — cache reads dominate real agent
 traffic; a view that hides them misprices everything.</p>
-{_spend_table('By model (dominant per session)', spend['by_model'], 'data/extracted/*/sessions.jsonl → tokens, models[]')}
-{_spend_table('By tool', spend['by_tool'], 'data/extracted/*/sessions.jsonl → tokens')}
+{_spend_table('By model (dominant per session)', spend['by_model'], 'extracted/*/sessions.jsonl → tokens, models[]')}
+{_spend_table('By tool', spend['by_tool'], 'extracted/*/sessions.jsonl → tokens')}
 {_spend_table('By project', spend['by_project'], 'sessions.jsonl → project_ref, display-named via local-only mapping (never committed)')}
 {_spend_table('By day (chronological)', spend['by_day'], 'sessions.jsonl → started_at date', top=100, chrono=True)}
 <p class="note">† marks days containing eval-harness sessions — Caliper's own replay runs
@@ -247,7 +247,7 @@ known/partial/unknown commits (never inferred from code).</p>
 <th class="r">30d survival</th><th class="r">rework ≤14d</th>
 <th class="r">AI attr (k/p/u)</th><th class="r">session list-$ *</th></tr>
 {''.join(repo_rows)}</table></div>
-<p class="src">source: data/extracted/git_history/production_signals.jsonl ·
+<p class="src">source: extracted/git_history/production_signals.jsonl ·
 spend join via project display name (approximate: project↔repo mapping is by
 working directory)</p>
 

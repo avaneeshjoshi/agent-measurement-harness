@@ -1,4 +1,4 @@
-"""Idempotent session store: data/extracted/<source_tool>/sessions.jsonl.
+"""Idempotent session store: <data_dir>/<source_tool>/sessions.jsonl.
 
 Dedupe contract:
 - One record per (source_tool, session_id), keyed by provenance.content_hash.
