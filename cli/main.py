@@ -344,6 +344,13 @@ def main(argv: list[str] | None = None) -> int:
                          "legacy tree to silence this"))
             print()
 
+    # Gap warning on every interactive invocation (ADR-0011). Suppressed for
+    # setup (it is about to backfill) and scheduled runs (they ARE the
+    # collector — the gap still lands in their log via state).
+    if args.command != "setup" and not getattr(args, "scheduled", False):
+        from .health import health_nudge
+        health_nudge()
+
     if args.command == "setup":
         from .setup_flow import run_setup
         mode = "full" if args.full else ("quick" if args.quick else None)
