@@ -13,7 +13,7 @@ opened). The agreement gap *is* the measurement.
 
 1. **Source logs are ephemeral — continuous extraction is a product requirement, not
    an optimization.** A raw log behind the Aug-7 calibration set was gone by Aug-10
-   (observed retention ≈ days). Its 2 prompt + 1 segment labels are permanently
+   (observed retention ≈ days — corrected to ~30 in the Postscript below). Its 2 prompt + 1 segment labels are permanently
    unvalidatable; content-free records cannot reconstruct labels that needed prompt
    text. The surviving calibration raw logs are snapshotted outside the retention
    path. Backfill is lossy by construction.

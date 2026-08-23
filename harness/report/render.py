@@ -269,8 +269,10 @@ that uncertainty (ADR-0009).</li>
 and its mix is session-grain only. That gap is {s['headline']['cursor_share_all']:.0%}
 of all sessions ({s['headline']['cursor_share_organic']:.0%} of organic traffic): a
 structural hole, not a footnote.</li>
-<li><b>Log retention is ~days:</b> sessions before Jul 25 survive only as previously
-extracted records; prompt-grain data for them is gone (ADR-0009).</li>
+<li><b>Claude Code rotates logs at its cleanupPeriodDays setting (~30d default;
+measured, ADR-0011 postscript):</b> sessions whose raw logs aged out survive only as
+previously extracted records — prompt-grain re-extraction for them is gone. Codex and
+Cursor showed no rotation.</li>
 <li><b>Survival/rework</b> exclude generated-file skew per-commit medians; young
 commits are "not yet measurable", never zero (ADR-0006).</li>
 <li><b>Eval-harness cohort</b> (202 sessions) is Caliper measuring itself; it is

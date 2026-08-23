@@ -1,5 +1,7 @@
-"""Gap-detection threshold logic (ADR-0011): the ~3-day retention constant,
-the may-be-lost window math, and the state/manifest fallback."""
+"""Gap-detection logic (ADR-0011 + its retention postscript): per-source,
+per-machine rotation windows (cleanupPeriodDays-derived for Claude Code,
+non-rotating for Codex/Cursor), the loss/at-risk/coverage gap kinds, and the
+state/manifest fallback."""
 
 from __future__ import annotations
 

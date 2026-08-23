@@ -6,7 +6,9 @@
 
 Two findings gate everything downstream of collection:
 
-1. **Retention is ~days.** A raw Claude Code log present behind the 2026-08-07
+1. **Retention is ~days.** *(Superseded — the postscript below corrects this
+   to ~30 days for Claude Code and no rotation for Codex/Cursor.)* A raw
+   Claude Code log present behind the 2026-08-07
    calibration set was gone by 2026-08-10 (ADR-0009 §infrastructure-1). Manual
    extraction against that window loses data permanently; backfill is lossy by
    construction. PROGRESS.md carries this as the highest-leverage gap.
@@ -99,6 +101,10 @@ under concurrent writers. A scheduled run that finds the lock held exits 0
 the non-interference equivalents. macOS-only until someone needs it.
 
 ## Decision 3: gap detection with a named constant
+
+*(The constant below shipped wrong and was replaced the same day by the
+per-source, per-machine model in the postscript — kept here as originally
+decided, per the never-rewrite rule.)*
 
 `RETENTION_OBSERVED_DAYS = 3` (`cli/health.py`) — the ADR-0009 observation,
 cited at the constant, never inlined as a magic number. Per source, when
