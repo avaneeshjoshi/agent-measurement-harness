@@ -87,5 +87,8 @@ def test_evidence_tree_is_never_a_write_target():
         if rel in ALLOWED:
             continue
         src = py.read_text()
-        assert "data/evidence" not in src and '"evidence"' not in src, \
+        # path spellings only — "evidence" is also a routing_policy schema
+        # field, which is data access, not a filesystem location
+        assert "data/evidence" not in src \
+            and '"evidence" /' not in src and '/ "evidence"' not in src, \
             f"{rel} references the evidence tree directly (ADR-0012)"
