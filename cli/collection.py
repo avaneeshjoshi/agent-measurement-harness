@@ -220,6 +220,12 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
             state["last_full_pass"] = iso
         save_state(data_dir, state)
 
+        # canaries run after the state save — evaluate_canaries reloads and
+        # merges state itself, so this order never clobbers its alarms
+        from .health import evaluate_canaries
+        for alarm in evaluate_canaries(data_dir, manifest, now=now):
+            _log(f"DRIFT ALARM {alarm['key']}: {alarm['detail']}")
+
         parts = []
         for name, src in manifest["sources"].items():
             r = src["records"]

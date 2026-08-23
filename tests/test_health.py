@@ -81,3 +81,90 @@ def test_last_covered_prefers_state_file(tmp_path):
 
 def test_last_covered_empty_when_nothing_on_disk(tmp_path):
     assert last_covered_from_disk(tmp_path) == {}
+
+
+# ---- drift canaries (ADR-0011) --------------------------------------------
+
+from cli.health import (COVERAGE_DROP_ABS, CANARY_MIN_EVENTS, RunStats,  # noqa: E402
+                        canary_counts, field_coverage_alarms)
+
+
+def _stats(source="codex", unknown=0, seen=1000, skips=0, discovered=50,
+           cv="0.3.1", sv="0.4.0"):
+    return RunStats(source=source, unknown_count=unknown, records_seen=seen,
+                    skip_count=skips, artifacts_discovered=discovered,
+                    connector_version=cv, schema_version=sv)
+
+
+def test_canary_unknown_spike_fires():
+    baseline = [_stats() for _ in range(20)]
+    [alarm] = canary_counts(_stats(unknown=10, seen=50), baseline)
+    assert alarm["kind"] == "unknown_shapes"
+    assert alarm["source"] == "codex"
+
+
+def test_canary_below_min_events_silent_on_tiny_run():
+    baseline = [_stats() for _ in range(20)]
+    tiny = _stats(unknown=CANARY_MIN_EVENTS - 1, seen=3)
+    assert canary_counts(tiny, baseline) == []
+
+
+def test_canary_skip_rate_spike_fires():
+    baseline = [_stats() for _ in range(20)]
+    [alarm] = canary_counts(_stats(skips=20, discovered=40), baseline)
+    assert alarm["kind"] == "skip_rate"
+
+
+def test_canary_steady_rates_stay_silent():
+    baseline = [_stats(unknown=5, seen=1000) for _ in range(20)]
+    assert canary_counts(_stats(unknown=6, seen=1100), baseline) == []
+
+
+def test_canary_version_bump_resets_baseline():
+    baseline = [_stats(cv="0.3.1") for _ in range(20)]
+    bumped = _stats(unknown=10, seen=50, cv="0.4.0")
+    # same numbers fired against a same-version baseline; a bumped run has
+    # no comparable history yet, so it must stay silent, not trip
+    assert canary_counts(bumped, baseline) == []
+
+
+def _session(days_old: float, with_branch: bool):
+    rec = {"started_at": (NOW - timedelta(days=days_old)).isoformat(),
+           "tokens": {"input": 1, "output": 1}}
+    if with_branch:
+        rec["git_branch"] = "main"
+    return rec
+
+
+def _baseline_sessions(with_branch=True, n=34):
+    # ages 7.5..34.x days: inside the [7d, 35d) baseline window, n >= 30
+    return [_session(7.5 + i * 0.8, with_branch) for i in range(n)]
+
+
+def test_coverage_removed_field_fires():
+    sessions = _baseline_sessions(True) + \
+               [_session(d / 2, False) for d in range(12)]
+    [alarm] = field_coverage_alarms(sessions, "claude_code", NOW)
+    assert alarm["kind"] == "field_coverage"
+    assert "git_branch" in alarm["key"]
+
+
+def test_coverage_thin_windows_silent():
+    sessions = _baseline_sessions(True) + \
+               [_session(1, False) for _ in range(5)]  # only 5 recent
+    assert field_coverage_alarms(sessions, "claude_code", NOW) == []
+
+
+def test_coverage_ignores_rarely_present_fields():
+    # the field was only at 30% baseline coverage — its absence is not drift
+    base = [_session(7.5 + i * 0.8, with_branch=(i % 3 == 0))
+            for i in range(34)]
+    recent = [_session(1, False) for _ in range(12)]
+    alarms = field_coverage_alarms(base + recent, "claude_code", NOW)
+    assert all("git_branch" not in a["key"] for a in alarms)
+
+
+def test_coverage_stable_fields_stay_silent():
+    sessions = _baseline_sessions(True) + \
+               [_session(1, True) for _ in range(12)]
+    assert field_coverage_alarms(sessions, "claude_code", NOW) == []

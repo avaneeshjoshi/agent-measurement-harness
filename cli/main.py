@@ -554,10 +554,14 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     run_start = datetime.now(timezone.utc)
     manifest = {"run_id": None, "sources": {}}
+    run_ids: set[str] = set()
     for src_name in sources:
         with spinner(f"Extracting {src_name}"):
             m = extract([src_name], data_dir, schema_path, args.include_content)
         manifest["run_id"] = m["run_id"]
+        manifest["connector_version"] = m.get("connector_version")
+        manifest["schema_version"] = m.get("schema_version")
+        run_ids.add(m["run_id"])
         manifest["sources"].update(m["sources"])
         sm = m["sources"][src_name]
         r = sm["records"]
@@ -592,6 +596,12 @@ def main(argv: list[str] | None = None) -> int:
                if not any(s.get("path") == "<discover>" for s in m["skipped"])]
     mark_covered(data_dir, covered, run_start,
                  full=set(sources) == set(PLUGINS))
+    from .health import evaluate_canaries
+    for alarm in evaluate_canaries(data_dir, manifest,
+                                   exclude_run_ids=run_ids, patch_file=False):
+        print(step(S.byellow(f"drift alarm · {alarm['source']}")
+                   + " " + S.dim(alarm["detail"])))
+        print()
     lock.close()
     from .policy_nudge import policy_nudge
     policy_nudge(root)
