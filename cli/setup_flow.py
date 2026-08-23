@@ -23,7 +23,10 @@ def _trust_screen():
     print(step("What Caliper never reads"))
     print()
     print(child("prompt text & code", S.dim("dropped at the extraction boundary; "
-                                            "a test enforces the classifier can't see them")))
+                                            "a test enforces the classifier can't see them — "
+                                            "unless you opt into local content sidecars at "
+                                            "setup, which stay under ~/.caliper and never "
+                                            "enter session records")))
     print()
     print(child("raw paths", S.dim("salted-hashed at the connector; "
                                    "display names stay local-only")))
@@ -139,6 +142,7 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
     print()
 
     _highlights(summary)
+    _collection_step(repo_root)
     return _policy_step(repo_root)
 
 
@@ -254,6 +258,74 @@ def _highlights(summary: dict) -> None:
     print(S.dim(f"→ deeper cuts — per-repo spend, rework rates, the full mix: "
                 f"{DASHBOARD_URL} ") + preview)
     print(S.dim("    your first look above is that dashboard's first card"))
+    print()
+
+
+def _collection_step(repo_root: Path) -> None:
+    """Continuous collection (ADR-0011): the retention question, then the
+    FDA choice inside `schedule.install`, then the sidecar opt-in. Never
+    installs a daemon without an explicit yes — the non-TTY default is No."""
+    import sys as _sys
+
+    from .collection import load_state, save_state
+    from .interactive import choose
+    from .paths import extracted_dir
+
+    if _sys.platform != "darwin":
+        print(S.dim("    background collection: macOS only for now — Linux "
+                    "needs a systemd user timer (ADR-0011)"))
+        print()
+        return
+    data_dir = extracted_dir()
+    if load_state(data_dir).get("schedule"):
+        print(step(sep("Collection already scheduled",
+                       S.dim("details:") + " " + S.accent("caliper schedule"))))
+        print()
+        return
+
+    question = ("Vendors rotate agent logs after ~3 days (ADR-0009) — "
+                "anything not collected in time is gone. Keep collection "
+                "continuous?")
+    options = ["Install hourly background collection — runs only when "
+               "there's new activity",
+               "Not now"]
+    picked = choose("Question", question, options)
+    if picked is None:  # no TTY: never silently install a daemon
+        picked = 1
+    print()
+    if picked != 0:
+        print(step(sep("Skipped for now",
+                       S.dim("install anytime with") + " "
+                       + S.accent("caliper schedule install"))))
+        print()
+        return
+
+    from .schedule import install
+    if install(repo_root) != 0:
+        return
+
+    # sidecar opt-in: off by default, forward-only (ADR-0011 decision 5)
+    q2 = ("Also store prompt text locally? Writes the text of your prompts "
+          "to content sidecars under ~/.caliper — local only, never in "
+          "session records. This is the corpus future classifier training "
+          "needs, and it only accumulates from now on.")
+    opts2 = ["Yes — build the local corpus",
+             "No — metadata only (recommended)"]
+    picked2 = choose("Question", q2, opts2, default=1)
+    if picked2 is None:
+        picked2 = 1  # non-TTY: content collection is never a silent default
+    print()
+    state = load_state(data_dir)
+    state["include_content"] = picked2 == 0
+    save_state(data_dir, state)
+    if picked2 == 0:
+        print(step(sep("Content sidecars ON",
+                       S.dim("prompt text stays local under ~/.caliper — "
+                             "switch off by editing include_content in "
+                             ".collection.json"))))
+    else:
+        print(step(sep("Metadata only",
+                       S.dim("session records stay content-free"))))
     print()
 
 

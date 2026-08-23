@@ -8,7 +8,7 @@
 
 ## Current milestone
 
-On one machine, the measurement loop runs end to end: `caliper setup` extracts sessions from local Claude Code, Cursor, and Codex logs into schema-valid, content-free records; `caliper signals` computes git outcome signals (survival, rework, reverts, attribution) for the repos those sessions reference; `caliper classify` labels the traffic without reading content; `caliper replay` has produced a real three-tier quality/cost curve on 30 mined bug-fix tasks; and `caliper policy` presents the first draft routing policy (rp-0001) against the user's own traffic and records an accept/decline decision. Everything downstream of that decision — actually changing agent configs, the trace layer, the judged eval track, the dashboard — is stubbed and labeled as such on screen. All of it has run on exactly one machine: the developer's own.
+On one machine, the measurement loop runs end to end: `caliper setup` extracts sessions from local Claude Code, Cursor, and Codex logs into schema-valid, content-free records; `caliper signals` computes git outcome signals (survival, rework, reverts, attribution) for the repos those sessions reference; `caliper classify` labels the traffic without reading content; `caliper replay` has produced a real three-tier quality/cost curve on 30 mined bug-fix tasks; and `caliper policy` presents the first draft routing policy (rp-0001) against the user's own traffic and records an accept/decline decision. Since 2026-08-23, collection also runs continuously: a launchd agent extracts hourly (activity-gated, watermarked), the CLI warns loudly when collection lapses past the ~3-day retention window, and drift canaries watch for source-format decay. Everything downstream of the policy decision — actually changing agent configs, the trace layer, the judged eval track, the dashboard — is stubbed and labeled as such on screen. All of it has run on exactly one machine: the developer's own.
 
 ## Working today
 
@@ -39,6 +39,9 @@ Every entry here is implemented and has produced real numbers. A capability with
 **Versioned pricing (`caliper pricing update`)** — dated price sheets with a LiteLLM cross-check; billed-rate-at-run-date convention.
 *Evidence:* ADR-0007 postscript (caught the sonnet-5 intro-rate mispricing; records not rewritten, restated in citation); snapshots in `harness/replay/pricing_snapshots/`.
 
+**Continuous collection (`caliper schedule`, `caliper extract --scheduled`)** — launchd agent, hourly while awake (launchd never fires in sleep; missed ticks coalesce on wake), activity-gated so idle ticks are one-line heartbeats that still count as coverage, mtime-watermarked so active runs are O(new), flock'd against concurrent runs, with a daily full pass that heals cross-file fork links. Gap warnings fire on any interactive invocation once a source lapses past `RETENTION_OBSERVED_DAYS` (~3 days, ADR-0009). Drift canaries alarm on unknown-shape/skip-rate jumps and field-coverage sinks, persisted to state so scheduled findings surface interactively. Full Disk Access is an explicit install-time choice (full: + daily signals; extraction-only: no permission needed), and install verifies the job from its own context via kickstart before claiming success. Content sidecars are a setup-time opt-in, off by default, local-only.
+*Evidence:* ADR-0011; `tests/test_health.py` (16), `tests/test_collection.py` (10), `tests/test_schedule.py` (11), `tests/test_paths.py` (8) — 82 total passing. Live on this machine since 2026-08-23: installed extraction-only, kickstart-verified, watermarked run examined 3 of 220+ artifacts; the gap warning's first firing caught a real 5-day lapse the same day.
+
 ## Stubbed
 
 Each of these is deliberately fake or absent today, and each fake is labeled as such on the screen where it appears.
@@ -52,7 +55,7 @@ Each of these is deliberately fake or absent today, and each fake is labeled as 
 
 ## Known gaps
 
-- **Extraction is manual against ~3-day log retention.** A raw log present on Aug 7 was gone by Aug 10 (ADR-0009); anything not extracted inside the window is permanently lost, and backfill is lossy by construction. The CLI now warns loudly on every invocation once collection lapses past the window, naming the may-be-lost period (`cli/health.py`, `RETENTION_OBSERVED_DAYS`, ADR-0011; `tests/test_health.py` — and the warning's first live firing caught a real 5-day gap on this machine, 2026-08-23). The collection runtime now exists behind `caliper extract --scheduled` — flock'd against concurrent runs, activity-gated (an idle tick is a one-line heartbeat that still counts as coverage), mtime-watermarked so runs are O(new), with a daily full pass that heals cross-file fork links (store record-equality rule; `tests/test_collection.py`, live smoke 2026-08-23: full pass then a watermarked run examining 3 of 220+ artifacts). `caliper schedule install` now installs the launchd agent (hourly `StartInterval`, `Background`/low-IO/no-KeepAlive, log at `~/.caliper/logs/extract.log`) with Full Disk Access as an explicit choice — full mode (hourly sessions + daily signals, FDA needed when repos live under TCC-protected folders) vs extraction-only (no permission; the default, and the non-interactive default) — and verifies the job from its own context via kickstart before reporting success (`tests/test_schedule.py`, 11 tests; installed and verified live on this machine 2026-08-23, extraction-only mode). Remaining: the setup-flow question and sidecar opt-in.
+- **Everything before continuous collection was enabled is already lost.** Collection is continuous once installed (see Working today), but retention is still ~3 days at the vendor (ADR-0009): history that rotated out before 2026-08-23 on this machine — and before installation on any future machine — is permanently gone, and backfill remains lossy by construction. Scheduling is also macOS-only (launchd); Linux needs the systemd user timer sketched in ADR-0011. And full-collection mode rests on a broad Full Disk Access grant — accepted explicitly at install, but a narrower mechanism (per-repo hooks, interactive-only signals) is recorded future work.
 - **Never run off this machine.** Every number in this file is one solo developer's traffic on one laptop. It validates the instruments, not anyone else's usage.
 - **The overspend verdict is currently measuring Caliper's own eval runs.** As of this review, all 46 frontier sessions the policy flow flags as overspend ($49.07 at list) are replay-harness traffic; organic overspend on this machine is ~$0. The screen discloses it ("46 of 46 are Caliper's own eval runs"), but the headline number is meaningless until organic frontier bug-fix traffic exists.
 - **Costs are list-price counterfactuals, not real spend.** No agent log contains dollars (ADR-0001), and this machine's traffic is on subscription. Every dollar figure is "what this would have cost at API list rates," clearly labeled — but it has never been validated against a real invoice.
@@ -66,12 +69,11 @@ Each of these is deliberately fake or absent today, and each fake is labeled as 
 Synthesized from the ADR follow-up lists; sequence is the current intent, not a commitment.
 
 1. **Field-by-field review of `session` and `task_class`** — open since ADR-0001; everything downstream inherits their provisional shapes.
-2. **Continuous extraction** — the retention finding (ADR-0009) makes this the highest-leverage product gap; manual runs lose data permanently.
-3. **Classifier 0.2.0** — neighborhood features for flow context, then wider label sets (LLM-judged labeling of a larger local sample) before any learned classifier.
-4. **Uncontaminated task source** — JIRA-enriched problem statements, re-run of the 7 all-fail tasks (ADR-0007 finding 4), then a non-public-repo mining source so absolute rates mean something.
-5. **Apply engine v0** — native config writes with one-command revert, consuming the decision log the flow already writes.
-6. **Trace layer v0** — session→commit joins with commit-time slack after session end (ADR-0006 finding 5), on the `project_ref` join key already validated in both directions.
-7. **Web demo of the setup flow** (`docs/setup-demo-web-spec.md`), then the dashboard proper from the report's data model.
+2. **Classifier 0.2.0** — neighborhood features for flow context, then wider label sets (LLM-judged labeling of a larger local sample) before any learned classifier.
+3. **Uncontaminated task source** — JIRA-enriched problem statements, re-run of the 7 all-fail tasks (ADR-0007 finding 4), then a non-public-repo mining source so absolute rates mean something.
+4. **Apply engine v0** — native config writes with one-command revert, consuming the decision log the flow already writes.
+5. **Trace layer v0** — session→commit joins with commit-time slack after session end (ADR-0006 finding 5), on the `project_ref` join key already validated in both directions.
+6. **Web demo of the setup flow** (`docs/setup-demo-web-spec.md`), then the dashboard proper from the report's data model.
 
 The judge track intentionally trails: its calibration set needs human raters (see Blocked).
 
