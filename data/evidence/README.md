@@ -19,8 +19,13 @@ re-derived from these bytes.
 
 Not here, deliberately: `task_classes.jsonl` — it is regenerated over every
 extraction and had already drifted from the ADR-0009 snapshot (1,446 → 1,571
-→ …); the cited version lives in git history at the ADR commit, and the live
-file is user data under `~/.caliper/derived/classes/`.
+→ …); the live file is user data under `~/.caliper/derived/classes/`. The
+cited 1,446-record version is pinned at commit `a2dddd7` (which added it and
+the validation report together):
+
+```
+git show a2dddd7:data/derived/classes/task_classes.jsonl
+```
 
 Reading these at runtime is fine (the policy flow ships rp-0001 and the
 ADR-0007 curve as its fresh-install baseline). Writing here is a bug, and the

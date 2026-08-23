@@ -1,6 +1,6 @@
 # ADR-0009: Classifier v0 — content-free agreement with human labels, and what metadata cannot see
 
-**Date:** 2026-08-10 · **Status:** accepted · **Artifacts:** `harness/classifier/` (rules-0.1.1, segmenter 0.1.0), `data/derived/classes/` (1446 task_class records, validation + traffic reports) *(reports relocated to `data/evidence/adr-0009/`; the live task_classes file is user data under ~/.caliper — ADR-0012)*
+**Date:** 2026-08-10 · **Status:** accepted · **Artifacts:** `harness/classifier/` (rules-0.1.1, segmenter 0.1.0), `data/derived/classes/` (1446 task_class records, validation + traffic reports) *(reports relocated to `data/evidence/adr-0009/`; the live task_classes file is user data under ~/.caliper — ADR-0012. The 1,446-record input snapshot behind these numbers is pinned at commit `a2dddd7` — full sha `a2dddd77bd29aad21ea53236e23e94f1d3e95cd6` — retrievable with `git show a2dddd7:data/derived/classes/task_classes.jsonl`, so the agreement figures are recomputable, not archaeological)*
 
 ## The experiment
 
