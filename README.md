@@ -29,8 +29,8 @@ and verifies the results from the same logs it started with.
 ### 1. Install and first run
 
 ```bash
-npm install -g caliper
-caliper
+pip install -e .    # today: from a clone — a packaged one-line install is future work
+caliper setup
 ```
 
 First run walks through setup once:
