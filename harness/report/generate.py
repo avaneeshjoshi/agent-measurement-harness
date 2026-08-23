@@ -90,8 +90,14 @@ def collect(repo_root: Path, data_dir: Path) -> dict:
     spend_by_tool: dict[str, dict] = defaultdict(lambda: Counter())
     spend_by_project: dict[str, dict] = defaultdict(lambda: Counter())
     spend_by_day: dict[str, dict] = defaultdict(lambda: Counter())
-    unpriced_sessions = no_token_sessions = 0
+    unpriced_sessions = no_token_sessions = fork_children_netted = 0
     for r in sessions.values():
+        if r.get("fork_of"):
+            # fork/resume duplicates the original's transcript (ADR-0002
+            # finding 4): netted from spend, counted and disclosed — never
+            # silently dropped
+            fork_children_netted += 1
+            continue
         tok = r.get("tokens")
         tool = r["source_tool"]
         day = r["started_at"][:10]
@@ -176,7 +182,9 @@ def collect(repo_root: Path, data_dir: Path) -> dict:
     organic_n = sum(1 for r in sessions.values() if _cohort(r) == "organic")
     headline = {
         "total_cost": total_cost,
-        "priced_sessions": len(sessions) - unpriced_sessions - no_token_sessions,
+        "fork_children_netted": fork_children_netted,
+        "priced_sessions": (len(sessions) - unpriced_sessions
+                            - no_token_sessions - fork_children_netted),
         "unpriced_sessions": unpriced_sessions,
         "no_token_sessions": no_token_sessions,
         "unpriced_tokens": unpriced_tokens,

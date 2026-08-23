@@ -191,7 +191,10 @@ def render(s: dict) -> str:
 what it would have cost at list prices, and what happened to the code afterward. Generated
 read-only from the extracted tree (<code>~/.caliper/extracted/</code>) and <code>data/derived/</code> — presentation only,
 no new measurement.</p>
-<p class="meta">generated {H.escape(s['generated_at'])} · {s['n_sessions']} sessions ·
+<p class="meta">generated {H.escape(s['generated_at'])} · {s['n_sessions']} sessions{
+    f" ({s['headline']['fork_children_netted']} fork "
+    f"{'child' if s['headline']['fork_children_netted'] == 1 else 'children'}"
+    " netted from spend)" if s['headline'].get('fork_children_netted') else ''} ·
 report {H.escape('first-look-0.1.0')}</p>
 <div class="hero"><div><div class="big">{_fmt(s['headline']['total_cost'], money=True)}</div>
 <div class="cap">total list-price equivalent, {s['headline']['priced_sessions']} priced sessions</div></div>

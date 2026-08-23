@@ -60,8 +60,12 @@ def present_policy(repo_root: Path, a: dict, yes: bool = False,
     colors = _tier_colors()
 
     # ---- the verdict ----------------------------------------------------
+    netted = a.get("fork_netted") or 0
     print(step(f"Scanned {a['n_sessions']} sessions "
-               + S.dim(f"· {a['in_scope']} in scope ({scope})")))
+               + S.dim(f"· {a['in_scope']} in scope ({scope})")
+               + (S.dim(f" · {netted} fork "
+                        f"{'child' if netted == 1 else 'children'} netted")
+                  if netted else "")))
     print()
     if o["sessions"]:
         peak = max(o["actual"], o["at_mid"]) or 1

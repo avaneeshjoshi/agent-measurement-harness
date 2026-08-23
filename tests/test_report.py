@@ -53,3 +53,40 @@ def test_render_smoke_no_raw_paths():
     assert "not recorded" in html          # unpriced repo cost + missing survival
     assert "$0.00" not in html
     assert "/Users/" not in html
+
+
+def test_fork_children_netted_from_spend_and_disclosed(run_extract):
+    """Fork/resume children duplicate the original's transcript (ADR-0002
+    finding 4): their tokens are netted from spend, and the netting is said
+    on the page — '(1 fork child netted)' — never a silently smaller count."""
+    import json
+
+    from harness.report.generate import _dominant_models, collect
+    from tests.conftest import REPO
+
+    _, data_dir = run_extract()
+    s = collect(REPO, data_dir)
+    assert s["headline"]["fork_children_netted"] == 1
+
+    # session counts stay full — the netting is disclosed, not hidden
+    n_claude = len((data_dir / "claude_code" / "sessions.jsonl")
+                   .read_text().splitlines())
+    assert s["sources"]["sessions"]["claude_code"] == n_claude
+
+    # the fork child's tokens are absent from the total
+    pricing = load_pricing()
+    expected = 0.0
+    for tool in ("claude_code", "cursor", "codex"):
+        p = data_dir / tool / "sessions.jsonl"
+        if not p.exists():
+            continue
+        for line in p.read_text().splitlines():
+            r = json.loads(line)
+            if r.get("fork_of") or not r.get("tokens"):
+                continue
+            c = _price(r["tokens"], _dominant_models(r), pricing)
+            if c:
+                expected += c
+    assert abs(s["headline"]["total_cost"] - expected) < 0.05
+
+    assert "1 fork child netted from spend" in render(s)

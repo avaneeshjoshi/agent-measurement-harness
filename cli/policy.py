@@ -82,9 +82,15 @@ def analyze(repo_root: Path) -> dict | None:
 
     over = {"sessions": 0, "actual": 0.0, "at_mid": 0.0, "eval_sessions": 0}
     floor = {"sessions": 0}
+    fork_netted = 0
     for sid in in_scope_ids:
         s = sessions.get(sid)
         if not s or not s.get("tokens"):
+            continue
+        if s.get("fork_of"):
+            # duplicated transcript (ADR-0002 f4): netted from the verdict,
+            # disclosed on screen
+            fork_netted += 1
             continue
         tier = _tier(_dominant_models(s))
         if tier == "frontier":
@@ -138,6 +144,7 @@ def analyze(repo_root: Path) -> dict | None:
         "policy": policy,
         "n_sessions": len(sessions),
         "in_scope": len(in_scope_ids),
+        "fork_netted": fork_netted,
         "overspend": {**over, "delta": over["actual"] - over["at_mid"]},
         "below_floor": floor,
         "curve": curve,
