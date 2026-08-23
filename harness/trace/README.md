@@ -1,5 +1,7 @@
 # harness/trace/
 
+**Design README only — no code exists yet (see [`PROGRESS.md`](../../PROGRESS.md)).** The contract (`schemas/trace_event.schema.json`) is drafted; zero trace records exist anywhere. Everything below is the intended design.
+
 The value-traceability layer: connects agent activity to the work the organization intended to deliver. Technical quality says "the output was good"; this layer answers "was it worth doing."
 
 ## What goes here

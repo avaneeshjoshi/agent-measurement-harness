@@ -1,5 +1,7 @@
 # harness/signals/
 
+**Design README only — no code lives here yet (see [`PROGRESS.md`](../../PROGRESS.md)).** The signal computation this package describes *does* run today — survival, rework, reverts, and attribution ship in `connectors/git_history.py` via `caliper signals` (ADR-0006) — and moves here when the normalize/compute split happens (ADR-0006 §7). The rest below is the intended design, including parts (review friction, PR history) that need multi-person repos to exist at all.
+
 The production-signals track: what actually happened to agent-written code after it landed, computed retrospectively from Git and PR history. This is the track that catches what acceptance rate can't — acceptance measures plausibility, not correctness, so this package deliberately doesn't lean on it.
 
 ## What goes here

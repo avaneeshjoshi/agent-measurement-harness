@@ -1,5 +1,7 @@
 # notebooks/
 
+**Design README only — no notebooks exist yet (see [`PROGRESS.md`](../PROGRESS.md)).** Curve figures produced so far came from the eval pipeline and ADRs directly. Everything below is the intended role of this directory.
+
 Exploratory analysis. Where the curves get plotted, the tracks get triangulated, and report figures come from.
 
 ## What goes here

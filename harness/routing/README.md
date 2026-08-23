@@ -1,5 +1,7 @@
 # harness/routing/
 
+**Design README only — no code exists yet (see [`PROGRESS.md`](../../PROGRESS.md)).** The one routing_policy record on disk (rp-0001) was hand-written against the schema (`router_version: manual-adr-0008`, ADR-0008), not produced by this package. Everything below is the intended design.
+
 The action layer: turns everything upstream into a per-class routing policy the data justifies. Deliberately last and deliberately thin — flipping the switches (Cursor admin panel, Claude Code model defaults, skill attachments) is cheap; this package produces the *evidence* for which switches to flip.
 
 ## What goes here

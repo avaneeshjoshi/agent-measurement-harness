@@ -1,8 +1,10 @@
 # harness/judge/
 
+**Design README only — no code exists yet (see [`PROGRESS.md`](../../PROGRESS.md)).** No judge runner, no rubrics, and no calibration set have been built; everything below is the intended design.
+
 The judged quality track, with the safeguards that make LLM-as-judge defensible instead of hand-waved.
 
-## Non-negotiable safeguards (each one is an ADR in `docs/decisions/`)
+## Non-negotiable safeguards (each will get its own ADR in `docs/decisions/` when implemented)
 
 - The judge model is from a **different provider** than any model under test.
 - Comparisons are **pairwise and position-swapped**, never absolute scores.

@@ -1,5 +1,7 @@
 # dashboard/
 
+**Design README only — no app exists yet (see [`PROGRESS.md`](../../PROGRESS.md)).** The CLI's dashboard link is labeled "(preview — dashboard not live yet)"; the closest existing artifact is the self-contained HTML from `caliper report`. Everything below is the intended design.
+
 The reporting UI — a Next.js app. This is the customer-facing surface: what a platform lead or a CTO actually looks at.
 
 ## What goes here
@@ -21,4 +23,4 @@ A Next.js (App Router, TypeScript) application whose views map to the four harne
 
 ## Rules
 
-- **Team-level and above only. No individual rankings, no leaderboards, by design** — the instrument measures the system, not the people. This is enforced here (the data layer aggregates before render), not just promised.
+- **Team-level and above only. No individual rankings, no leaderboards, by design** — the instrument measures the system, not the people. This will be enforced in the data layer (aggregate before render), not just promised.
