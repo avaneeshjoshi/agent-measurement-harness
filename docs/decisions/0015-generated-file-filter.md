@@ -4,7 +4,7 @@
 
 ## Context
 
-Commit `2fbaf77` (Axlerate) added 3,013,346 lines — a lockfile regeneration.
+Commit `2fbaf77` (Axlerate) added 3,013,346 lines — an entire Python virtualenv committed into the repo (`venv/lib/python3.12/site-packages/…`; caught by the `venv` path-segment rule, not a lockfile pattern).
 It is a real diff, so nothing diff-based or size-based distinguishes it; it
 dominated its repo's line-weighted survival absolutely (ADR-0006 finding 1
 read 6.5% overall because of exactly this class of commit) and it is not
@@ -72,7 +72,7 @@ generated monsters).
 - **Flipped to `excluded_generated`: 1 commit** — Axlerate `8c8d654`
   (1,994 generated lines, nothing else).
 - **Mixed commits with work counts shrunk: 16**, led by Axlerate `2fbaf77`:
-  lines_added **3,013,346 → 9** (3,013,337 excluded — the commit that
+  lines_added **3,013,346 → 9** (3,013,337 excluded — the committed-virtualenv commit that
   motivated this ADR turns out to contain nine lines of actual work),
   Axlerate `2dca7f5` 12,806 → 889, AvaneeshJoshi-Portfolio `83ee91a`
   18,598 → 7,872, echo-web `f904f27` 8,411 → 1,651, and so on down.
