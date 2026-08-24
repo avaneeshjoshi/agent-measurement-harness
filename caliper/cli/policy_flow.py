@@ -39,6 +39,13 @@ def _chart(rows, width: int = 22):
 
 
 def run_policy_flow(repo_root: Path, yes: bool = False, no: bool = False) -> int:
+    from .paths import checkout_root, has_own_eval_evidence
+    if not has_own_eval_evidence() and checkout_root() is None:
+        # ADR-0014: never hand a stranger a recommendation built from the
+        # author's shipped evidence
+        print("No routing policy yet — a policy needs eval evidence from "
+              "your own traffic, which Caliper cannot generate yet.")
+        return 0
     with spinner("Scanning your traffic against the draft policy"):
         a = analyze(repo_root)
     if a is None:

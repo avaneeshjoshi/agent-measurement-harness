@@ -10,7 +10,9 @@ from .style import S, sep, step
 
 
 def policy_nudge(repo_root: Path) -> None:
-    from .paths import routing_policies_path
+    from .paths import has_own_eval_evidence, routing_policies_path
+    if not has_own_eval_evidence():
+        return  # ADR-0014: no nudge about the author's shipped evidence
     policies = routing_policies_path(repo_root)
     if not policies.exists():
         return

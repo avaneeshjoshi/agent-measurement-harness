@@ -123,6 +123,14 @@ def calibration_dir(repo_root: Path) -> Path:
             / "unit-comparison-2026-08-07")
 
 
+def has_own_eval_evidence() -> bool:
+    """True when THIS machine's traffic has produced eval evidence. The
+    policy surfaces gate on it (ADR-0014): a recommendation built from the
+    author's shipped commons-lang runs is never handed to a fresh install."""
+    return ((derived_dir() / "replay" / "eval_results.jsonl").exists()
+            or (derived_dir() / "routing" / "routing_policies.jsonl").exists())
+
+
 def routing_policies_path(repo_root: Path) -> Path:
     return _first_existing([
         derived_dir() / "routing" / "routing_policies.jsonl",

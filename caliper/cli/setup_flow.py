@@ -339,7 +339,17 @@ def _collection_step(repo_root: Path) -> None:
 
 
 def _policy_step(repo_root: Path) -> int:
-    """The pivot from observation to action: ask, then draft and present."""
+    """The pivot from observation to action: ask, then present. Gated on
+    eval evidence from the user's own traffic (ADR-0014) — a skipped stage
+    says why in one line rather than disappearing (DESIGN.md)."""
+    from .paths import has_own_eval_evidence
+    if not has_own_eval_evidence():
+        print(step(sep("Policy step skipped",
+                       S.dim("a routing policy needs eval evidence from "
+                             "your own traffic, which Caliper cannot "
+                             "generate yet"))))
+        print()
+        return 0
     from .policy import analyze
     from .policy_flow import present_policy
     from .policy_nudge import policy_nudge
@@ -368,8 +378,7 @@ def _policy_step(repo_root: Path) -> int:
         policy_nudge(repo_root)
         return 0
 
-    with spinner("Drafting policy — checking your traffic against tier evidence"):
-        a = analyze(repo_root)
+    a = analyze(repo_root)
     if a is None:
         print(S.dim("    no eval evidence on disk yet — run the eval pipeline first"))
         return 1

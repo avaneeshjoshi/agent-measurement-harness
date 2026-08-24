@@ -101,3 +101,39 @@ def test_chart_renders_nothing_for_empty_rows():
     never ValueError."""
     from caliper.cli.policy_flow import _chart
     assert _chart([]) == ""
+
+
+def test_policy_surfaces_gate_on_own_evidence(monkeypatch, capsys):
+    """ADR-0014: a fresh install (no checkout, no own eval evidence) gets one
+    sentence, never a recommendation from the author's shipped evidence."""
+    import caliper.cli.paths as paths
+    from caliper.cli.policy_flow import run_policy_flow
+    from caliper.cli.policy_nudge import policy_nudge
+    from caliper.cli.setup_flow import _policy_step
+    from tests.conftest import REPO
+
+    monkeypatch.setattr(paths, "checkout_root", lambda: None)
+    import caliper.cli.policy_flow as pf
+    monkeypatch.setattr(pf, "run_policy_flow", run_policy_flow)
+
+    assert run_policy_flow(REPO) == 0
+    out = capsys.readouterr().out
+    assert "No routing policy yet" in out
+    assert "rp-0001" not in out
+
+    policy_nudge(REPO)  # silent: no own evidence
+    assert capsys.readouterr().out == ""
+
+    assert _policy_step(REPO) == 0
+    assert "Policy step skipped" in capsys.readouterr().out
+
+
+def test_policy_runs_for_dev_checkout(capsys):
+    """The dev path (source checkout, shipped evidence fallback) still works
+    non-interactively — declining by default and recording nothing scary."""
+    from caliper.cli.policy_flow import run_policy_flow
+    from tests.conftest import REPO
+
+    assert run_policy_flow(REPO, no=True) == 0
+    out = capsys.readouterr().out
+    assert "rp-0001" in out  # dev sees the draft against shipped evidence
