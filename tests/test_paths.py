@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from cli.paths import (data_root, derived_dir, extracted_dir, migrate_legacy,
+from caliper.cli.paths import (data_root, derived_dir, extracted_dir, migrate_legacy,
                        reports_dir, salt_path, state_dir)
 from tests.conftest import FIXTURES, SCHEMA
 
@@ -131,9 +131,9 @@ def test_migration_preserves_salt_and_refs_match(tmp_path, monkeypatch):
     join. Uses the real file-salt path (env salt removed) and the full
     migration including the salt lift to the top of the tree."""
     monkeypatch.delenv("CALIPER_HASH_SALT")
-    from cli.main import extract
-    from connectors.claude_code import ClaudeCodePlugin
-    from connectors.util import load_salt
+    from caliper.cli.main import extract
+    from caliper.connectors.claude_code import ClaudeCodePlugin
+    from caliper.connectors.util import load_salt
 
     repo = tmp_path / "repo"
     legacy = repo / "data" / "extracted"

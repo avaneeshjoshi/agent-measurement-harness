@@ -10,12 +10,12 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from cli.collection import (WATERMARK_SLACK_S, acquire_lock, artifact_mtime,
+from caliper.cli.collection import (WATERMARK_SLACK_S, acquire_lock, artifact_mtime,
                             load_state, mark_covered, run_scheduled,
                             save_state)
-from cli.main import extract
-from cli.paths import extracted_dir, state_dir
-from connectors.claude_code import ClaudeCodePlugin
+from caliper.cli.main import extract
+from caliper.cli.paths import extracted_dir, state_dir
+from caliper.connectors.claude_code import ClaudeCodePlugin
 from tests.conftest import FIXTURES, SCHEMA
 
 ORIGINAL = "11111111-1111-1111-1111-111111111111"

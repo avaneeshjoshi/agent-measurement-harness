@@ -37,7 +37,7 @@ def accessible_tiers(sessions: dict) -> dict[str, list[str]]:
     model of that tier actually appears in extracted sessions (ADR-0010).
     `caliper connect` (future) will be the path for proving access to models
     not yet used. Returns tier -> sorted model ids that proved it."""
-    from harness.report.generate import _dominant_models
+    from caliper.harness.report.generate import _dominant_models
 
     proof: dict[str, set[str]] = {}
     for s in sessions.values():
@@ -50,8 +50,8 @@ def accessible_tiers(sessions: dict) -> dict[str, list[str]]:
 
 def analyze(repo_root: Path) -> dict | None:
     """Everything the flow renders, computed from records on disk."""
-    from harness.replay.runner import load_pricing
-    from harness.report.generate import _cohort, _dominant_models, _price
+    from caliper.harness.replay.runner import load_pricing
+    from caliper.harness.report.generate import _cohort, _dominant_models, _price
 
     from .paths import routing_policies_path
     policies_path = routing_policies_path(repo_root)

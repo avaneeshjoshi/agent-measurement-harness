@@ -9,7 +9,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from cli.health import (CLAUDE_CLEANUP_DEFAULT_DAYS, COVERAGE_GAP_DAYS,
+from caliper.cli.health import (CLAUDE_CLEANUP_DEFAULT_DAYS, COVERAGE_GAP_DAYS,
                         STATE_FILENAME, RetentionWindow, claude_cleanup_days,
                         collection_gap, last_covered_from_disk,
                         retention_windows)
@@ -141,7 +141,7 @@ def test_last_covered_empty_when_nothing_on_disk(tmp_path):
 
 # ---- drift canaries (ADR-0011) --------------------------------------------
 
-from cli.health import (COVERAGE_DROP_ABS, CANARY_MIN_EVENTS, RunStats,  # noqa: E402
+from caliper.cli.health import (COVERAGE_DROP_ABS, CANARY_MIN_EVENTS, RunStats,  # noqa: E402
                         canary_counts, field_coverage_alarms)
 
 

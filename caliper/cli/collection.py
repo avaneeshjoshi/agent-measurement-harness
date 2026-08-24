@@ -140,8 +140,8 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
     """`caliper extract --scheduled`: lock → self-check → activity gate →
     (watermarked or daily-full) extract → state update. Exit 0 on no-op or
     success; 1 on failure (visible in `launchctl print` and the log)."""
-    from connectors import PLUGINS
-    from connectors.util import load_salt
+    from caliper.connectors import PLUGINS
+    from caliper.connectors.util import load_salt
 
     from .main import extract, repo_root
     from .paths import extracted_dir, state_dir

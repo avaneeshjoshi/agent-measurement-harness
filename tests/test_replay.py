@@ -11,7 +11,7 @@ import json
 
 from jsonschema import Draft202012Validator
 
-from harness.replay.runner import EVAL_SCHEMA_VERSION, load_pricing, price_usage
+from caliper.harness.replay.runner import EVAL_SCHEMA_VERSION, load_pricing, price_usage
 from tests.conftest import REPO
 
 EVAL_SCHEMA = REPO / "schemas" / "eval_result.schema.json"

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import html as H
 
-from harness.classifier import CLASSIFIER_VERSION
+from caliper.harness.classifier import CLASSIFIER_VERSION
 
 NR = '<span class="nr">not recorded</span>'
 

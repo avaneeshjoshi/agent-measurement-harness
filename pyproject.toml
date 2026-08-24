@@ -16,13 +16,13 @@ dependencies = [
 dev = ["pytest>=7"]
 
 [project.scripts]
-caliper = "cli.main:main"
+caliper = "caliper.cli.main:main"
 
 [tool.setuptools]
-packages = ["cli", "connectors", "harness", "harness.replay", "harness.classifier", "harness.report"]
+packages = ["caliper", "caliper.cli", "caliper.connectors", "caliper.harness", "caliper.harness.replay", "caliper.harness.classifier", "caliper.harness.report"]
 
 [tool.setuptools.package-data]
-"harness.replay" = ["pricing.json", "pricing_snapshots/*.json"]
+"caliper.harness.replay" = ["pricing_snapshots/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

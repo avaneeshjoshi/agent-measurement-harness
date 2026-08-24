@@ -83,8 +83,8 @@ def cursor_dbs(tmp_path: Path) -> dict[str, Path]:
 def run_extract(tmp_path: Path, cursor_dbs):
     """Return a callable running the real extract() pipeline over fixture
     roots into a tmp data dir."""
-    from cli.main import extract
-    from connectors import ClaudeCodePlugin, CodexPlugin, CursorPlugin
+    from caliper.cli.main import extract
+    from caliper.connectors import ClaudeCodePlugin, CodexPlugin, CursorPlugin
 
     data_dir = tmp_path / "extracted"
 

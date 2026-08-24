@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from harness.classifier.segmenter import TURN_GAP_MS, segment_units
+from caliper.harness.classifier.segmenter import TURN_GAP_MS, segment_units
 from tests.conftest import REPO
 
 

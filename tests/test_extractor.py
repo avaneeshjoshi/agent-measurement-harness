@@ -244,7 +244,7 @@ def test_cursor_partial_records(run_extract):
 def test_cursor_reads_snapshot_not_live_db(run_extract, cursor_dbs, monkeypatch):
     """The live DB paths must never be opened by sqlite directly."""
     import sqlite3 as sql
-    import connectors.cursor as cursor_mod
+    import caliper.connectors.cursor as cursor_mod
 
     live = {str(cursor_dbs["tracking"]), str(cursor_dbs["state"])}
     real_connect = sql.connect
@@ -275,8 +275,8 @@ def test_unknown_record_type_counted_in_manifest(tmp_path):
     import json as _json
     import shutil as _shutil
 
-    from cli.main import extract
-    from connectors import ClaudeCodePlugin
+    from caliper.cli.main import extract
+    from caliper.connectors import ClaudeCodePlugin
     from tests.conftest import FIXTURES, SCHEMA
 
     root = tmp_path / "claude_code"
@@ -306,8 +306,8 @@ def test_agent_name_lands_in_sidecar_only(tmp_path):
     import json as _json
     import shutil as _shutil
 
-    from cli.main import extract
-    from connectors import ClaudeCodePlugin
+    from caliper.cli.main import extract
+    from caliper.connectors import ClaudeCodePlugin
     from tests.conftest import FIXTURES, SCHEMA
 
     root = tmp_path / "claude_code"

@@ -28,15 +28,17 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
 
-from connectors import PLUGINS, normalize_source_name
-from connectors.util import load_salt, now_iso
+from caliper.connectors import PLUGINS, normalize_source_name
+from caliper.connectors.util import load_salt, now_iso
 
 from .store import ContentStore, SessionStore
 
 
 def repo_root() -> Path:
-    """The repo this package was installed (editable) from."""
-    return Path(__file__).resolve().parent.parent
+    """The repo this package was installed (editable) from — three levels up
+    from caliper/cli/main.py. Under a wheel install this points into
+    site-packages and the repo-side paths simply don't exist there."""
+    return Path(__file__).resolve().parent.parent.parent
 
 
 def load_validator(schema_path: Path) -> Draft202012Validator:
@@ -53,7 +55,7 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
     watermark (ADR-0011): artifacts older than it (minus slack) are filtered
     so scheduled runs are O(new) — safe because the store merges from
     existing records, so filtered files lose nothing."""
-    from connectors.base import CONNECTOR_VERSION, SESSION_SCHEMA_VERSION
+    from caliper.connectors.base import CONNECTOR_VERSION, SESSION_SCHEMA_VERSION
 
     from .collection import WATERMARK_SLACK_S, artifact_mtime
     from .paths import salt_path
@@ -191,7 +193,7 @@ def signals(data_dir: Path, schema_path: Path,
     """Run the git-history connector: production signals for the repos the
     extracted sessions reference. Returns the manifest. `connector` lets
     tests inject one pointed at fixture roots."""
-    from connectors.git_history import GitHistoryConnector
+    from caliper.connectors.git_history import GitHistoryConnector
 
     from .paths import salt_path
 
@@ -441,13 +443,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.command == "pricing":
-        from harness.replay.pricing_update import update
+        from caliper.harness.replay.pricing_update import update
         update()
         return 0
 
     if args.command == "report":
-        from harness.report.generate import collect
-        from harness.report.render import render
+        from caliper.harness.report.generate import collect
+        from caliper.harness.report.render import render
         from .paths import salt_path, task_classes_path
         root_dir = repo_root()
         summary = collect(root_dir, extracted_dir(),
@@ -476,7 +478,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "classify":
         from jsonschema import Draft202012Validator
-        from harness.classifier.classify import classify_all
+        from caliper.harness.classifier.classify import classify_all
         root_dir = repo_root()
         data_dir = Path(args.data_dir) if args.data_dir else extracted_dir()
         units = ("prompt", "segment", "session") if args.unit == "all" else (args.unit,)
@@ -509,8 +511,8 @@ def main(argv: list[str] | None = None) -> int:
             print()
         print(S.dim(f"→ {relpath(out, root_dir)}"))
         if args.validate:
-            from harness.classifier import CLASSIFIER_VERSION
-            from harness.classifier.validation import print_report, validate
+            from caliper.harness.classifier import CLASSIFIER_VERSION
+            from caliper.harness.classifier.validation import print_report, validate
 
             from .paths import calibration_dir, validation_report_path
             report = validate(out, calibration_dir(root_dir))
@@ -523,7 +525,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "replay":
-        from harness.replay import mining, runner
+        from caliper.harness.replay import mining, runner
         repo = Path(args.repo)
         tasks_path = Path(args.tasks)
         if args.action == "mine":
@@ -543,7 +545,7 @@ def main(argv: list[str] | None = None) -> int:
     data_dir = Path(args.data_dir) if args.data_dir else extracted_dir()
 
     if args.command == "signals":
-        from connectors.git_history import GitHistoryConnector
+        from caliper.connectors.git_history import GitHistoryConnector
         schema_path = root / "schemas" / "production_signal.schema.json"
         from .paths import salt_path as _sp
         conn = GitHistoryConnector(salt=load_salt(_sp(data_dir)),

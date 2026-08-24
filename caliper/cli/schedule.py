@@ -44,7 +44,7 @@ def caliper_executable() -> list[str]:
     exe = shutil.which("caliper")
     if exe:
         return [str(Path(exe).resolve())]
-    return [sys.executable, "-m", "cli.main"]
+    return [sys.executable, "-m", "caliper.cli.main"]
 
 
 def generate_plist(program: list[str], repo_root: Path, log_path: Path) -> bytes:
@@ -75,8 +75,8 @@ def tcc_protected(path: str | Path) -> bool:
 def discover_repo_paths() -> list[str]:
     """The git repos the extracted sessions reference — what scheduled
     signals would need to read."""
-    from connectors.git_history import GitHistoryConnector
-    from connectors.util import load_salt
+    from caliper.connectors.git_history import GitHistoryConnector
+    from caliper.connectors.util import load_salt
     try:
         from .paths import salt_path
         conn = GitHistoryConnector(salt=load_salt(salt_path()))

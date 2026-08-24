@@ -15,7 +15,7 @@ from tests.conftest import REPO
 # The single sanctioned repo-data path authority (ADR-0012). pricing_update
 # writes harness/replay/pricing_snapshots/ — reference data, not user data —
 # and does not construct data/ paths, so it needs no entry here.
-ALLOWED = {"cli/paths.py"}
+ALLOWED = {"caliper/cli/paths.py"}
 
 # Path-construction spellings; prose in docstrings/comments doesn't match.
 PATTERNS = ('"data" /', '/ "data"', "'data' /", "/ 'data'",
@@ -24,7 +24,7 @@ PATTERNS = ('"data" /', '/ "data"', "'data' /", "/ 'data'",
 
 def _production_modules() -> list[Path]:
     out = []
-    for pkg in ("cli", "harness", "connectors"):
+    for pkg in ("caliper",):
         out.extend(p for p in (REPO / pkg).rglob("*.py")
                    if "__pycache__" not in p.parts)
     return out
@@ -58,8 +58,8 @@ def test_pipeline_writes_nothing_into_the_repo(run_extract):
     """The structural guarantee, exercised: a full extract → classify →
     report run under a sandboxed CALIPER_HOME must leave the repo's data
     tree byte-identical — whatever path expression a writer used."""
-    from cli.main import main
-    from cli.paths import derived_dir, reports_dir, state_dir
+    from caliper.cli.main import main
+    from caliper.cli.paths import derived_dir, reports_dir, state_dir
 
     before = _snapshot_repo_data()
 

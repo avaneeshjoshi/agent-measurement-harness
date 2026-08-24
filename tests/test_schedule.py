@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-import cli.schedule as schedule
-from cli.collection import load_state, save_state
-from cli.paths import state_dir
+import caliper.cli.schedule as schedule
+from caliper.cli.collection import load_state, save_state
+from caliper.cli.paths import state_dir
 
 
 class FakeRunner:
@@ -160,7 +160,7 @@ def test_status_verifies_write_access(darwin, capsys, monkeypatch):
     should (ADR-0012) — an unwritable tree is a loud problem, not a shrug."""
     import os as _os
 
-    from cli.paths import extracted_dir
+    from caliper.cli.paths import extracted_dir
     _seed_installed(darwin, [sys.executable])
     runner = FakeRunner(print_stdout="\tstate = waiting\n"
                                      "\tlast exit code = 0\n")

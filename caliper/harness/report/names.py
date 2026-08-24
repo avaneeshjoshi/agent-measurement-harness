@@ -11,8 +11,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from connectors.git_history import GitHistoryConnector
-from connectors.util import load_salt, project_ref
+from caliper.connectors.git_history import GitHistoryConnector
+from caliper.connectors.util import load_salt, project_ref
 
 
 def build_name_map(map_path: Path, salt_file: Path) -> dict[str, str]:

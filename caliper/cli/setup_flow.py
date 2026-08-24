@@ -72,7 +72,7 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
     print()
 
     # ---- staged pipeline ------------------------------------------------
-    from connectors import PLUGINS
+    from caliper.connectors import PLUGINS
     schema = repo_root / "schemas" / "session.schema.json"
     total_sessions = 0
     for name in PLUGINS:
@@ -91,7 +91,7 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
 
     def do_classify():
         from jsonschema import Draft202012Validator
-        from harness.classifier.classify import classify_all
+        from caliper.harness.classifier.classify import classify_all
         records = classify_all(data_dir)
         v = Draft202012Validator(json.loads(
             (repo_root / "schemas" / "task_class.schema.json").read_text()))
@@ -123,8 +123,8 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
         print()
 
     def do_report():
-        from harness.report.generate import collect
-        from harness.report.render import render
+        from caliper.harness.report.generate import collect
+        from caliper.harness.report.render import render
         from .paths import reports_dir, salt_path, state_dir, task_classes_path
         summary = collect(repo_root, data_dir, task_classes_path(repo_root),
                           state_dir() / ".project_names.json", salt_path())

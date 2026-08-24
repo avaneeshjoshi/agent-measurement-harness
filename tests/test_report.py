@@ -3,9 +3,9 @@ paths never enter the output, model-id matching prices dated ids."""
 
 from __future__ import annotations
 
-from harness.replay.runner import load_pricing
-from harness.report.generate import _price
-from harness.report.render import NR, _fmt, render
+from caliper.harness.replay.runner import load_pricing
+from caliper.harness.report.generate import _price
+from caliper.harness.report.render import NR, _fmt, render
 
 
 def test_dated_model_ids_price_against_undated_sheet_keys():
@@ -61,7 +61,7 @@ def test_fork_children_netted_from_spend_and_disclosed(run_extract):
     on the page — '(1 fork child netted)' — never a silently smaller count."""
     import json
 
-    from harness.report.generate import _dominant_models, collect
+    from caliper.harness.report.generate import _dominant_models, collect
     from tests.conftest import REPO
 
     _, data_dir = run_extract()

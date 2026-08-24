@@ -9,7 +9,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from harness.classifier.classify import classify_all
+from caliper.harness.classifier.classify import classify_all
 from tests.conftest import REPO
 
 SENTINEL = "TOP_SECRET_PROMPT_TEXT_NEVER_READ"
@@ -102,7 +102,7 @@ def _unit(turn, browser=0, edits=0, tools=None):
 
 
 def test_neighborhood_is_segment_bounded_and_radius_limited():
-    from harness.classifier.features import neighborhood_features
+    from caliper.harness.classifier.features import neighborhood_features
     us = [_unit(0, edits=1), _unit(1), _unit(2, browser=2),
           _unit(4, browser=5), _unit(9, browser=7)]
     seg = {0, 1, 2, 9}  # turn 4 is outside the segment; 9 is inside but far
@@ -113,7 +113,7 @@ def test_neighborhood_is_segment_bounded_and_radius_limited():
 
 
 def test_neighborhood_tolerates_missing_optional_fields():
-    from harness.classifier.features import neighborhood_features
+    from caliper.harness.classifier.features import neighborhood_features
     us = [{"session_id": "s", "turn_index": 0, "window": {}},
           {"session_id": "s", "turn_index": 1, "window": {}}]
     assert neighborhood_features(us, 0, {0, 1}) == \
@@ -123,8 +123,8 @@ def test_neighborhood_tolerates_missing_optional_fields():
 def test_neighborhood_features_are_inert_in_active_rules():
     """The withdrawn 0.2.0 rules (ADR-0013) must stay withdrawn: nbr_*
     features never change a verdict under the active ruleset."""
-    from harness.classifier.features import features_from_units
-    from harness.classifier.rules import classify_features
+    from caliper.harness.classifier.features import features_from_units
+    from caliper.harness.classifier.rules import classify_features
     f = features_from_units([_unit(0, edits=1)])
     assert f["nbr_browser"] == 0 and f["nbr_edits"] == 0
     hot = features_from_units([_unit(0, edits=1)],
@@ -133,5 +133,5 @@ def test_neighborhood_features_are_inert_in_active_rules():
 
 
 def test_classifier_version_restored_011():
-    from harness.classifier import CLASSIFIER_VERSION
+    from caliper.harness.classifier import CLASSIFIER_VERSION
     assert CLASSIFIER_VERSION == "rules-0.1.1"

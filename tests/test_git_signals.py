@@ -86,8 +86,8 @@ def signals_run(synthetic_repo, cursor_dbs, tmp_path):
     conn_db.commit()
     conn_db.close()
 
-    from cli.main import signals
-    from connectors.git_history import GitHistoryConnector
+    from caliper.cli.main import signals
+    from caliper.connectors.git_history import GitHistoryConnector
 
     empty = tmp_path / "no-such-dir"
     conn = GitHistoryConnector(
@@ -177,8 +177,8 @@ def test_signals_idempotent_and_provenance(signals_run):
     path = data_dir / "git_history" / "production_signals.jsonl"
     first = path.read_bytes()
 
-    from cli.main import signals
-    from connectors.git_history import GitHistoryConnector
+    from caliper.cli.main import signals
+    from caliper.connectors.git_history import GitHistoryConnector
     conn = GitHistoryConnector(
         claude_root=data_dir / "nope", codex_root=data_dir / "nope",
         cursor_tracking_db=data_dir / "nope.db",
