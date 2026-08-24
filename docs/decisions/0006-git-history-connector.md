@@ -105,3 +105,48 @@ ADR changes** — the 6.5% line-weighted / 99.3% per-commit-median finding and
 the per-repo medians stand. The pathway simply never fired on this machine's
 repos (no shallow clones, no blame timeouts); it remains real for foreign
 machines, which is why it gated shipping (ADR-0014).
+
+## Postscript 2 (2026-08-24): ground-truth verification — known answers and a hand audit
+
+The durability signals had only ever run on the author's repos with no
+ground truth. Two verifications now exist:
+
+**Known-answer tests** (`tests/test_git_signals.py`, the `known_answer_repo`
+fixture): six constructed events with exact expected values — an untouched
+commit (6/6, 1.0), a commit rewritten 8 days later (rework 4 of 10, the
+rewriting sha listed), a real revert whose marker carries an **abbreviated**
+sha (the previously untested match path), a commit too young to measure
+(`not_yet_measurable`, never 0%), a file deleted entirely before the
+snapshot (`measured 0.0` via the cat-file-absent path — deletion is a
+measurement), and a 50,000-line generated lockfile that measures like any
+code, with the line-weighted-vs-per-commit skew asserted as an executable
+fact (line-weighted 0.9998 vs per-commit mean 0.6 in the fixture). Twelve of
+thirteen assertions passed on first contact; the one failure was an error in
+the hand-computed expectation (the rewriter's own record was omitted from
+the median), not in the tool.
+
+**Hand audit of ten real commits** (independent script, raw git only, no
+caliper imports): survival@30d and rework agreed **exactly** on 9/10 —
+including the 3,013,346-line generated-artifact commit (8 surviving lines,
+byte-exact) and a 6,412-line commit (6,020 surviving, 392 reworked). The
+single divergence was the hand script's own precedence error: for a
+zero-lines-added commit younger than its horizon, the tool says
+`unmeasurable` (correct — zero added lines can never be measured at any
+age) where the naive check said `not_yet_measurable` (which would promise a
+measurement that can never come). The tool's ordering — `lines_added == 0`
+dominates age — is deliberate and now documented here.
+
+Two nuances recorded:
+- **`known` attribution counts are vendor-scoped, not numstat-scoped.** A
+  commit with `lines_added 546` carried vendor counts (0 ai / 328 human)
+  because Cursor scores only the lines it observed in-editor; the tool
+  reports the vendor's evidence verbatim, and the two denominators must not
+  be compared as if equal.
+- **Revert linkage is fixture-verified only**: zero revert commits exist in
+  any of the nine real repos analyzed (solo direct-push history, as §First
+  real run predicted), so the real-world path remains exercised solely by
+  the known-answer fixture until multi-person repos arrive.
+- Minor latent inconsistency, recorded not fixed: the rework path's
+  no-snapshot branch assumes all lines survived where survival's equivalent
+  says `unmeasurable`; it is dead code in practice (the commit itself is
+  always a snapshot candidate) but should be aligned if ever touched.
