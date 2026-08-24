@@ -382,6 +382,14 @@ def main(argv: list[str] | None = None) -> int:
                               help="Generate the self-contained first-look HTML.")
     p_report.add_argument("--out", default=None)
 
+    p_serve = sub.add_parser("serve",
+                             help="Open the local interactive view "
+                                  "(127.0.0.1 only, read-only).")
+    p_serve.add_argument("--port", type=int, default=None,
+                         help="fixed port (default: ephemeral)")
+    p_serve.add_argument("--no-browser", action="store_true",
+                         help="print the URL without opening a browser tab")
+
     p_pricing = sub.add_parser("pricing",
                                help="Price-sheet management (dev: source checkout).")
     p_pricing.add_argument("action", choices=["update"])
@@ -495,6 +503,10 @@ def main(argv: list[str] | None = None) -> int:
         from caliper.harness.replay.pricing_update import update
         update()
         return 0
+
+    if args.command == "serve":
+        from .serve import serve
+        return serve(port=args.port, open_browser=not args.no_browser)
 
     if args.command == "report":
         from caliper.harness.report.generate import collect
