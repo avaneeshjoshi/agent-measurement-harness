@@ -177,9 +177,20 @@ def scatter(points: list[dict], qs: str) -> str:
         parts.append(f'<text x="{x:.1f}" y="{PH - 8}" text-anchor="middle" '
                      f'class="ax">${c:,.0f}</text>')
 
+    # collision-aware label placement: repos cluster at high survival on
+    # real data, so labels stagger downward until they stop overlapping —
+    # the figure must ride the mark, and an unreadable label rides nothing
+    placed: list[tuple[float, float, float]] = []  # (x0, x1, y)
     for p in sorted(points, key=lambda q: -q["commits"]):
         x, y = sx(p["cost"]), sy(p["surv"])
         r = 4 + 2.2 * sqrt(p["commits"])
+        text = f"{p['name']} {p['surv']:.0%} (n={p['commits']})"
+        lw = 6.2 * len(text)
+        lx, ly = x + r + 4, y + 4
+        while any(not (lx + lw < x0 or lx > x1 or abs(ly - yy) >= 13)
+                  for x0, x1, yy in placed):
+            ly += 14
+        placed.append((lx, lx + lw, ly))
         label = (f"{p['name']} {p['surv']:.0%} "
                  f"(n={p['commits']}) · ${p['cost']:,.2f}")
         parts.append(
@@ -187,7 +198,7 @@ def scatter(points: list[dict], qs: str) -> str:
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" '
             'fill="var(--accent)" fill-opacity="0.25" '
             'stroke="var(--accent)"/>'
-            f'<text x="{x + r + 4:.1f}" y="{y + 4:.1f}" class="pt">'
+            f'<text x="{lx:.1f}" y="{ly:.1f}" class="pt">'
             f"{H.escape(p['name'])} <tspan class='ax'>"
             f"{p['surv']:.0%} (n={p['commits']})</tspan></text></a>")
 

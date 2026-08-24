@@ -96,6 +96,32 @@ overview rendering no chart frame. Live walkthrough on real data plus an
 empty-HOME pass, per the ADR-0016 procedure (its walkthrough caught four
 defects the unit tests missed; findings land in a postscript here).
 
+## Postscript (same day): walkthrough findings
+
+The live walkthrough (real data, 313 sessions / 9 repos, then an empty
+HOME) found two defects, both fixed before this shipped:
+
+1. **The dollar chart silently dropped the 53 token-less Cursor sessions.**
+   Its n named priced and unpriced-with-tokens sessions but not the
+   sessions that log no tokens at all — the same absence the by-tool table
+   was fixed for in ADR-0016's walkthrough, resurfacing in a new surface.
+   The caption now states "· 53 sessions log no tokens (Cursor) and cannot
+   appear in a dollar chart".
+2. **The scatter's label collision was not hypothetical.** All five
+   plottable repos sit at 99–100% survival on this dataset and three labels
+   rendered on top of each other — the "revisit if a real dataset makes the
+   corner unreadable" clause fired on the first real dataset. Labels now
+   stagger downward until they stop overlapping (collision-aware placement
+   in `charts.scatter`); the figure stays beside its mark, readably.
+
+Verified live after the fixes: gaps render on quiet days (19 active
+columns over a 195-day axis), `?range=30d` recomputes every figure
+($1,343.23 / 13 active days / "Filtered: last 30d (since 2026-07-25)" in
+words), the bucket bars make cache-read dominance visible at a glance and
+agree with the by-model table, the band lists 4 unplottable repos with
+their absence words, and the empty HOME renders no chart frame and writes
+zero files.
+
 ## Known limitations
 
 - Scatter labels can collide when repos cluster at high survival; the

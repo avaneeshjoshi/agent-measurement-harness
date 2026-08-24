@@ -554,9 +554,12 @@ def _day_group_costs(raw: dict, split: str):
     from collections import Counter
     per_day: dict[str, dict[str, float]] = {}
     totals: Counter = Counter()
-    n_priced = n_unpriced = 0
+    n_priced = n_unpriced = n_no_tokens = 0
     for rec in raw["sessions"].values():
-        if rec.get("fork_of") or not rec.get("tokens"):
+        if rec.get("fork_of"):
+            continue
+        if not rec.get("tokens"):
+            n_no_tokens += 1
             continue
         cost = _price(rec["tokens"], _dominant_models(rec), raw["pricing"])
         if cost is None:
@@ -570,21 +573,24 @@ def _day_group_costs(raw: dict, split: str):
         per_day[day][grp] = per_day[day].get(grp, 0.0) + cost
         totals[grp] += cost
     groups = [g for g, _ in totals.most_common()]
-    return per_day, groups, n_priced, n_unpriced
+    return per_day, groups, n_priced, n_unpriced, n_no_tokens
 
 
 def _spend_chart(raw: dict, filters: dict) -> str:
     split = filters.get("split") if filters.get("split") in ("tool", "model") \
         else "tool"
-    per_day, groups, n_priced, n_unpriced = _day_group_costs(raw, split)
+    per_day, groups, n_priced, n_unpriced, n_no_tok = \
+        _day_group_costs(raw, split)
     if not per_day:
         return ""
     tokens = {g: f"--cat-{i % 10 + 1}" for i, g in enumerate(groups)}
     unpriced_note = (f" · {n_unpriced} unpriced sessions excluded from the "
                      "chart (the tables keep them)" if n_unpriced else "")
+    no_tok_note = (f" · {n_no_tok} sessions log no tokens (Cursor) and "
+                   "cannot appear in a dollar chart" if n_no_tok else "")
     caption = (f"Spend per day, split by {split} · quiet days are gaps, "
                f"not zeros · n = {len(per_day)} active days, {n_priced} "
-               f"priced sessions{unpriced_note}")
+               f"priced sessions{unpriced_note}{no_tok_note}")
     other = "model" if split == "tool" else "tool"
     toggle_qs = _qs({**{k: v for k, v in filters.items() if k != "split"},
                      "split": other})
