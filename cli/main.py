@@ -338,6 +338,10 @@ def main(argv: list[str] | None = None) -> int:
                             choices=["prompt", "segment", "session", "all"])
     p_classify.add_argument("--data-dir", default=None)
     p_classify.add_argument("--out", default=None)
+    p_classify.add_argument("--validate", action="store_true",
+                            help="after classifying, measure agreement "
+                                 "against the human calibration labels and "
+                                 "write the report (ADR-0009/0013)")
 
     p_report = sub.add_parser("report",
                               help="Generate the self-contained first-look HTML.")
@@ -504,6 +508,18 @@ def main(argv: list[str] | None = None) -> int:
             print(child(u, f"{n} records", share))
             print()
         print(S.dim(f"→ {relpath(out, root_dir)}"))
+        if args.validate:
+            from harness.classifier import CLASSIFIER_VERSION
+            from harness.classifier.validation import print_report, validate
+
+            from .paths import calibration_dir, validation_report_path
+            report = validate(out, calibration_dir(root_dir))
+            print_report(report)
+            vr = validation_report_path(CLASSIFIER_VERSION)
+            vr.parent.mkdir(parents=True, exist_ok=True)
+            vr.write_text(json.dumps(report, indent=2))
+            print()
+            print(S.dim(f"→ {vr}"))
         return 0
 
     if args.command == "replay":

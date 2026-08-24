@@ -84,3 +84,81 @@ def test_emitted_records_validate_and_web_qa_rule():
     assert prompt["confidence"] == 0.75
     assert prompt["features_used"], "features_used must be populated"
     assert prompt["method"]["rule_ids"] == ["R07-read-search-no-edits"]
+
+
+# ---- neighborhood flow features (rules-0.2.0, ADR-0013) --------------------
+
+def _unit(turn, browser=0, edits=0, tools=None):
+    tc = dict(tools or {})
+    if browser:
+        tc["mcp__claude-in-chrome__computer"] = browser
+    w = {"tool_calls": sum(tc.values()), "tool_counts": tc,
+         "files_edited": [{"file_ref": f"f{turn}-{i}", "top_dir_ref": "d",
+                           "extension": "py", "is_test_path": False,
+                           "is_docs_path": False, "is_config_path": False,
+                           "is_agent_config_path": False, "is_new_file": False}
+                          for i in range(edits)]}
+    return {"session_id": "s", "turn_index": turn, "window": w}
+
+
+def test_neighborhood_is_segment_bounded_and_radius_limited():
+    from harness.classifier.features import neighborhood_features
+    us = [_unit(0, edits=1), _unit(1), _unit(2, browser=2),
+          _unit(4, browser=5), _unit(9, browser=7)]
+    seg = {0, 1, 2, 9}  # turn 4 is outside the segment; 9 is inside but far
+    nbh = neighborhood_features(us, 0, seg)
+    assert nbh["nbr_browser"] == 2  # turn 2 only: 4 out-of-segment, 9 out-of-radius
+    nbh2 = neighborhood_features(us, 2, seg)
+    assert nbh2["nbr_edits"] == 1  # sees turn 0's edit
+
+
+def test_neighborhood_tolerates_missing_optional_fields():
+    from harness.classifier.features import neighborhood_features
+    us = [{"session_id": "s", "turn_index": 0, "window": {}},
+          {"session_id": "s", "turn_index": 1, "window": {}}]
+    assert neighborhood_features(us, 0, {0, 1}) == \
+        {"nbr_browser": 0, "nbr_edits": 0}
+
+
+def test_r01c_neighborhood_browser_flips_edit_window():
+    from harness.classifier.features import features_from_units
+    from harness.classifier.rules import classify_features
+    f = features_from_units([_unit(0, edits=1)],
+                            neighborhood={"nbr_browser": 1, "nbr_edits": 0})
+    v = classify_features(f)
+    assert v["rule_id"] == "R01c-neighborhood-browser"
+    assert v["task_type"] == "ui_verification_loop"
+    # in-window browser still wins as R01b — precedence preserved
+    f2 = features_from_units([_unit(0, edits=1, browser=1)],
+                             neighborhood={"nbr_browser": 3, "nbr_edits": 1})
+    assert classify_features(f2)["rule_id"] == "R01b-browser-present-edits"
+
+
+def test_r01d_flow_sandwich_reclaims_no_edit_windows():
+    from harness.classifier.features import features_from_units
+    from harness.classifier.rules import classify_features
+    # a no-activity window that R06 would take, sandwiched in a browser flow
+    f = features_from_units([_unit(5)],
+                            neighborhood={"nbr_browser": 2, "nbr_edits": 1})
+    v = classify_features(f)
+    assert v["rule_id"] == "R01d-flow-sandwich"
+    # weaker flow evidence does NOT reclaim it — thresholds are the contract
+    f2 = features_from_units([_unit(5)],
+                             neighborhood={"nbr_browser": 1, "nbr_edits": 1})
+    assert classify_features(f2)["rule_id"] == "R06-no-activity"
+    f3 = features_from_units([_unit(5)],
+                             neighborhood={"nbr_browser": 2, "nbr_edits": 0})
+    assert classify_features(f3)["rule_id"] == "R06-no-activity"
+
+
+def test_no_neighborhood_means_zero_flow_features():
+    """Segment/session grains pass no neighborhood — the flow rules must be
+    structurally unable to fire there."""
+    from harness.classifier.features import features_from_units
+    f = features_from_units([_unit(0, edits=1)])
+    assert f["nbr_browser"] == 0 and f["nbr_edits"] == 0
+
+
+def test_classifier_version_stamped_020(tmp_path):
+    from harness.classifier import CLASSIFIER_VERSION
+    assert CLASSIFIER_VERSION == "rules-0.2.0"

@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import html as H
 
+from harness.classifier import CLASSIFIER_VERSION
+
 NR = '<span class="nr">not recorded</span>'
 
 CSS = """
@@ -231,7 +233,7 @@ traffic; a view that hides them misprices everything.</p>
 those days as instrument spend, not organic usage.</p>
 
 <h2>2 · Task mix</h2>
-<p class="note">Classifier output (rules-0.1.1, ADR-0009). Cohorts are never pooled:
+<p class="note">Classifier output ({CLASSIFIER_VERSION}, ADR-0009/0013). Cohorts are never pooled:
 the eval-harness cohort is Caliper's own replay traffic; automated and human sessions
 mix very differently. Unclassified is a legal outcome and stays visible.</p>
 {_mix_table(s['mix'])}

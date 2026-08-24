@@ -90,7 +90,8 @@ def print_report(report: dict) -> None:
     for unit, r in report.items():
         print(f"\n=== {unit.upper()} (n={r['n_matched']} matched, "
               f"{r['n_unmatched_rotated']} unvalidatable/rotated) ===")
-        print(f"accuracy {r['accuracy']:.1%}   Cohen's kappa {r['cohens_kappa']:.3f}")
+        acc = f"{r['accuracy']:.1%}" if r["accuracy"] is not None else "n/a"
+        print(f"accuracy {acc}   Cohen's kappa {r['cohens_kappa']:.3f}")
         print(f"{'class':24s} {'n':>3} {'prec':>6} {'rec':>6} {'f1':>6}")
         for c, m in sorted(r["per_class"].items(), key=lambda x: -x[1]["support"]):
             fmt = lambda v: f"{v:.2f}" if v is not None else "   —"

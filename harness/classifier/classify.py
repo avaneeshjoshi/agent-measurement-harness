@@ -13,7 +13,8 @@ from pathlib import Path
 
 from . import (CLASSIFIER_VERSION, SEGMENTER_VERSION, TASK_CLASS_SCHEMA_VERSION,
                TAXONOMY_VERSION)
-from .features import FEATURE_NAMES, features_from_session, features_from_units
+from .features import (FEATURE_NAMES, features_from_session,
+                       features_from_units, neighborhood_features)
 from .rules import classify_features
 from .segmenter import segment_units
 
@@ -76,8 +77,17 @@ def classify_all(data_dir: Path, units: tuple[str, ...] = ("prompt", "segment", 
 
     if "prompt" in units:
         for sid, us in units_by_session.items():
-            for u in us:
-                f = features_from_units([u])
+            # flow context (ADR-0013): each window sees browser/edit activity
+            # in the rest of its segmenter-0.1.0 segment, radius 3
+            seg_of: dict[int, set[int]] = {}
+            for seg in segment_units(us):
+                members = set(seg["member_indices"])
+                for t in members:
+                    seg_of[t] = members
+            for i, u in enumerate(us):
+                nbh = neighborhood_features(
+                    us, i, seg_of.get(u["turn_index"], set()))
+                f = features_from_units([u], neighborhood=nbh)
                 v = classify_features(f)
                 records.append(_record("prompt", {
                     "session_id": sid,

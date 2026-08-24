@@ -25,11 +25,13 @@ Planned: `harness/replay` drawing per-class task samples from these labels (toda
 
 ## Status (2026-08-10, ADR-0009)
 
-BUILT: rules-0.1.1 (12 documented rules, content-free enforced by test),
+BUILT: rules-0.2.0 (14 documented rules incl. the ADR-0013 neighborhood flow rules R01c/R01d, content-free enforced by test),
 segmenter 0.1.0 (reproduces all validatable ADR-0002 segments exactly),
 `caliper classify --unit prompt|segment|session|all`. Consumes
-`data/extracted/*/sessions.jsonl` + `prompt_units.jsonl`; emits
-`data/derived/classes/task_classes.jsonl`.
+`~/.caliper/extracted/*/sessions.jsonl` + `prompt_units.jsonl`; emits
+`~/.caliper/derived/classes/task_classes.jsonl` (ADR-0012).
+`caliper classify --validate` measures agreement against the calibration
+labels and writes the report beside it.
 
 Agreement vs the human calibration labels: prompt 53.1% / kappa 0.41
 (exploratory_qa F1 0.78, ui_verification_loop 0.71); segment 38.5%.

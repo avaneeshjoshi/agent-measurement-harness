@@ -88,6 +88,20 @@ def eval_results_path(repo_root: Path) -> Path:
     ])
 
 
+def validation_report_path(classifier_version: str) -> Path:
+    """Agreement reports are user data (computed over this machine's
+    classifications); ADR-cited runs get frozen into data/evidence by a
+    deliberate git action, never by code."""
+    return (derived_dir() / "classes"
+            / f"validation_report-{classifier_version}.json")
+
+
+def calibration_dir(repo_root: Path) -> Path:
+    """The committed human-labeled calibration set (read-only repo data)."""
+    return (repo_root / "data" / "calibration"
+            / "unit-comparison-2026-08-07")
+
+
 def routing_policies_path(repo_root: Path) -> Path:
     return _first_existing([
         derived_dir() / "routing" / "routing_policies.jsonl",

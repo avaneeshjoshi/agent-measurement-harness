@@ -1,4 +1,7 @@
-"""Ruleset rules-0.1.1 — readable, versioned, each rule with its rationale.
+"""Ruleset rules-0.2.0 — readable, versioned, each rule with its rationale.
+0.2.0 adds the neighborhood flow rules R01c/R01d (ADR-0013, pre-registered
+before their one-shot validation; thresholds are NOT to be tuned against the
+81 calibration labels — the ADR-0009 freeze rule applies).
 
 Design constraints:
 - Content-free features only (features.py); every emitted record lists them.
@@ -27,6 +30,8 @@ def classify_features(f: dict) -> dict:
     web = fam.get("web", 0)
     shell = fam.get("shell", 0)
     reads = fam.get("read", 0)
+    nbr_browser = f.get("nbr_browser", 0)
+    nbr_edits = f.get("nbr_edits", 0)
 
     # R01 browser_verification: browser/computer-use tools dominate the window.
     # Rationale (ADR-0001 provisional class): iterating on visual behavior;
@@ -45,6 +50,16 @@ def classify_features(f: dict) -> dict:
     if edits and browser >= 1:
         return _r("ui_verification_loop", 0.55, "R01b-browser-present-edits",
                   f"{browser} browser call(s) alongside edits: edit-and-check loop")
+
+    # R01c neighborhood browser (rules-0.2.0, ADR-0013): the flow context
+    # R01b called an honest miss. A browser check often lands a few prompts
+    # AFTER the edit it verifies; neighborhood = same segmenter-0.1.0
+    # segment, turn distance <= 3. Edit-bearing window, zero in-window
+    # browser, any adjacent browser activity -> part of the loop.
+    if edits and browser == 0 and nbr_browser >= 1:
+        return _r("ui_verification_loop", 0.5, "R01c-neighborhood-browser",
+                  f"{nbr_browser} browser call(s) in adjacent windows of "
+                  "the same flow")
 
     # R02 agent_meta: edited files are predominantly agent-tooling config.
     # Rationale (ADR-0001 provisional class): tending the agent itself.
@@ -67,6 +82,16 @@ def classify_features(f: dict) -> dict:
     if edits and f["frac_config"] >= 0.99:
         return _r("config_infra", 0.7, "R05-config-paths-only",
                   "all edited files are configuration paths")
+
+    # R01d flow sandwich (rules-0.2.0, ADR-0013): a no-edit window inside an
+    # edit-and-check flow (shell checks between browser-verified edits).
+    # Zero edits demands stronger flow evidence than R01c: >=2 neighborhood
+    # browser calls AND neighborhood edits. Sits above R06/R07/R08 so the
+    # flow can reclaim what those would swallow.
+    if not edits and nbr_browser >= 2 and nbr_edits >= 1:
+        return _r("ui_verification_loop", 0.45, "R01d-flow-sandwich",
+                  f"no edits here, but {nbr_browser} browser calls and "
+                  f"{nbr_edits} edited file(s) in the surrounding flow")
 
     # R06 no-activity QA: no tools, no edits — a pure answer-from-context turn.
     # Empty files_edited is a POSITIVE exploratory signal (stated prior:
