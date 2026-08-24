@@ -98,6 +98,17 @@ all three dev gates refusing with their sentences.
 - A packaged install still cannot run the eval pipeline or validation —
   deliberate, stated at the gate, not discovered by traceback.
 - The install command depends on the GitHub repo staying public at that URL.
+- **Live finding during this work (2026-08-24): the field-coverage canary's
+  first real firing was a false positive of a predictable class.** Eight
+  alarms on claude_code (diff_stats.*, languages, prompt_source_counts.sdk,
+  subagents.count; recent n=12 vs baseline n=215) trace to a COHORT SHIFT —
+  the baseline window is dominated by eval-harness sessions (which always
+  carry diffs, SDK prompt sources, subagents) while recent traffic is
+  organic — not to a vendor dropping fields. The canary pools cohorts that
+  the report itself refuses to pool (ADR-0009). Recorded, not tuned away:
+  cohort-aware coverage windows are the designated fix, and the thresholds
+  stay as ADR-0011 set them until that lands. The alarms' own wording ("a
+  source format MAY have dropped the field") stays honest meanwhile.
 - Known limitations carried forward from the audits (recorded, not yet
   fixed): git worktrees produce two `repo_ref`s over the same commits
   (double-counted aggregates); ancient Claude Code logs without `message.id`

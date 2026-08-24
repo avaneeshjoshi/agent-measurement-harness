@@ -402,6 +402,10 @@ def main(argv: list[str] | None = None) -> int:
     sgrp.add_argument("--extract-only", action="store_true",
                       help="hourly sessions only; no special permission")
 
+    sub.add_parser("uninstall",
+                   help="Remove the scheduled job and show where your data "
+                        "lives and how to delete it.")
+
     p_policy = sub.add_parser("policy",
                               help="Review the routing policy against your "
                                    "traffic (dev preview: needs eval "
@@ -458,6 +462,10 @@ def main(argv: list[str] | None = None) -> int:
         apply_now = args.yes or args.action == "apply"
         return run_policy_flow(repo_root(), yes=apply_now, no=args.no)
 
+    if args.command == "uninstall":
+        from .schedule import full_uninstall
+        return full_uninstall()
+
     if args.command == "schedule":
         from .schedule import install, status, uninstall
         if args.action == "install":
@@ -469,7 +477,8 @@ def main(argv: list[str] | None = None) -> int:
         return status()
 
     if args.command not in ("extract", "signals", "replay", "classify",
-                            "report", "pricing", "policy", "setup"):
+                            "report", "pricing", "policy", "setup",
+                            "schedule", "uninstall"):
         parser.print_help()
         return 1
 

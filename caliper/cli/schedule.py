@@ -219,18 +219,67 @@ def install(mode: str | None = None,
     return 1
 
 
-def uninstall(runner=subprocess.run) -> int:
+def uninstall(runner=subprocess.run, quiet: bool = False) -> int:
     data_dir = state_dir()
     if sys.platform == "darwin":
         _launchctl(runner, "bootout", f"gui/{os.getuid()}/{LABEL}")
     pp = plist_path()
-    if pp.exists():
+    removed_plist = pp.exists()
+    if removed_plist:
         pp.unlink()
-    state = load_state(data_dir)
-    state["schedule"] = None
-    save_state(data_dir, state)
-    print(step(sep("Scheduled collection removed",
-                   S.dim("state and collected data are untouched"))))
+    had_schedule = False
+    if data_dir.exists():  # never CREATE the home while removing (ADR-0014)
+        state = load_state(data_dir)
+        had_schedule = bool(state.get("schedule"))
+        if had_schedule:
+            state["schedule"] = None
+            save_state(data_dir, state)
+    if quiet:
+        return 0
+    if removed_plist or had_schedule:
+        print(step(sep("Scheduled collection removed",
+                       S.dim("state and collected data are untouched"))))
+    else:
+        print(step(sep("No scheduled collection was installed",
+                       S.dim("nothing to remove"))))
+    return 0
+
+
+def _tree_size(root: Path) -> str:
+    total = sum(p.stat().st_size for p in root.rglob("*") if p.is_file())
+    for unit in ("B", "KB", "MB", "GB"):
+        if total < 1024 or unit == "GB":
+            return f"{total:,.0f} {unit}" if unit == "B" else f"{total:,.1f} {unit}"
+        total /= 1024
+    return "0 B"
+
+
+def full_uninstall(runner=subprocess.run) -> int:
+    """`caliper uninstall`: remove the scheduled job, then tell the user —
+    in words — where their data lives and exactly how to delete it. Nothing
+    is deleted without the user typing it (ADR-0014)."""
+    from .paths import data_root
+
+    uninstall(runner=runner)
+    print()
+    home = data_root()
+    if home.exists():
+        print(step(sep("Your data stays at " + str(home),
+                       S.dim(_tree_size(home)),
+                       S.dim("local only — nothing ever left this machine"))))
+        print()
+        print("    delete it with: rm -rf " + str(home))
+    else:
+        print(step(sep("No data home exists at " + str(home),
+                       S.dim("nothing to delete"))))
+    print()
+    log = logs_dir() / "extract.log"
+    if log.exists():
+        print(S.dim(f"    job log: {log} (inside the data home)"))
+    print("    remove the caliper command itself with: pipx uninstall caliper")
+    print(S.dim("    (or: python3 -m pip uninstall caliper, matching how "
+                "you installed it)"))
+    print()
     return 0
 
 

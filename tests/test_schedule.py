@@ -200,3 +200,33 @@ def test_status_on_linux_with_synced_schedule_state(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "launchd does not exist on this platform" in out
     assert runner.calls == []
+
+
+def test_full_uninstall_three_stranger_states(darwin, capsys, monkeypatch):
+    """ADR-0014: never installed / plist present but unloaded / no data home
+    — each ends in sentences, never a traceback, and never creates the home."""
+    import shutil
+
+    from caliper.cli.paths import data_root
+
+    runner = FakeRunner()
+    # state 1: nothing installed, empty (but existing) sandbox home
+    assert schedule.full_uninstall(runner=runner) == 0
+    out = capsys.readouterr().out
+    assert "No scheduled collection was installed" in out
+    assert "pipx uninstall caliper" in out
+
+    # state 2: plist exists but the job is not loaded (bootout fails)
+    schedule.plist_path().write_bytes(b"x")
+    runner2 = FakeRunner(fail_verbs={"bootout"})
+    assert schedule.full_uninstall(runner=runner2) == 0
+    out = capsys.readouterr().out
+    assert "Scheduled collection removed" in out
+    assert not schedule.plist_path().exists()
+
+    # state 3: no ~/.caliper at all — and uninstall must not create it
+    shutil.rmtree(data_root(), ignore_errors=True)
+    assert schedule.full_uninstall(runner=FakeRunner()) == 0
+    out = capsys.readouterr().out
+    assert "No data home exists" in out
+    assert not data_root().exists()
