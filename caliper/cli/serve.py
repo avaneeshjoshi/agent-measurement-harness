@@ -119,13 +119,15 @@ class ServeHandler(BaseHTTPRequestHandler):
         # while the cache key holds the absolute date and naturally expires
         # at midnight.
         ui = {}
-        for k in ("from", "to", "tool", "range"):
+        for k in ("from", "to", "tool", "range", "split"):
             v = q.get(k, [""])[0]
             if not v:
                 continue
             if k == "tool" and v not in TOOLS:
                 continue
             if k == "range" and v not in (*self.RANGES, "all"):
+                continue
+            if k == "split" and v not in ("tool", "model"):
                 continue
             if k in ("from", "to") and (len(v) != 10 or v[4] != "-"):
                 continue

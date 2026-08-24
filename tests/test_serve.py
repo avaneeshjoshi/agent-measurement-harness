@@ -80,20 +80,28 @@ def serve_home(run_extract, tmp_path):
     (gh / "production_signals.jsonl").write_text(
         "\n".join(json.dumps(x) for x in sigs) + "\n")
 
+    def _cls(sid, task_type, status):
+        return {
+            "schema_version": "0.1.0", "taxonomy_version": "0.1.0",
+            "classifier_version": "rules-0.1.1", "unit": "session",
+            "unit_ref": {"session_id": sid},
+            "status": status, "task_type": task_type,
+            "other_note": None, "context_breadth": "unknown",
+            "risk": {"test_coverage": "unknown", "criticality": "unknown"},
+            "confidence": 0.7, "alternatives": [],
+            "method": {"kind": "rule", "rule_ids": ["R06-no-activity"],
+                       "model_id": None,
+                       "rationale": "no tool calls and no edits"},
+            "features_used": [],
+        }
+
+    other_sid = next(s["session_id"] for s in sessions
+                     if s["session_id"] != s0["session_id"])
     classes_path = tmp_path / "classes.jsonl"
-    classes_path.write_text(json.dumps({
-        "schema_version": "0.1.0", "taxonomy_version": "0.1.0",
-        "classifier_version": "rules-0.1.1", "unit": "session",
-        "unit_ref": {"session_id": s0["session_id"]},
-        "status": "classified", "task_type": "exploratory_qa",
-        "other_note": None, "context_breadth": "unknown",
-        "risk": {"test_coverage": "unknown", "criticality": "unknown"},
-        "confidence": 0.7, "alternatives": [],
-        "method": {"kind": "rule", "rule_ids": ["R06-no-activity"],
-                   "model_id": None,
-                   "rationale": "no tool calls and no edits"},
-        "features_used": [],
-    }) + "\n")
+    classes_path.write_text(
+        json.dumps(_cls(s0["session_id"], "exploratory_qa", "classified"))
+        + "\n"
+        + json.dumps(_cls(other_sid, None, "unclassified")) + "\n")
 
     loc = Locations(data_dir=data_dir, classes_path=classes_path,
                     names_path=names_path,
@@ -310,6 +318,89 @@ def test_headline_framing_sentence(serve_home):
     assert ("The total price of everything you ran, at pay-as-you-go API "
             "rates — if a subscription covered it, that is what you saved."
             in html)
+
+
+def test_spend_chart_quiet_days_are_gaps_not_zero_bars():
+    """Two sessions three days apart: the axis spans four days, exactly two
+    columns render. A quiet day is ground, never a zero-height bar."""
+    from caliper.harness.replay.runner import load_pricing
+    from caliper.harness.report import views
+
+    def mk(sid, day):
+        return {"session_id": sid, "source_tool": "claude_code",
+                "started_at": f"{day}T10:00:00.000Z", "fork_of": None,
+                "tokens": {"input": 1_000_000, "output": 0,
+                           "cache_read": 0, "cache_creation": 0},
+                "models": [{"model_id": "claude-haiku-4-5",
+                            "assistant_messages": 1}]}
+
+    raw = {"pricing": load_pricing(),
+           "sessions": {"a": mk("a", "2026-08-01"),
+                        "b": mk("b", "2026-08-04")}}
+    html = views._spend_chart(raw, {})
+    assert html.count('<a href="/?from=') == 2
+    assert "n = 2 active days, 2 priced sessions" in html
+    assert "quiet days are gaps, not zeros" in html
+
+
+def test_every_chart_carries_its_n_and_click_targets(serve_url):
+    """Charts without their sample size do not render; day columns link to
+    that day's filtered view; scatter points link to their repo."""
+    base, loc, s0 = serve_url
+    _, body = _get(base + "/")
+    assert " active days" in body                       # spend chart n
+    assert "repos plotted" in body                      # scatter n
+    assert 'href="/?from=' in body                      # day column links
+    assert '<a href="/repo/r_test1' in body             # scatter point link
+    assert "(n=1 sessions)" in body or " sessions)" in body  # bucket rows
+    # every figure element opens with its caption — no caption, no chart
+    import re
+    figs = re.findall(r'<figure class="chart"><figcaption>(.{0,160}?)'
+                      r"</figcaption>", body, re.S)
+    assert figs and all("n" in f and "=" in f or "n=" in f or "· n =" in f
+                        or "share" in f for f in figs)
+
+
+def test_scatter_bands_unplottable_repos_never_origin(serve_url):
+    """A repo with no measured survival lands in the labeled band with its
+    absence word and a link — never omitted, never a circle at zero."""
+    base, loc, s0 = serve_url
+    extra = _signal("dddd000011112222dddd000011112222dddd0000",
+                    "2026-08-20T00:00:00+00:00", status="not_yet_measurable")
+    extra["change_ref"]["repo_ref"] = "r_young"
+    extra["provenance"]["repo_path"] = "/Users/test/youngrepo"
+    p = loc.data_dir / "git_history" / "production_signals.jsonl"
+    p.write_text(p.read_text() + json.dumps(extra) + "\n")
+
+    _, body = _get(base + "/")
+    band = body.split('class="band"', 1)[1].split("</p>", 1)[0]
+    assert "youngrepo" in band
+    assert "not yet measurable" in band
+    assert 'href="/repo/r_young' in band
+    svg_scatter = body.split("repos plotted", 1)[1]
+    assert "youngrepo" not in svg_scatter.split("</figure>", 1)[0].split(
+        '<p class="band"')[0]  # not plotted, only banded
+
+
+def test_mix_bars_unclassified_is_absent_gray_and_present(serve_url):
+    base, loc, s0 = serve_url
+    _, body = _get(base + "/")
+    # the legend names unclassified in the absent color, always
+    assert 'background:var(--absent)"></i>unclassified' in body
+    # and the fixture's one unclassified session renders a real segment
+    assert "unclassified · 1 · " in body
+
+
+def test_empty_home_renders_no_chart_frame(tmp_path):
+    from caliper.harness.report import views
+
+    empty = tmp_path / "nothing"
+    empty.mkdir()
+    (empty / ".salt").write_text("s")
+    raw = load_data(empty, empty / "c.jsonl", empty / "n.json",
+                    empty / ".salt")
+    html = views.overview(raw, summarize(raw), {}, "t")
+    assert '<figure class="chart"' not in html
 
 
 def test_bundle_cache_invalidates_on_mtime_change(serve_home):

@@ -19,6 +19,7 @@ import html as H
 from datetime import datetime, timezone
 from urllib.parse import quote, urlencode
 
+from . import charts
 from .generate import TOOLS, _cohort, _dominant_models, _price
 
 # The ±24h nearby-commit window is an UNVALIDATED display choice for
@@ -39,13 +40,21 @@ CSS = """
   --edge:rgba(0,0,0,.10); --edge-strong:#C9C5BE;
   --text-1:#26241F; --text-2:#5D594F; --text-3:#8B867D;
   --accent:#1F4A38; --measured:#4F7A4A; --provisional:#A15F28;
-  --absent:#8B867D; --danger:#A8443A; --hover:rgba(0,0,0,.04); }
+  --absent:#8B867D; --danger:#A8443A; --hover:rgba(0,0,0,.04);
+  --in:#1F4A38; --out:#5D594F; --cr:#C9C5BE; --cw:#8B867D;
+  --cat-1:#4A6B8A; --cat-2:#8A5A44; --cat-3:#5E7D54; --cat-4:#7A5E80;
+  --cat-5:#9A7B3F; --cat-6:#4F7D7B; --cat-7:#8A4F5E; --cat-8:#6B6B5E;
+  --cat-9:#5A5F8C; --cat-10:#7D6B4F; }
 @media (prefers-color-scheme: dark) { :root { color-scheme: dark;
   --bg:#0F0F0E; --surface-1:#191917; --surface-2:#232320;
   --edge:rgba(255,255,255,.11); --edge-strong:#4A4843;
   --text-1:#F7F5F2; --text-2:#B6B1A8; --text-3:#8B867D;
   --accent:#8FBFA4; --measured:#8FAE8B; --provisional:#D9A47E;
-  --danger:#C97B6F; --hover:rgba(255,255,255,.06); } }
+  --danger:#C97B6F; --hover:rgba(255,255,255,.06);
+  --in:#8FBFA4; --out:#B6B1A8; --cr:#4A4843; --cw:#8B867D;
+  --cat-1:#8FB0CC; --cat-2:#C49A83; --cat-3:#9DBA92; --cat-4:#B79ABD;
+  --cat-5:#CDB075; --cat-6:#8FB5B3; --cat-7:#C48D9C; --cat-8:#A8A895;
+  --cat-9:#9FA3C9; --cat-10:#B3A183; } }
 * { box-sizing:border-box; }
 body { margin:0; background:var(--bg); color:var(--text-1);
   font:14px/22px Inter,system-ui,-apple-system,"Segoe UI",sans-serif; }
@@ -114,6 +123,29 @@ tbody tr:hover { background:var(--hover); }
   margin:8px 0; }
 .prox .hd { font-weight:500; }
 .prox .wrap { border:none; background:none; }
+figure.chart { margin:8px 0 4px; background:var(--surface-1);
+  border:1px solid var(--edge); border-radius:10px; padding:12px 16px; }
+figure.chart figcaption { font-size:12px; line-height:18px;
+  color:var(--text-2); margin-bottom:8px; }
+figure.chart svg { width:100%; height:auto; display:block; }
+svg .ax { font:11px "JetBrains Mono",ui-monospace,Menlo,monospace;
+  fill:var(--text-3); }
+svg .pt { font:11px Inter,system-ui,sans-serif; fill:var(--text-1); }
+svg .pt .ax { fill:var(--text-2); }
+.legend { font-size:12px; line-height:18px; color:var(--text-2); margin:8px 0 0; }
+.sw { display:inline-block; width:10px; height:10px; border-radius:2px;
+  margin:0 4px 0 10px; vertical-align:baseline; }
+.legend .sw:first-child { margin-left:0; }
+.pbar { width:100%; max-width:640px; height:16px; border-radius:2px;
+  vertical-align:middle; }
+.bbar { height:12px; width:400px; max-width:44vw; vertical-align:middle;
+  border-radius:2px; }
+.crow { display:flex; gap:12px; align-items:center; margin:4px 0;
+  font-size:13px; line-height:20px; }
+.crow .lbl { flex:0 0 220px; color:var(--text-2);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.band { font-size:13px; line-height:20px; color:var(--text-2);
+  border-top:1px solid var(--edge); margin-top:8px; padding-top:8px; }
 footer { margin-top:48px; padding-top:12px; border-top:1px solid var(--edge);
   font-size:12px; line-height:18px; color:var(--text-3); }
 .empty { font-size:14px; line-height:22px; margin:24px 0; }
@@ -514,6 +546,139 @@ def _spend_section(title: str, data: dict, src: str, chrono: bool = False) -> st
     return table(cols, rows) + evidence(src)
 
 
+def _day_group_costs(raw: dict, split: str):
+    """day -> {group: $} for the spend-over-time chart, priced sessions
+    only — an unpriced session cannot stack in dollars, so it is excluded
+    HERE and the exclusion is stated in the chart's n (the tables beneath
+    keep every session)."""
+    from collections import Counter
+    per_day: dict[str, dict[str, float]] = {}
+    totals: Counter = Counter()
+    n_priced = n_unpriced = 0
+    for rec in raw["sessions"].values():
+        if rec.get("fork_of") or not rec.get("tokens"):
+            continue
+        cost = _price(rec["tokens"], _dominant_models(rec), raw["pricing"])
+        if cost is None:
+            n_unpriced += 1
+            continue
+        n_priced += 1
+        day = rec["started_at"][:10]
+        grp = rec["source_tool"] if split == "tool" else \
+            next(iter(_dominant_models(rec)), "unknown")
+        per_day.setdefault(day, {})
+        per_day[day][grp] = per_day[day].get(grp, 0.0) + cost
+        totals[grp] += cost
+    groups = [g for g, _ in totals.most_common()]
+    return per_day, groups, n_priced, n_unpriced
+
+
+def _spend_chart(raw: dict, filters: dict) -> str:
+    split = filters.get("split") if filters.get("split") in ("tool", "model") \
+        else "tool"
+    per_day, groups, n_priced, n_unpriced = _day_group_costs(raw, split)
+    if not per_day:
+        return ""
+    tokens = {g: f"--cat-{i % 10 + 1}" for i, g in enumerate(groups)}
+    unpriced_note = (f" · {n_unpriced} unpriced sessions excluded from the "
+                     "chart (the tables keep them)" if n_unpriced else "")
+    caption = (f"Spend per day, split by {split} · quiet days are gaps, "
+               f"not zeros · n = {len(per_day)} active days, {n_priced} "
+               f"priced sessions{unpriced_note}")
+    other = "model" if split == "tool" else "tool"
+    toggle_qs = _qs({**{k: v for k, v in filters.items() if k != "split"},
+                     "split": other})
+    toggle = (f'<p class="meta">split by {split} · '
+              f'<a href="/{toggle_qs or "?"}">split by {other}</a> · '
+              "click a day to filter to it · hover for the breakdown</p>")
+    return toggle + charts.spend_columns(per_day, groups, tokens, filters,
+                                         H.escape(caption))
+
+
+def _mix_bars(groups: dict, order: list[str]) -> str:
+    """One stacked proportion bar per cohort — cohorts stay unpooled,
+    unclassified always a visible segment (absent gray)."""
+    rows = []
+    for key, cnt in sorted(groups.items()):
+        n = sum(cnt.values())
+        segments = [(t, cnt.get(t, 0)) for t in order]
+        rows.append(f'<div class="crow"><span class="lbl">{H.escape(key)}'
+                    f"</span>{charts.proportion_bar(segments, f'n={n}')}"
+                    "</div>")
+    legend = charts.swatch_legend(
+        [(t.replace("_", " "), charts.cat_token(t)) for t in order])
+    return ('<figure class="chart"><figcaption>Task mix per cohort · share '
+            "of classified units · hover a segment for class · count · "
+            "share</figcaption>" + "".join(rows) + legend + "</figure>")
+
+
+def _outcome_scatter(raw: dict, s: dict, filters: dict) -> str:
+    pts, banded = [], []
+    for ref, rp in s["repos"].items():
+        name = rp.get("path") or ref
+        cost = s["proj_cost"].get(name)
+        surv = rp["surv30_median"]
+        if surv is not None and cost is not None:
+            pts.append({"name": name, "ref": quote(ref), "cost": cost,
+                        "surv": surv, "commits": rp["commits"]})
+        else:
+            reasons = []
+            if surv is None:
+                reasons.append(absent("not yet measurable",
+                                      "no measured 30d survival"))
+            if cost is None:
+                reasons.append(absent("not recorded", "no priced sessions "
+                                      "joined to this repo"))
+            banded.append(
+                f'<a href="/repo/{quote(ref)}{_qs(filters)}">'
+                f"{H.escape(name)}</a> ({' · '.join(reasons)})")
+    if not pts and not banded:
+        return ""
+    caption = (f"Cost × 30d survival per repo · x is session list-$ "
+               f"(√ scale), y is per-commit median survival, point size is "
+               f"commit count · click a point for the repo · n = {len(pts)} "
+               f"repos plotted"
+               + (f", {len(banded)} not plottable, listed below"
+                  if banded else ""))
+    band = (f'<p class="band">Not plottable — never omitted, never at the '
+            f'origin: {", ".join(banded)}</p>' if banded else "")
+    svg = charts.scatter(pts, _qs(filters)) if pts else ""
+    return (f'<figure class="chart"><figcaption>{H.escape(caption)}'
+            f"</figcaption>{svg}{band}</figure>")
+
+
+def _bucket_chart(by_model: dict) -> str:
+    keys = sorted(by_model, key=lambda k: -sum(
+        by_model[k].get(b, 0) for b, _ in charts.BUCKET_TOKENS))
+    max_total = max((sum(c.get(b, 0) for b, _ in charts.BUCKET_TOKENS)
+                     for c in by_model.values()), default=0)
+    if not max_total:
+        return ""
+    rows = []
+    for k in keys:
+        c = by_model[k]
+        total = sum(c.get(b, 0) for b, _ in charts.BUCKET_TOKENS)
+        if not total:
+            continue
+        cost = c.get("cost_x1000")
+        fig = (f'<span class="fig">{total:,}</span> '
+               f'<span class="n-of">tokens</span> · '
+               + money(cost / 1000 if cost is not None else None)
+               + f' <span class="n-of">(n={c.get("sessions", 0)} '
+               "sessions)</span>")
+        rows.append(f'<div class="crow"><span class="lbl mono">'
+                    f"{H.escape(str(k))}</span>"
+                    + charts.bucket_bar(c, max_total)
+                    + f"<span>{fig}</span></div>")
+    legend = charts.swatch_legend(
+        [(b.replace("_", " "), tok) for b, tok in charts.BUCKET_TOKENS])
+    return ('<figure class="chart"><figcaption>Token buckets per model · '
+            "bar length is share of the largest model's total · cache "
+            "reads dominate real agent traffic — this is the shape the "
+            "table makes you compute · hover a segment for the count"
+            "</figcaption>" + "".join(rows) + legend + "</figure>")
+
+
 def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
     if not s["n_sessions"]:
         if filters:
@@ -546,16 +711,20 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
             "a floor, not a sum</p>")
 
     spend = s["spend"]
+    # chart-then-record pairing: the trend above its by-day table, the
+    # bucket bars above their by-model table (ADR-0017)
     spend_html = (
-        _spend_section("model (dominant per session)", spend["by_model"],
-                       "~/.caliper/extracted/*/sessions.jsonl → tokens, models[]")
+        _spend_chart(raw, filters)
+        + _spend_section("day", spend["by_day"],
+                         "sessions.jsonl → started_at date", chrono=True)
+        + _bucket_chart(spend["by_model"])
+        + _spend_section("model (dominant per session)", spend["by_model"],
+                         "~/.caliper/extracted/*/sessions.jsonl → tokens, models[]")
         + _spend_section("tool", spend["by_tool"],
                          "~/.caliper/extracted/*/sessions.jsonl → tokens")
         + _spend_section("project", spend["by_project"],
                          "sessions.jsonl → project_ref, display-named via "
-                         "local-only mapping (never committed)")
-        + _spend_section("day", spend["by_day"],
-                         "sessions.jsonl → started_at date", chrono=True))
+                         "local-only mapping (never committed)"))
 
     # task mix by cohort — never pooled, unclassified always visible
     mix_html = "<h2>Task mix</h2>"
@@ -586,6 +755,7 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
                     cells.append((pair(f"{v / n:.0%}", f"{v}"), v / n)
                                  if v else ('<span class="fig">0</span>', 0))
                 rows.append(cells)
+            mix_html += _mix_bars(groups, cols_present)
             mix_html += table(cols, rows)
         mix_html += evidence("~/.caliper/derived/classes/task_classes.jsonl "
                              "× sessions.jsonl cohort — cohorts never pooled "
@@ -628,7 +798,8 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
                 ("AI attr (k/p/u)", False), ("gen lines excluded", True),
                 ("session list-$", True)]
         out_html += (
-            '<p class="note">One row per measured repo: click through for '
+            _outcome_scatter(raw, s, filters)
+            + '<p class="note">One row per measured repo: click through for '
             "its commits and sessions. Survival is the per-commit median; "
             "attribution is known/partial/unknown commits, never inferred "
             "from code.</p>"
