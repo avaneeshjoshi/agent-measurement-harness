@@ -14,3 +14,55 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
       - run: python -m pytest -q
+
+  # ADR-0014: the machine that isn't the author's. Installs from the WHEEL
+  # into a bare venv with the checkout moved out of reach — a packaging
+  # tripwire; testing the repo would not catch a packaging break.
+  smoke:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel
+        run: |
+          python -m pip -q install build
+          python -m build --wheel -o "$RUNNER_TEMP/dist"
+      - name: Clean-install smoke with no checkout present
+        shell: bash
+        run: |
+          set -euo pipefail
+          VENV="$RUNNER_TEMP/venv"
+          python -m venv "$VENV"
+          "$VENV/bin/pip" -q install "$RUNNER_TEMP"/dist/*.whl
+          FAKE_HOME="$RUNNER_TEMP/home"
+          mkdir -p "$FAKE_HOME/.claude/projects"
+          cp -r data/fixtures/source_logs/claude_code/* "$FAKE_HOME/.claude/projects/"
+          ASIDE="$RUNNER_TEMP/checkout-aside"
+          cd "$RUNNER_TEMP"
+          trap 'rm -rf "$GITHUB_WORKSPACE"; mv "$ASIDE" "$GITHUB_WORKSPACE"' EXIT
+          mv "$GITHUB_WORKSPACE" "$ASIDE"
+          export HOME="$FAKE_HOME" CALIPER_HOME="$FAKE_HOME/.caliper" NO_COLOR=1
+          C="$VENV/bin/caliper"
+          "$C" --version | grep -q "caliper 0.2.0"
+          "$C" extract | tee extract.out
+          grep -q "Extracted 3 sessions" extract.out
+          "$C" classify | grep -q "Classified 3 unit grains"
+          "$C" report
+          test -f "$CALIPER_HOME/reports/first_look.html"
+          "$C" policy | grep -q "No routing policy yet"
+          if "$C" replay run > r.out 2>&1; then exit 1; fi
+          grep -q "development instrument" r.out
+          if "$C" pricing update > pr.out 2>&1; then exit 1; fi
+          grep -q "development instrument" pr.out
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            "$C" schedule install --extract-only > s.out 2>&1 || true
+            grep -q "macOS-only" s.out
+          else
+            "$C" schedule | grep -q "No scheduled collection"
+          fi
+          "$C" uninstall | grep -q "Your data stays at"
