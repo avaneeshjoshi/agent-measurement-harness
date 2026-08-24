@@ -276,6 +276,7 @@ class ClaudeCodePlugin(SourcePlugin):
         diff_files: set[str] = set()
         lines_added = lines_removed = hunks = user_modified = 0
         is_sidechain = False
+        session_title: str | None = None
         content_rows: list[dict] = []
 
         for rec in recs:
@@ -296,6 +297,12 @@ class ClaudeCodePlugin(SourcePlugin):
                 source_version = rec["version"]
             if rec.get("isSidechain"):
                 is_sidechain = True
+            if rtype == "agent-name" and session_title is None:
+                # a work-describing session title ("retention-model-fix-…") —
+                # content-level like Cursor's composer names (ADR-0004), so it
+                # goes ONLY to the sidecar, never into session records
+                # (ADR-0013: near-ideal weak-label material for teacher runs)
+                session_title = rec.get("agentName")
 
             if rtype == "system" and rec.get("subtype") == "turn_duration":
                 d = rec.get("durationMs")
@@ -463,6 +470,9 @@ class ClaudeCodePlugin(SourcePlugin):
         # models[] items with assistant_messages=0 can't occur (added on first sight)
         record["_fork_key"] = first_prompt_uuid  # stripped in finalize()
 
+        if include_content and session_title:
+            content_rows.append({"role": "session_title",
+                                 "text": session_title})
         for row in content_rows:
             row.update({"source_tool": "claude_code", "session_id": session_id})
         units = build_prompt_units(recs, session_id, self.salt)

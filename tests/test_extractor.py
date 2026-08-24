@@ -297,3 +297,44 @@ def test_unknown_record_type_counted_in_manifest(tmp_path):
     assert notes["unknown_record_types"] == {"system:novel_subtype": 1,
                                              "type:vendor_new_thing": 1}
     assert manifest["sources"]["claude_code"]["records"]["invalid"] == 0
+
+
+def test_agent_name_lands_in_sidecar_only(tmp_path):
+    """The agent-name session title is content-level (like Cursor composer
+    names, ADR-0004): captured into the content sidecar under the opt-in,
+    never into session records, absent entirely without the flag (ADR-0013)."""
+    import json as _json
+    import shutil as _shutil
+
+    from cli.main import extract
+    from connectors import ClaudeCodePlugin
+    from tests.conftest import FIXTURES, SCHEMA
+
+    root = tmp_path / "claude_code"
+    _shutil.copytree(FIXTURES / "claude_code", root)
+    session_file = next(p for p in root.rglob("*.jsonl")
+                        if "subagents" not in str(p))
+    with open(session_file, "a") as fh:
+        fh.write(_json.dumps({"type": "agent-name",
+                              "agentName": "fix-the-flaky-test",
+                              "sessionId": "x"}) + "\n")
+
+    def run(flag):
+        data_dir = tmp_path / ("with" if flag else "without")
+        extract(["claude_code"], data_dir, SCHEMA, include_content=flag,
+                plugins_override={"claude_code": ClaudeCodePlugin(
+                    root=root, salt="test-salt")})
+        return data_dir
+
+    without = run(False)
+    assert not (without / "claude_code" / "content.jsonl").exists()
+
+    with_dir = run(True)
+    rows = [_json.loads(l) for l in
+            (with_dir / "claude_code" / "content.jsonl").read_text().splitlines()]
+    titles = [r for r in rows if r.get("role") == "session_title"]
+    assert [t["text"] for t in titles] == ["fix-the-flaky-test"]
+    # and session records never carry it, flag or no flag
+    for d in (without, with_dir):
+        assert "fix-the-flaky-test" not in \
+            (d / "claude_code" / "sessions.jsonl").read_text()
