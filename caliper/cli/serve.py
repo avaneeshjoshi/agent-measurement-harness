@@ -81,7 +81,7 @@ class BundleCache:
                 return hit
         raw = load_data(self.loc.data_dir, self.loc.classes_path,
                         self.loc.names_path, self.loc.salt_file,
-                        filters=filters)
+                        filters=filters, readonly=True)
         loaded = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with self._lock:
             while len(self._entries) >= self.CAP:

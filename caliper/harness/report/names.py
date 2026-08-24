@@ -15,7 +15,11 @@ from caliper.connectors.git_history import GitHistoryConnector
 from caliper.connectors.util import load_salt, project_ref
 
 
-def build_name_map(map_path: Path, salt_file: Path) -> dict[str, str]:
+def build_name_map(map_path: Path, salt_file: Path,
+                   write: bool = True) -> dict[str, str]:
+    """write=False builds the map in memory only — serve's read-only
+    guarantee (ADR-0016) forbids it persisting anything, while the report
+    path keeps owning the on-disk map."""
     salt = load_salt(salt_file)
     conn = GitHistoryConnector(salt=salt)
     cands = conn.collect_candidate_paths()
@@ -37,12 +41,21 @@ def build_name_map(map_path: Path, salt_file: Path) -> dict[str, str]:
         else:
             short = cwd.rstrip("/").rsplit("/", 1)[-1] or cwd
         names.setdefault(ref, short)
-    map_path.parent.mkdir(parents=True, exist_ok=True)
-    map_path.write_text(json.dumps(names, indent=2))
+    if write:
+        map_path.parent.mkdir(parents=True, exist_ok=True)
+        map_path.write_text(json.dumps(names, indent=2))
     return names
 
 
-def load_name_map(map_path: Path, salt_file: Path) -> dict[str, str]:
+def load_name_map(map_path: Path, salt_file: Path,
+                  write: bool = True) -> dict[str, str]:
     if map_path.exists():
         return json.loads(map_path.read_text())
-    return build_name_map(map_path, salt_file)
+    import os
+    if not write and not salt_file.exists() \
+            and not os.environ.get("CALIPER_HASH_SALT"):
+        # nothing was ever extracted (no salt): an in-memory build would
+        # hash with a salt no ref was made with — and load_salt would
+        # CREATE the salt file, which a read-only caller must never do
+        return {}
+    return build_name_map(map_path, salt_file, write=write)

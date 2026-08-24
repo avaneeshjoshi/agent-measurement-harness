@@ -242,6 +242,31 @@ def test_filters_are_url_state(serve_url):
     assert "Filtered: tool codex" in cov
 
 
+def test_serve_never_builds_the_name_map_or_salt(tmp_path, monkeypatch):
+    """The first empty-HOME walkthrough caught serve WRITING: a missing
+    name map made load_data build and persist it, and load_salt created
+    .salt as a side effect. readonly=True forbids both — proven here on a
+    home with no names.json, no salt file, and no salt env override."""
+    monkeypatch.delenv("CALIPER_HASH_SALT", raising=False)
+    home = tmp_path / "bare"
+    home.mkdir()
+    loc = Locations(data_dir=home, classes_path=home / "c.jsonl",
+                    names_path=home / "names.json",
+                    salt_file=home / ".salt")
+    ServeHandler.cache = BundleCache(loc)
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), ServeHandler)
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+    try:
+        base = f"http://127.0.0.1:{httpd.server_address[1]}"
+        for path in ("/", "/coverage", "/repo/r_x", "/session/x"):
+            _get(base + path)
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+    assert _tree(home) == {}  # not one file appeared — not even the salt
+
+
 def test_cli_dispatch_reaches_serve(monkeypatch):
     """main() has a command whitelist that predates serve; the first live
     run fell through it to print_help. This pins the dispatch path."""

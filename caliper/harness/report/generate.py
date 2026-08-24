@@ -73,7 +73,8 @@ def _cohort(rec: dict) -> str:
 
 
 def load_data(data_dir: Path, classes_path: Path, names_path: Path,
-              salt_file: Path, filters: dict | None = None) -> dict:
+              salt_file: Path, filters: dict | None = None,
+              readonly: bool = False) -> dict:
     """Read every record the report and serve consume into one raw bundle.
     All locations are resolved by the caller through cli.paths (ADR-0012)
     — this layer stays path-agnostic.
@@ -85,10 +86,14 @@ def load_data(data_dir: Path, classes_path: Path, names_path: Path,
     filter on started_at date and source_tool; commits filter on
     authored_at date (a tool filter does not apply to git history);
     prompt units follow their session; task classes join through the
-    session table downstream and need no filter of their own."""
+    session table downstream and need no filter of their own.
+
+    readonly=True (serve, ADR-0016) forbids the one write this path could
+    otherwise make: building and persisting a missing name map (and, on a
+    truly empty home, creating the salt as a side effect)."""
     f = filters or {}
     pricing = load_pricing()
-    names = load_name_map(names_path, salt_file)
+    names = load_name_map(names_path, salt_file, write=not readonly)
 
     sessions: dict[str, dict] = {}
     for tool in TOOLS:
