@@ -104,7 +104,19 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
             continue
         src_manifest["artifacts_discovered"] = len(artifacts)
         if not artifacts:
-            src_manifest["notes"]["status"] = "source not present on this machine"
+            if getattr(plugin, "root_present", False):
+                # the tool exists here; its logs don't (S2 fourth case) —
+                # for claude code that usually means rotation (ADR-0011)
+                if name == "claude_code":
+                    src_manifest["notes"]["status"] = (
+                        "installed, but no session logs remain — claude code "
+                        "rotates logs after ~30 days; collecting forward "
+                        "from now")
+                else:
+                    src_manifest["notes"]["status"] = (
+                        "installed, but no session logs were found")
+            else:
+                src_manifest["notes"]["status"] =                     "source not present on this machine"
             continue
 
         if since is not None and since.get(name) is not None:
@@ -312,7 +324,8 @@ def _aggregate_repo(records: list[dict]) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="caliper",
-                                     description="Caliper: coding-agent traffic measurement.")
+                                     description="Caliper: coding-agent traffic measurement.",
+                                     epilog="start with: caliper setup")
     from importlib.metadata import version as _pkg_version
     parser.add_argument("--version", action="version",
                         version=f"caliper {_pkg_version('caliper')}")
@@ -476,9 +489,14 @@ def main(argv: list[str] | None = None) -> int:
         from caliper.harness.report.render import render
         from .paths import salt_path, task_classes_path
         root_dir = repo_root()
-        summary = collect(extracted_dir(),
-                          task_classes_path(root_dir),
-                          state_dir() / ".project_names.json", salt_path())
+        from .style import spinner as _spin
+        with _spin("Reading records and building the project name map"):
+            summary = collect(extracted_dir(),
+                              task_classes_path(root_dir),
+                              state_dir() / ".project_names.json", salt_path())
+        if not summary["n_sessions"]:
+            print("No sessions extracted yet. Run caliper extract.")
+            return 0
         html = render(summary)
         out = Path(args.out) if args.out else \
             reports_dir() / "first_look.html"
@@ -507,6 +525,9 @@ def main(argv: list[str] | None = None) -> int:
         data_dir = Path(args.data_dir) if args.data_dir else extracted_dir()
         units = ("prompt", "segment", "session") if args.unit == "all" else (args.unit,)
         records = classify_all(data_dir, units)
+        if not records:
+            print("No prompt units to classify yet. Run caliper extract first.")
+            return 0
         from .paths import schema_path as _sp2
         validator = load_validator(_sp2("task_class.schema.json"))
         for r in records:
@@ -592,6 +613,10 @@ def main(argv: list[str] | None = None) -> int:
         with spinner("Analyzing repos (blame is slow on big files)"):
             manifest = signals(data_dir, schema_path, connector=conn)
         n_commits = sum(m["commits_analyzed"] for m in manifest["repos"].values())
+        if not manifest["repos"]:
+            print("No repos referenced by extracted sessions yet. "
+                  "Run caliper extract first.")
+            return 0
         print(box(S.bold("caliper signals"),
                   sep(f"{S.bold(str(n_commits))} commits",
                       f"{len(manifest['repos'])} repos")))
@@ -601,8 +626,9 @@ def main(argv: list[str] | None = None) -> int:
         for ref, m in manifest["repos"].items():
             rw = m["rework"]["rate"]
             details = [f"{m['commits_analyzed']} commits"]
-            if rw:
-                details.append(S.yellow(f"rework {rw:.0%}"))
+            if rw is not None:
+                details.append(f"rework {rw:.0%} "
+                               f"(n={m['rework']['commits_measured']})")
             if m["reverted_commits"]:
                 details.append(S.red(f"{m['reverted_commits']} reverted"))
             a = m["attribution"]
@@ -614,9 +640,9 @@ def main(argv: list[str] | None = None) -> int:
         print()
         for tool, j in manifest["session_join"].items():
             rate = j["repo_join_rate"] or 0
-            style = S.green if rate >= 0.8 else (S.yellow if rate >= 0.5 else S.red)
-            cw = S.dim(f"commit-window {j['commit_window_rate'] or 0:.0%}")
-            print(child(tool, style(f"{rate:.0%} repo"),
+            cw = S.dim(f"commit-window {j['commit_window_rate'] or 0:.0%} "
+                       f"({j['commit_in_session_window']}/{j['sessions']})")
+            print(child(tool, f"{rate:.0%} repo",
                         f"{j['repo_join']}/{j['sessions']}", cw))
             print()
         mpath = relpath(data_dir / "manifests" / (manifest["run_id"] + ".json"), root)
@@ -661,12 +687,26 @@ def main(argv: list[str] | None = None) -> int:
         manifest["sources"].update(m["sources"])
         sm = m["sources"][src_name]
         r = sm["records"]
-        changes = [c for c in (count(r["new"], "new"),
-                               count(r["updated"], "updated"),
-                               count(r["invalid"], "invalid"),
-                               count(len(sm["skipped"]), "skipped")) if c]
-        change_s = " · ".join(changes) if changes else S.dim("all unchanged")
-        print(child(src_name, f"{r['emitted']} records", change_s))
+        status_note = sm["notes"].get("status")
+        discover_fail = next((s for s in sm["skipped"]
+                              if s.get("path") == "<discover>"), None)
+        if discover_fail:
+            reason = discover_fail["reason"]
+            what = ("permission denied reading the source"
+                    if "PermissionError" in reason else "could not read the source")
+            print(child(src_name, S.bred(what),
+                        S.dim("fix access, then rerun caliper extract")))
+        elif status_note:
+            # status in words, never "0 records" for a tool that isn't
+            # here or has nothing left (DESIGN.md)
+            print(child(src_name, S.dim(status_note)))
+        else:
+            changes = [c for c in (count(r["new"], "new"),
+                                   count(r["updated"], "updated"),
+                                   count(r["invalid"], "invalid"),
+                                   count(len(sm["skipped"]), "skipped")) if c]
+            change_s = " · ".join(changes) if changes else S.dim("all unchanged")
+            print(child(src_name, f"{r['emitted']} records", change_s))
         print()
 
     total_sessions = sum(m.get("sessions_on_disk", 0)
@@ -681,9 +721,14 @@ def main(argv: list[str] | None = None) -> int:
             if m["date_range"]["latest_ended_at"]]
     span_all = f"{min(starts)[:10]} → {max(ends)[:10]}" if starts and ends else ""
     tool_word = "tool" if n_tools == 1 else "tools"
-    print(step(sep(f"Extracted {S.bold(str(total_sessions))} sessions",
-                   f"{n_tools} {tool_word}", S.dim(span_all))))
-    print()
+    if total_sessions == 0 and n_tools == 0:
+        print("No agent logs found. Caliper reads Claude Code (~/.claude), "
+              "Cursor, and Codex; use one of them, then run caliper extract.")
+        print()
+    else:
+        print(step(sep(f"Extracted {S.bold(str(total_sessions))} sessions",
+                       f"{n_tools} {tool_word}", S.dim(span_all))))
+        print()
     mpath = relpath(data_dir / "manifests" / (manifest["run_id"] + ".json"), root)
     print(S.dim(f"→ {mpath}"))
     print()

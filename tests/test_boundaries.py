@@ -64,6 +64,11 @@ def test_pipeline_writes_nothing_into_the_repo(run_extract):
     before = _snapshot_repo_data()
 
     _, data_dir = run_extract()  # extraction into a tmp tree
+    # stage the sandboxed home so report has sessions to render (the
+    # empty-state path exits before writing, by design)
+    import shutil
+    from caliper.cli.paths import extracted_dir
+    shutil.copytree(data_dir, extracted_dir(), dirs_exist_ok=True)
     # keep report generation off the machine's real sources: an empty name
     # map short-circuits build_name_map's live discovery
     state_dir().mkdir(parents=True, exist_ok=True)

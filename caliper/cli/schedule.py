@@ -116,6 +116,10 @@ def choose_mode(repo_paths: list[str], choose=None) -> str | None:
     picked = choose("Question", "How should scheduled collection run?", options)
     if picked is None:  # non-TTY: never silently take the broad grant
         picked = 1
+        print(step(sep("Extraction only",
+                       S.dim("non-interactive default — rerun with "
+                             "caliper schedule install --full for "
+                             "scheduled git signals"))))
     return "full" if picked == 0 else "extract_only"
 
 

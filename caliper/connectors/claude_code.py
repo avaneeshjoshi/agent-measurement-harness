@@ -223,6 +223,7 @@ class ClaudeCodePlugin(SourcePlugin):
         self.salt = salt
 
     def discover(self) -> list[RawArtifact]:
+        self.root_present = self.root.is_dir()
         artifacts: list[RawArtifact] = []
         if not self.root.is_dir():
             return artifacts

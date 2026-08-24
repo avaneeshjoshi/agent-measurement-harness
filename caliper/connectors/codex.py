@@ -170,6 +170,7 @@ class CodexPlugin(SourcePlugin):
         self.salt = salt
 
     def discover(self) -> list[RawArtifact]:
+        self.root_present = self.root.is_dir()
         if not self.root.is_dir():
             return []
         return [RawArtifact(path=f, kind="rollout_jsonl")

@@ -64,6 +64,7 @@ class CursorPlugin(SourcePlugin):
         self.salt = salt
 
     def discover(self) -> list[RawArtifact]:
+        self.root_present = self.tracking_db.is_file() or self.state_db.is_file()
         artifacts = []
         if self.tracking_db.is_file():
             artifacts.append(RawArtifact(path=self.tracking_db, kind="tracking_db"))

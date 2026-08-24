@@ -179,10 +179,12 @@ def collect(data_dir: Path, classes_path: Path,
             if any(m.startswith("codex-auto-review") for m in _dominant_models(r)):
                 autoreview["sessions"] += 1
                 autoreview["tokens"] += sum(tok.values())
+    eval_n = sum(1 for r in sessions.values() if _cohort(r) == "eval_harness")
     cursor_n = sum(1 for r in sessions.values() if r["source_tool"] == "cursor")
     organic_n = sum(1 for r in sessions.values() if _cohort(r) == "organic")
     headline = {
         "total_cost": total_cost,
+        "eval_sessions": eval_n,
         "fork_children_netted": fork_children_netted,
         "priced_sessions": (len(sessions) - unpriced_sessions
                             - no_token_sessions - fork_children_netted),

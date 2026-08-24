@@ -64,7 +64,10 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
                    "Not now"]
         picked = choose("Question", "Start the backfill?", options)
         if picked is None:
-            picked = 1  # non-interactive default: quick
+            picked = 1
+            print(step(sep("Quick backfill",
+                           S.dim("non-interactive default — rerun with "
+                                 "--full for git outcome signals"))))
         if picked == 2:
             print(step(sep("Setup paused", S.dim("run `caliper setup` anytime"))))
             return 0
@@ -83,12 +86,23 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
         r = src["records"]
         total_sessions += src.get("sessions_on_disk", 0)
         rng = src["date_range"]
-        span = (f"{rng['earliest_started_at'][:10]} → "
-                f"{(rng['latest_ended_at'] or '')[:10]}"
-                if rng["earliest_started_at"] else "no sessions found")
-        print(step(sep(f"Backfilled {S.bold(name)}",
-                       f"{r['emitted']} sessions", S.dim(span))))
+        status_note = src["notes"].get("status")
+        if status_note:
+            print(step(sep(f"Backfilled {S.bold(name)}", S.dim(status_note))))
+        else:
+            span = (f"{rng['earliest_started_at'][:10]} → "
+                    f"{(rng['latest_ended_at'] or '')[:10]}"
+                    if rng["earliest_started_at"] else "no sessions found")
+            print(step(sep(f"Backfilled {S.bold(name)}",
+                           f"{r['emitted']} sessions", S.dim(span))))
         print()
+
+    if total_sessions == 0:
+        print("No agent logs found. Caliper reads Claude Code (~/.claude), "
+              "Cursor, and Codex; use one of them, then run caliper setup "
+              "again.")
+        print()
+        return 0
 
     def do_classify():
         from jsonschema import Draft202012Validator
@@ -298,12 +312,15 @@ def _collection_step(repo_root: Path) -> None:
     options = ["Install hourly background collection — runs only when "
                "there's new activity",
                "Not now"]
-    picked = choose("Question", question, options)
-    if picked is None:  # no TTY: never silently install a daemon
+    picked = choose("Question", question, options, default=1)
+    noninteractive = picked is None
+    if noninteractive:  # no TTY: never silently install a daemon
         picked = 1
     print()
     if picked != 0:
-        print(step(sep("Skipped for now",
+        print(step(sep("Not installed"
+                       + (" — non-interactive default" if noninteractive
+                          else ""),
                        S.dim("install anytime with") + " "
                        + S.accent("caliper schedule install"))))
         print()
@@ -321,7 +338,8 @@ def _collection_step(repo_root: Path) -> None:
     opts2 = ["Yes — build the local corpus",
              "No — metadata only (recommended)"]
     picked2 = choose("Question", q2, opts2, default=1)
-    if picked2 is None:
+    noninteractive2 = picked2 is None
+    if noninteractive2:
         picked2 = 1  # non-TTY: content collection is never a silent default
     print()
     state = load_state(sdir)
@@ -333,8 +351,12 @@ def _collection_step(repo_root: Path) -> None:
                              "switch off by editing include_content in "
                              ".collection.json"))))
     else:
-        print(step(sep("Metadata only",
-                       S.dim("session records stay content-free"))))
+        print(step(sep("Metadata only"
+                       + (" — non-interactive default" if noninteractive2
+                          else ""),
+                       S.dim("session records stay content-free; opt in by "
+                             "setting include_content in "
+                             "~/.caliper/state/.collection.json"))))
     print()
 
 
@@ -365,6 +387,9 @@ def _policy_step(repo_root: Path) -> int:
                   f"  {S.dim('[ ] ' + options[1])}"))
         print()
         try:
+            import sys as _sys
+            if not _sys.stdin.isatty():
+                raise EOFError  # piped stdin: take the conservative default
             raw = input(f"  draft it? {S.dim('[Y/n]')} ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             print()
