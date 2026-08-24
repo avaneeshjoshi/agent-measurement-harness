@@ -144,3 +144,25 @@ Full audit of every other writer, for the same hole:
 | content sidecar rows | no schema exists | deliberate: local-only, never enters records; documented |
 | run manifests | no schema exists | internal bookkeeping; consumers use `.get()` throughout |
 | collection state / decision log / name map | no schema | internal state; corrupt state already degrades with a printed warning |
+
+## Addendum 2 (2026-08-24): the one-pass stranger walkthrough — findings recorded, not fixed
+
+Wheel from HEAD, bare venv, empty HOME; three scenarios (empty machine,
+rotated-logs, real logs → setup → report → gated policy → uninstall). **No
+blocker: install → setup → report completed in all three.** Recorded under
+the stopping rule, unfixed:
+
+1. A real-but-tiny cost renders as `$0.00 · 0%` in the model chart (a
+   measured value rounding down, not an absence — but it reads like one).
+2. Pluralization: "1 sessions" in chart rows.
+3. The dashboard preview URL renders on a stranger's very first run; it is
+   labeled "not live yet" but is still a dead link in their first minute.
+4. The setup spend chart says "2 sessions" under a "3 sessions" headline —
+   the fork-child netting is disclosed in the HTML report but not beside
+   this CLI chart, a visible wait-what moment.
+5. In the rotated-logs case the per-source line is right ("installed, but no
+   session logs remain…") while the closing summary still says "No agent
+   logs found… use one of them" — accurate but tonally contradictory.
+6. Walkthrough limitation: run non-interactively (no TTY), so the colored
+   output and the arrow-key selectors were not exercised; the printed
+   non-interactive defaults were, and behaved as DESIGN.md requires.
