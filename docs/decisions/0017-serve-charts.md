@@ -160,7 +160,15 @@ mechanics, not taste:
    beneath, buckets on a faint track). Paragraph captions became panel
    headers — uppercase title left, one faint meta line right carrying the
    n and exclusions — and the chronological by-day table truncates to the
-   most recent 21 days with DESIGN's stated-count line.
+   most recent 21 days with DESIGN's stated-count line. A second review
+   round caught that the macro layout was untouched — a 1020px centered
+   single column stacking every panel, wasting a wide window's margins.
+   The page now runs to 1440px and pairs half-width content in a
+   two-column grid (by-day table beside the bucket bars, spend tables
+   side by side, each mix-bar panel beside its table, session-detail
+   facts beside tokens); the trend chart and scatter keep the full
+   width. Grid cells carry min-width:0 so a wide table scrolls inside
+   its cell instead of stealing the row.
 
 Nothing about the measurements changed: same numbers, same absences, same
 n discipline — the revision is entirely presentational, which is exactly

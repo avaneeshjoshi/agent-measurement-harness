@@ -57,7 +57,12 @@ CSS = """
 * { box-sizing:border-box; }
 body { margin:0; background:var(--bg); color:var(--text-1);
   font:14px/22px Inter,system-ui,-apple-system,"Segoe UI",sans-serif; }
-main { max-width:1020px; margin:0 auto; padding:32px 32px 64px; }
+main { max-width:1440px; margin:0 auto; padding:32px 40px 64px; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 24px;
+  align-items:start; }
+.grid2 > div { min-width:0; }
+.grid2 > div > h2:first-child { margin-top:8px; }
+@media (max-width:1100px){ .grid2 { grid-template-columns:1fr; } }
 code, .mono, td.n, .fig { font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
   font-variant-numeric:tabular-nums; }
 h1 { font:20px/28px Inter,system-ui,sans-serif; font-weight:600; margin:0; }
@@ -777,20 +782,27 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
             "a floor, not a sum</p>")
 
     spend = s["spend"]
-    # chart-then-record pairing: the trend above its by-day table, the
-    # bucket bars above their by-model table (ADR-0017)
+    # the trend runs full width; everything narrower pairs up in a
+    # two-column grid so a wide window is used, not framed (ADR-0017
+    # postscript 2 — "use the space")
     spend_html = (
         _spend_chart(raw, filters)
+        + '<div class="grid2"><div>'
         + _spend_section("day", spend["by_day"],
                          "sessions.jsonl → started_at date", chrono=True)
+        + "</div><div>"
         + _bucket_chart(spend["by_model"])
+        + "</div></div>"
+        + '<div class="grid2"><div>'
         + _spend_section("model (dominant per session)", spend["by_model"],
                          "~/.caliper/extracted/*/sessions.jsonl → tokens, models[]")
+        + "</div><div>"
         + _spend_section("tool", spend["by_tool"],
                          "~/.caliper/extracted/*/sessions.jsonl → tokens")
         + _spend_section("project", spend["by_project"],
                          "sessions.jsonl → project_ref, display-named via "
-                         "local-only mapping (never committed)"))
+                         "local-only mapping (never committed)")
+        + "</div></div>")
 
     # task mix by cohort — never pooled, unclassified always visible
     mix_html = "<h2>Task mix</h2>"
@@ -821,8 +833,10 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
                     cells.append((pair(f"{v / n:.0%}", f"{v}"), v / n)
                                  if v else ('<span class="fig">0</span>', 0))
                 rows.append(cells)
-            mix_html += _mix_bars(unit, groups, cols_present)
-            mix_html += table(cols, rows)
+            mix_html += ('<div class="grid2"><div>'
+                         + _mix_bars(unit, groups, cols_present)
+                         + "</div><div>" + table(cols, rows)
+                         + "</div></div>")
         mix_html += evidence("~/.caliper/derived/classes/task_classes.jsonl "
                              "× sessions.jsonl cohort — cohorts never pooled "
                              "(ADR-0009)")
@@ -933,7 +947,6 @@ def coverage_view(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
                  + '<p class="empty"><a href="?">Clear the filter</a>.</p>')
         return page("Caliper — coverage", body, "coverage", loaded_at,
                     filters, s["filters"])
-    body += _coverage_table(s)
     src = s["sources"]
     rows = [
         [("session records", None), (count(sum(src["sessions"].values())),
@@ -943,10 +956,12 @@ def coverage_view(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
         [("production_signal records", None),
          (count(src["production_signals"]), src["production_signals"])],
     ]
-    body += ("<h2>Record counts on disk</h2>"
+    body += ('<div class="grid2"><div>' + _coverage_table(s)
+             + "</div><div><h2>Record counts on disk</h2>"
              + table([("record", False), ("count", True)], rows)
              + evidence("~/.caliper/extracted/ and ~/.caliper/derived/ — "
-                        "counts are records in scope of the active filter"))
+                        "counts are records in scope of the active filter")
+             + "</div></div>")
     body += caveat_block([
         _SOLO,
         "Claude Code rotates logs at its cleanupPeriodDays setting (~30d "
@@ -1178,7 +1193,9 @@ def session_detail(raw: dict, s: dict, sid: str, filters: dict,
                                 "no prompt units extracted for this session")
                        + "</p>")
 
-    body = (facts + tok_html + cls_html + files_html
+    body = (f'<div class="grid2"><div>{facts}</div><div>{tok_html}</div>'
+            f'</div><div class="grid2"><div>{cls_html}</div>'
+            f"<div>{files_html}</div></div>"
             + _nearby_commits(raw, rec, now)
             + caveat_block([
                 _LIST_PRICE,
