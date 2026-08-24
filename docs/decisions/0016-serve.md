@@ -92,6 +92,39 @@ tools render their absence words in the coverage table, never zero-rows
 silently dropped), and a filter that matches nothing. All asserted in
 `tests/test_serve.py`.
 
+## Postscript (same day): what the two walkthroughs caught
+
+The live walkthrough — every view on this machine's real data, then every
+view on an empty HOME — found four defects the test suite had not:
+
+1. **`caliper serve` did not run at all.** `main()`'s command whitelist (the
+   dev-gate boundary) predates serve; the command fell through to
+   `print_help()` and exit 1 despite the parser and handler both existing.
+   Fixed; pinned by a dispatch test that drives `main()` itself. The unit
+   tests all passed while the command was unlaunchable — surface-level
+   walkthroughs are not optional.
+2. **Serve wrote to an empty home.** A missing name map made the data layer
+   build and persist it, and `load_salt` created `.salt` as a side effect.
+   The read-only test had a pre-built map, so it proved read-only only on a
+   populated home. Fixed with `readonly=True` loads (in-memory map build;
+   `{}` on a salt-less home); a new test walks every route over a bare home
+   and asserts not one file appears.
+3. **Cursor rendered as zeros.** The by-tool spend table showed
+   `0 sessions` and four zero buckets for a tool whose 52 sessions all lack
+   tokens — the absent-is-never-zero rule violated by omission. Now: the
+   session count includes them with "(52 log no tokens)" and the buckets
+   read `not recorded`. The static report's own by-tool table has the same
+   presentation gap (its banner discloses it in prose); recorded here,
+   unfixed there.
+4. **Borders inside borders.** The proximity block (bordered) contained a
+   bordered table — DESIGN.md prohibited pattern 12. The nested table now
+   drops its own border.
+
+Both walkthroughs then completed clean: real data — overview, coverage,
+repo detail (139 commits), session detail (classification rule + rationale,
+files, 3 nearby commits labeled), filtered variants, 404s; empty HOME —
+every view one sentence + one action, zero files written, `/policy` 404.
+
 ## Known limitations
 
 - The repo↔session join is the display-name proxy (approximate, labeled on

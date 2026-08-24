@@ -107,6 +107,7 @@ tbody tr:hover { background:var(--hover); }
 .prox { border:1px solid var(--edge); border-radius:10px; padding:12px 16px;
   margin:8px 0; }
 .prox .hd { font-weight:500; }
+.prox .wrap { border:none; background:none; }
 footer { margin-top:48px; padding-top:12px; border-top:1px solid var(--edge);
   font-size:12px; line-height:18px; color:var(--text-3); }
 .empty { font-size:14px; line-height:22px; margin:24px 0; }
@@ -456,16 +457,25 @@ def _spend_section(title: str, data: dict, src: str, chrono: bool = False) -> st
         label = str(k)
         if c.get("eval_sessions"):
             label += f" ({c['eval_sessions']} eval)"
-        rows.append([
-            (H.escape(label), label),
-            (count(c.get("sessions", 0)), c.get("sessions", 0)),
-            (count(c.get("input", 0)), c.get("input", 0)),
-            (count(c.get("output", 0)), c.get("output", 0)),
-            (count(c.get("cache_read", 0)), c.get("cache_read", 0)),
-            (count(c.get("cache_creation", 0)), c.get("cache_creation", 0)),
-            (money(cost / 1000 if cost is not None else None),
-             cost / 1000 if cost is not None else -1),
-        ])
+        no_tok = c.get("sessions_no_tokens", 0)
+        n_sessions = c.get("sessions", 0) + no_tok
+        sess_cell = count(n_sessions)
+        if no_tok:
+            sess_cell += (f' <span class="n-of">({no_tok} log no '
+                          "tokens)</span>")
+        if c.get("sessions", 0) == 0 and no_tok:
+            # every session here lacks tokens (Cursor): the buckets are a
+            # structural absence, never four zeros (ADR-0004, DESIGN.md)
+            bucket_cells = [(absent("not recorded"), -1)] * 4
+            cost_cell = (absent("not recorded", "no tokens logged"), -1)
+        else:
+            bucket_cells = [(count(c.get(b, 0)), c.get(b, 0))
+                            for b in ("input", "output", "cache_read",
+                                      "cache_creation")]
+            cost_cell = (money(cost / 1000 if cost is not None else None),
+                         cost / 1000 if cost is not None else -1)
+        rows.append([(H.escape(label), label),
+                     (sess_cell, n_sessions), *bucket_cells, cost_cell])
     cols = [(title, False), ("sessions", True), ("input", True),
             ("output", True), ("cache read", True), ("cache write", True),
             ("list-$", True)]
