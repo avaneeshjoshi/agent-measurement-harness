@@ -166,7 +166,7 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
 
 def _highlights(summary: dict) -> None:
     """The headline cuts, on screen — the first look is the detail view."""
-    from .policy_flow import DASHBOARD_URL, _chart
+    from .policy_flow import _chart
 
     total = summary["headline"]["total_cost"]
     if not summary["n_sessions"]:
@@ -276,10 +276,10 @@ def _highlights(summary: dict) -> None:
               + S.accent("caliper setup --full") + S.dim(" or ")
               + S.accent("caliper signals"))
         print()
-    preview = S.yellow("(preview — dashboard not live yet)")
-    print(S.dim(f"→ deeper cuts — per-repo spend, rework rates, the full mix: "
-                f"{DASHBOARD_URL} ") + preview)
-    print(S.dim("    your first look above is that dashboard's first card"))
+    print(S.dim("→ deeper cuts — per-repo spend, rework rates, the full mix: ")
+          + S.accent("caliper serve"))
+    print(S.dim("    opens the interactive local view (127.0.0.1 only, "
+                "read-only)"))
     print()
 
 

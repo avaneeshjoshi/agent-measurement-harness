@@ -22,12 +22,15 @@ Governing principle: **glass box by default.** Every classification rule, rubric
 ```bash
 pipx install git+https://github.com/avaneeshjoshi/agent-measurement-harness.git@v0.2.0
 caliper setup
-open ~/.caliper/reports/first_look.html
+caliper serve   # interactive local view — 127.0.0.1 only, read-only
 ```
 
 Setup walks through a trust screen, backfills your local agent logs (Claude
 Code, Cursor, Codex — whichever exist), classifies the traffic without
-reading its content, and writes a self-contained HTML report. Everything
+reading its content, and writes a self-contained HTML report
+(`~/.caliper/reports/first_look.html` — the file you can send someone).
+`caliper serve` opens the same numbers live: sortable, filterable,
+per-repo and per-session detail, nothing leaving your machine. Everything
 Caliper produces lives in `~/.caliper/`, local only; nothing leaves your
 machine. Remove the scheduled job and see exactly how to delete your data
 with `caliper uninstall`; remove the command itself with
@@ -44,7 +47,7 @@ Windows is unsupported and untested.
 
 ## The intended product experience
 
-**This section is design narrative, not current capability.** It describes the product Caliper is being built toward, in present tense because that is how the design was written. What actually works today is stated — with evidence — in [`PROGRESS.md`](PROGRESS.md). As of the last review: the Quickstart above is the real install; `setup`, `extract`, `signals`, `classify`, `report`, and `schedule` are the shipped surface (`replay`, `policy`, and `pricing` are development instruments gated behind a source checkout — ADR-0014); the apply step described below writes a decision log and **touches no agent configuration**; verified savings, org detection, and vendor-router verification are unbuilt.
+**This section is design narrative, not current capability.** It describes the product Caliper is being built toward, in present tense because that is how the design was written. What actually works today is stated — with evidence — in [`PROGRESS.md`](PROGRESS.md). As of the last review: the Quickstart above is the real install; `setup`, `extract`, `signals`, `classify`, `report`, `serve`, and `schedule` are the shipped surface (`replay`, `policy`, and `pricing` are development instruments gated behind a source checkout — ADR-0014); the apply step described below writes a decision log and **touches no agent configuration**; verified savings, org detection, and vendor-router verification are unbuilt.
 
 Caliper is designed around one constraint: **engineers do not change how they work.**
 No new steps in the coding loop, no prompts to remember, no process to follow. Caliper

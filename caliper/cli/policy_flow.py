@@ -9,7 +9,6 @@ from pathlib import Path
 from .policy import analyze, record_decision
 from .style import S, bar, box, sep, spinner, step
 
-DASHBOARD_URL = "https://caliper.dev/dashboard"
 TIER_COLOR = {}  # populated lazily from S
 
 
@@ -169,8 +168,8 @@ def present_policy(repo_root: Path, a: dict, yes: bool = False,
           + S.dim(sep("replay-only evidence", "contaminated public-repo tasks",
                       "solo traffic", f"ADRs {', '.join(p['adr_refs'])}")))
     print()
-    print(S.dim(f"→ full curve, task grid, per-repo spend: {DASHBOARD_URL} ")
-          + S.yellow("(preview — dashboard not live yet)"))
+    print(S.dim("→ full curve, task grid, per-repo spend: ")
+          + S.accent("caliper serve"))
     print()
 
     # ---- the question ---------------------------------------------------

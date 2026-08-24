@@ -56,7 +56,7 @@ Each of these is deliberately fake or absent today, and each fake is labeled as 
 - **Apply** — `caliper policy apply` writes a local decision log (`~/.caliper/state/.policy_decisions.jsonl`, outside the repo) and touches no agent configuration. The screen says so: "the apply engine (native config writes) is future work; no agent config was modified."
 - **Trace layer** — `trace_event.schema.json` exists as a contract; `harness/trace/` is a README; zero trace records exist anywhere.
 - **Judge track** — `harness/judge/` is a README. No judge code, no rubrics, no calibration set.
-- **Dashboard** — `dashboard/` is a README; no Next.js app exists. The CLI's dashboard link is labeled "(preview — dashboard not live yet)".
+- **Dashboard** — `dashboard/` is a README; no Next.js app exists. The CLI's dead preview link to it was removed with ADR-0016: every "deeper cuts" pointer now names `caliper serve`, which exists. A hosted dashboard remains future work.
 - **`caliper connect`** — not a subcommand; named on screen as the future path for proving model access (ADR-0010), labeled "(future)".
 
 ## Known gaps
