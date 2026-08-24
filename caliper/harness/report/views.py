@@ -41,7 +41,7 @@ CSS = """
   --text-1:#26241F; --text-2:#5D594F; --text-3:#8B867D;
   --accent:#1F4A38; --measured:#4F7A4A; --provisional:#A15F28;
   --absent:#8B867D; --danger:#A8443A; --hover:rgba(0,0,0,.04);
-  --in:#1F4A38; --out:#5D594F; --cr:#C9C5BE; --cw:#8B867D;
+  --in:var(--cat-3); --out:var(--cat-2); --cr:var(--cat-1); --cw:var(--cat-4);
   --cat-1:#3D7FD9; --cat-2:#E07A38; --cat-3:#3FA455; --cat-4:#D9A63A;
   --cat-5:#E06C9F; --cat-6:#35AEAE; --cat-7:#D9564A; --cat-8:#8A66D9;
   --cat-9:#A8845A; --cat-10:#7593A6; }
@@ -51,7 +51,6 @@ CSS = """
   --text-1:#F7F5F2; --text-2:#B6B1A8; --text-3:#8B867D;
   --accent:#8FBFA4; --measured:#8FAE8B; --provisional:#D9A47E;
   --danger:#C97B6F; --hover:rgba(255,255,255,.06);
-  --in:#8FBFA4; --out:#B6B1A8; --cr:#4A4843; --cw:#8B867D;
   --cat-1:#5E9BE6; --cat-2:#EE9459; --cat-3:#57BE6E; --cat-4:#E6BC55;
   --cat-5:#EE8DB7; --cat-6:#4FC6C6; --cat-7:#E67468; --cat-8:#A588E6;
   --cat-9:#C29D6E; --cat-10:#8FAEC2; } }

@@ -149,7 +149,11 @@ mechanics, not taste:
    #D9A63A #E06C9F #35AEAE #D9564A #8A66D9 #A8845A #7593A6`; dark
    lightened equivalents), through DESIGN.md's token table, with a test
    pinning serve's CSS byte-equal to the table so the palette cannot
-   drift from the design authority again.
+   drift from the design authority again. Serve's bucket aliases
+   (`--in/--out/--cr/--cw`) now point at cat tokens (green/orange/blue/
+   gold) for the same reason — the neutral ramp made the dominant
+   cache-read mass indistinguishable from the bar's empty track. The
+   report keeps its own neutral ramp until its next design pass.
 4. **Too small, too noisy.** Spend chart 200→300 tall with thicker bars
    and quarter gridlines; scatter 300→360; proportion/bucket bars became
    the reference's row pattern (label line with figures, full-width bar
