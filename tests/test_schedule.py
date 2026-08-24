@@ -173,3 +173,30 @@ def test_status_verifies_write_access(darwin, capsys, monkeypatch):
     finally:
         _os.chmod(ex, 0o755)
     assert schedule.status(runner=runner) == 0
+
+
+def test_uninstall_is_clean_on_linux(monkeypatch, capsys):
+    """C2: no launchctl call, no traceback, state cleared — a Linux user can
+    always remove what a synced state file claims."""
+    monkeypatch.setattr(sys, "platform", "linux")
+    st = load_state(state_dir())
+    st["schedule"] = {"label": schedule.LABEL}
+    save_state(state_dir(), st)
+    runner = FakeRunner()
+    assert schedule.uninstall(runner=runner) == 0
+    assert runner.calls == []  # launchctl never touched off-darwin
+    assert load_state(state_dir())["schedule"] is None
+
+
+def test_status_on_linux_with_synced_schedule_state(monkeypatch, capsys):
+    """C2: a ~/.caliper synced from a Mac must produce a sentence, not a
+    FileNotFoundError from launchctl."""
+    monkeypatch.setattr(sys, "platform", "linux")
+    st = load_state(state_dir())
+    st["schedule"] = {"label": schedule.LABEL}
+    save_state(state_dir(), st)
+    runner = FakeRunner()
+    assert schedule.status(runner=runner) == 1
+    out = capsys.readouterr().out
+    assert "launchd does not exist on this platform" in out
+    assert runner.calls == []

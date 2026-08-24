@@ -26,7 +26,10 @@ def _tier_label(t: str) -> str:
 
 
 def _chart(rows, width: int = 22):
-    """rows: (label, frac, color, right_text). Aligned bar block."""
+    """rows: (label, frac, color, right_text). Aligned bar block. Empty rows
+    render nothing — never a crash (the empty-machine case, ADR-0014)."""
+    if not rows:
+        return ""
     label_w = max(len(r[0]) for r in rows)
     out = []
     for label, frac, color, right in rows:

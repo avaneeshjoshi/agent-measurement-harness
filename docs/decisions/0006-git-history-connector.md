@@ -79,3 +79,29 @@ Blame does not follow renames (rename counts as line death). Survival measured a
 HEAD lineage only. Rework conflates edit and delete. Generated-file skew per finding 1.
 `review` is always null locally. Commit `branch` is null — local git does not record
 which branch a commit was authored on.
+
+## Postscript (2026-08-24): blame-failure fabrication pathway — found, fixed, measured
+
+The off-machine audit for ADR-0014 found that a FAILED `git blame` (timeout,
+shallow clone, git error on an existing path) recorded
+`surviving_fraction: 0.0, status: "measured"` — a fabricated confident zero
+on the report's lead table, present since this ADR's first run. A path
+absent at the snapshot (genuinely dead lines) and a blame that errored were
+conflated into the same empty result.
+
+Fix: the two cases are now distinguished (`cat-file -e` on the snapshot
+path); a true blame failure records `status: "unmeasurable"` and a
+`null` fraction — never a zero — and a failed 14-day-rework blame records
+`rework: null`. Regression test:
+`tests/test_git_signals.py::test_blame_failure_is_unmeasurable_never_zero`.
+
+Impact on existing records, measured before correction (pre-fix records
+snapshotted, then a full re-run, then a three-way diff): of 88 pre-fix
+commits, **0 were affected by the bug** (no `measured 0.0` flipped to
+`unmeasurable`), 37 changed through legitimate drift (horizons maturing,
+repos moving on, new attribution evidence), 51 were byte-unchanged, and 146
+new commits entered since the 2026-08-09 run. **No published figure in this
+ADR changes** — the 6.5% line-weighted / 99.3% per-commit-median finding and
+the per-repo medians stand. The pathway simply never fired on this machine's
+repos (no shallow clones, no blame timeouts); it remains real for foreign
+machines, which is why it gated shipping (ADR-0014).

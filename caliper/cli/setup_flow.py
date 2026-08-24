@@ -154,8 +154,12 @@ def _highlights(summary: dict) -> None:
     """The headline cuts, on screen — the first look is the detail view."""
     from .policy_flow import DASHBOARD_URL, _chart
 
-    total = summary["headline"]["total_cost"] or 1
-    print(step(f"Where the {S.bold(f'${total:,.2f}')} went "
+    total = summary["headline"]["total_cost"]
+    if not summary["n_sessions"]:
+        return  # nothing to summarize; the caller renders the empty state
+    shown_total = S.bold(f"${total:,.2f}") if total else "the traffic"
+    total = total or 1  # divisor guard only — never shown (ADR-0014)
+    print(step(f"Where {shown_total} went "
                + S.dim("· list-equivalent · bars are share of total")))
     print()
     by_tool = summary["spend"]["by_tool"]

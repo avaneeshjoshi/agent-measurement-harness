@@ -87,9 +87,17 @@ class CursorPlugin(SourcePlugin):
                     cur = conn.execute("SELECT count(*) FROM scored_commits")
                     yield {"table": "_meta", "scored_commits": cur.fetchone()[0]}
                 elif artifact.kind == "state_db":
-                    cur = conn.execute(
-                        "SELECT composerId, workspaceId, createdAt, lastUpdatedAt, "
-                        "isArchived, isSubagent, value FROM composerHeaders")
+                    try:
+                        cur = conn.execute(
+                            "SELECT composerId, workspaceId, createdAt, lastUpdatedAt, "
+                            "isArchived, isSubagent, value FROM composerHeaders")
+                    except sqlite3.OperationalError:
+                        # older Cursor without composerHeaders: no sessions
+                        # can be emitted — say so (ADR-0014, addition 7)
+                        self.partial_note = ("cursor state db has no composer "
+                                             "table (older Cursor?) — "
+                                             "sessions cannot be emitted")
+                        return
                     cols = [c[0] for c in cur.description]
                     for row in cur:
                         yield {"table": "composerHeaders", **dict(zip(cols, row))}
@@ -102,6 +110,13 @@ class CursorPlugin(SourcePlugin):
     # cached for the join and its counts land in the manifest via extra).
     def emit(self, artifact: RawArtifact, include_content: bool = False) -> list[Emission]:
         if artifact.kind == "tracking_db":
+            if not self.state_db.is_file():
+                # a tracking DB alone cannot yield sessions (ADR-0004: the
+                # join needs composerHeaders) — say so, or a Cursor-only
+                # user concludes the tool is broken (ADR-0014)
+                self.partial_note = ("cursor attribution rows found but no "
+                                     "composer state db — sessions cannot "
+                                     "be emitted")
             rows = []
             for r in self.read(artifact):
                 if r["table"] == "_meta":

@@ -111,3 +111,25 @@ all three dev gates refusing with their sentences.
   the ADR the root-markdown rule requires. Its references to PRODUCT.md and
   ARCHITECTURE.md describe documents that do not exist yet; they remain
   ghosts, reported rather than invented.
+
+## Addendum (same day): the write-validation audit (C4)
+
+Prompt units were written with **no schema validation** — `extract()`
+validated only `emission.record`, and units "rode the session's idempotency."
+Foreign log shapes (a prompt record with no timestamp, observed in older
+Claude Code formats) therefore wrote schema-invalid rows silently. Fixed at
+the root: units now pass `prompt_unit.schema.json` at write time exactly as
+session records do; invalid units are skipped and counted in the manifest
+(`notes.prompt_units_invalid`).
+
+Full audit of every other writer, for the same hole:
+
+| Writer | Validated? | Verdict |
+|---|---|---|
+| session records (`extract`) | yes, at write | — |
+| prompt units | **was NO — fixed by this ADR** | invalid rows skipped + counted |
+| production signals (`signals`) | yes, at write | — |
+| task_class records (`classify`) | yes, before write | — |
+| content sidecar rows | no schema exists | deliberate: local-only, never enters records; documented |
+| run manifests | no schema exists | internal bookkeeping; consumers use `.get()` throughout |
+| collection state / decision log / name map | no schema | internal state; corrupt state already degrades with a printed warning |

@@ -201,3 +201,22 @@ def test_scheduled_discover_failure_raises_pending_alarm(tmp_path):
     assert ("self_check", "claude_code") in kinds
     # a failed source is NOT marked covered — the gap warning stays armed
     assert "claude_code" not in state["last_covered"]
+
+
+def test_absent_source_coverage_dropped(tmp_path):
+    """C5: an absent source's stale coverage entry is removed, so no phantom
+    lapse warning ever arms for a tool that isn't installed."""
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    sdir = state_dir()
+    # stale state claims cursor coverage from the old behavior
+    st = load_state(sdir)
+    st["last_covered"]["cursor"] = "2026-08-01T00:00:00+00:00"
+    st["watermark"]["cursor"] = 1.0
+    save_state(sdir, st)
+    mark_covered(sdir, ["claude_code"], now, full=False, absent=["cursor"])
+    st = load_state(sdir)
+    assert "cursor" not in st["last_covered"]
+    assert "cursor" not in st["watermark"]
+    assert "claude_code" in st["last_covered"]

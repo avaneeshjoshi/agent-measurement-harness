@@ -217,7 +217,8 @@ def install(mode: str | None = None,
 
 def uninstall(runner=subprocess.run) -> int:
     data_dir = state_dir()
-    _launchctl(runner, "bootout", f"gui/{os.getuid()}/{LABEL}")
+    if sys.platform == "darwin":
+        _launchctl(runner, "bootout", f"gui/{os.getuid()}/{LABEL}")
     pp = plist_path()
     if pp.exists():
         pp.unlink()
@@ -233,13 +234,20 @@ def status(runner=subprocess.run) -> int:
     data_dir = state_dir()
     state = load_state(data_dir)
     sched = state.get("schedule")
+    if sys.platform != "darwin" and sched:
+        print(step(sep("Scheduled collection is recorded in state but "
+                       "launchd does not exist on this platform",
+                       S.dim("the schedule was installed on macOS; "
+                             "clear it with") + " "
+                       + S.accent("caliper schedule uninstall"))))
+        return 1
     if not sched:
         print(step(sep("No scheduled collection",
                        S.dim("install with") + " "
                        + S.accent("caliper schedule install"))))
         return 0
     problems = []
-    if not Path(sched["plist_path"]).exists():
+    if not Path(sched.get("plist_path", "")).exists():
         problems.append("plist file is missing — reinstall")
     prog = sched.get("program") or [""]
     if prog and not Path(prog[0]).exists():
@@ -255,7 +263,8 @@ def status(runner=subprocess.run) -> int:
             probe.unlink()
         except OSError as exc:
             problems.append(f"cannot write the {tree_name} tree ({d}): {exc}")
-    out = _launchctl(runner, "print", f"gui/{os.getuid()}/{sched['label']}")
+    out = _launchctl(runner, "print",
+                     f"gui/{os.getuid()}/{sched.get('label', LABEL)}")
     run_state = exit_code = None
     if out.returncode == 0:
         for line in out.stdout.splitlines():

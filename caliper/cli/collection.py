@@ -58,12 +58,18 @@ def save_state(data_dir: Path, state: dict) -> None:
 
 
 def mark_covered(data_dir: Path, source_names: list[str],
-                 run_start: datetime, full: bool) -> None:
+                 run_start: datetime, full: bool,
+                 absent: list[str] | None = None) -> None:
     """Record that a run fully covered these sources — manual runs count
-    exactly like scheduled ones (a manual full run is the best coverage
-    evidence there is)."""
+    exactly like scheduled ones. Sources ABSENT from this machine get their
+    coverage entries dropped instead: there is nothing to lose there, and a
+    stale entry arms a phantom "collection is lapsing" warning for a tool
+    that was never installed (ADR-0014 / C5)."""
     state = load_state(data_dir)
     iso = run_start.isoformat(timespec="seconds")
+    for name in absent or []:
+        state["last_covered"].pop(name, None)
+        state["watermark"].pop(name, None)
     for name in source_names:
         state["last_covered"][name] = iso
         state["watermark"][name] = run_start.timestamp()
@@ -219,9 +225,13 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
                                           state.get("watermark") or {}):
             state["last_heartbeat"] = iso
             for name, arts in discovered.items():
-                if arts is not None:
+                if arts:
                     # a verified-idle scan IS coverage: nothing new existed
                     state["last_covered"][name] = iso
+                elif arts is not None:
+                    # absent source: nothing to lose, no warning to arm (C5)
+                    state["last_covered"].pop(name, None)
+                    state["watermark"].pop(name, None)
             save_state(sdir, state)
             _log("idle: no new activity across sources — heartbeat only")
             return 0
@@ -237,7 +247,11 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
         for name, src in manifest["sources"].items():
             bad_discover = any(s.get("path") == "<discover>"
                                for s in src["skipped"])
-            if not bad_discover:
+            if src.get("artifacts_discovered", 0) == 0 and not bad_discover:
+                # absent source (C5): drop coverage, arm nothing
+                state["last_covered"].pop(name, None)
+                state["watermark"].pop(name, None)
+            elif not bad_discover:
                 state["last_covered"][name] = iso
                 state["watermark"][name] = now.timestamp()
         state["last_heartbeat"] = iso

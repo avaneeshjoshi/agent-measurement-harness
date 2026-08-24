@@ -61,6 +61,8 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
     from .paths import salt_path
 
     validator = load_validator(schema_path)
+    from .paths import schema_path as _schema_by_name
+    unit_validator = load_validator(_schema_by_name("prompt_unit.schema.json"))
     salt = load_salt(salt_path(data_dir))
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
 
@@ -154,6 +156,13 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
             src_manifest["records"]["emitted"] += 1
             src_manifest["records"][outcome] += 1
             for unit in emission.prompt_units:
+                # write-time validation, same contract as session records —
+                # units used to skip this entirely, which let foreign log
+                # shapes write schema-invalid rows silently (ADR-0014 / C4)
+                if any(True for _ in unit_validator.iter_errors(unit)):
+                    n = src_manifest["notes"].get("prompt_units_invalid", 0)
+                    src_manifest["notes"]["prompt_units_invalid"] = n + 1
+                    continue
                 # units ride the session's idempotency: unchanged sessions
                 # were skipped upstream, so any unit reaching here is fresh
                 unit_store._merged[unit_store.key(unit)] = unit
@@ -173,6 +182,9 @@ def extract(sources: list[str], data_dir: Path, schema_path: Path,
         if content_store:
             src_manifest["content_rows_written"] = content_store.write()
         src_manifest["skipped"] = [asdict(s) for s in plugin.skips]
+        partial = getattr(plugin, "partial_note", None)
+        if partial:
+            src_manifest["notes"]["status"] = partial
         # drift instrumentation (ADR-0011): shapes the connector didn't
         # recognize, and the denominator for rate comparisons
         if getattr(plugin, "unknowns", None):
@@ -198,6 +210,8 @@ def signals(data_dir: Path, schema_path: Path,
     from .paths import salt_path
 
     validator = load_validator(schema_path)
+    from .paths import schema_path as _schema_by_name
+    unit_validator = load_validator(_schema_by_name("prompt_unit.schema.json"))
     salt = load_salt(salt_path(data_dir))
     conn = connector or GitHistoryConnector(salt=salt)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
@@ -675,13 +689,17 @@ def main(argv: list[str] | None = None) -> int:
     print()
     # a manual run is coverage evidence exactly like a scheduled one
     covered = [n for n, m in manifest["sources"].items()
-               if not any(s.get("path") == "<discover>" for s in m["skipped"])]
+               if m.get("artifacts_discovered", 0) > 0
+               and not any(s.get("path") == "<discover>" for s in m["skipped"])]
+    absent = [n for n, m in manifest["sources"].items()
+              if m.get("artifacts_discovered", 0) == 0
+              and not any(s.get("path") == "<discover>" for s in m["skipped"])]
     if data_dir != extracted_dir():
         covered = []  # an override tree is a side experiment: home
         #               coverage/watermark state must not advance (ADR-0012)
     else:
         mark_covered(state_dir(), covered, run_start,
-                     full=set(sources) == set(PLUGINS))
+                     full=set(sources) == set(PLUGINS), absent=absent)
     from .health import evaluate_canaries
     for alarm in evaluate_canaries(data_dir, manifest,
                                    exclude_run_ids=run_ids, patch_file=False):

@@ -193,3 +193,35 @@ def test_signals_idempotent_and_provenance(signals_run):
         assert p["content_hash"].startswith("sha256:")
         assert p["head_sha"] == recs[s["c5"]]["provenance"]["head_sha"]
         assert Path(p["repo_path"]) == s["root"]
+
+
+def test_blame_failure_is_unmeasurable_never_zero(signals_run, monkeypatch):
+    """C3 (ADR-0006 postscript): a blame that FAILS on an existing path must
+    record 'unmeasurable', not a fabricated 'measured 0.0'."""
+    import caliper.connectors.git_history as gh
+
+    manifest, recs, data_dir, s = signals_run
+    conn = gh.GitHistoryConnector(
+        claude_root=data_dir / "nope", codex_root=data_dir / "nope",
+        cursor_tracking_db=data_dir / "no.db", cursor_state_db=data_dir / "no.db",
+        extra_repos=[s["root"]], salt="test-salt", now=NOW)
+
+    real_git = gh._git
+
+    def failing_blame(root, *args):
+        if args and args[0] == "blame":
+            return None  # git failed
+        if args and args[0] == "cat-file":
+            return ""  # path EXISTS at the snapshot -> true failure
+        return real_git(root, *args)
+
+    monkeypatch.setattr(gh, "_git", failing_blame)
+    records = conn.analyze_repo(str(s["root"]))
+    measured = [e for r in records for e in r["survival"]
+                if e["status"] == "measured"]
+    assert measured == []  # nothing may claim a measured figure
+    assert any(e["status"] == "unmeasurable"
+               for r in records for e in r["survival"])
+    assert all(e["surviving_fraction"] is None
+               for r in records for e in r["survival"]
+               if e["status"] == "unmeasurable")

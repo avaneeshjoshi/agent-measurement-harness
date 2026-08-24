@@ -338,3 +338,49 @@ def test_agent_name_lands_in_sidecar_only(tmp_path):
     for d in (without, with_dir):
         assert "fix-the-flaky-test" not in \
             (d / "claude_code" / "sessions.jsonl").read_text()
+
+
+def test_absent_source_notes_and_no_coverage(tmp_path):
+    """A source that isn't on the machine says so in the manifest and is
+    never marked covered — a stale entry would arm a phantom lapse warning
+    for a tool that was never installed (ADR-0014 / C5)."""
+    from caliper.cli.main import extract
+    from caliper.connectors import ClaudeCodePlugin
+    from tests.conftest import SCHEMA
+
+    plugin = ClaudeCodePlugin(root=tmp_path / "nope", salt="test-salt")
+    m = extract(["claude_code"], tmp_path / "x", SCHEMA, include_content=False,
+                plugins_override={"claude_code": plugin})
+    src = m["sources"]["claude_code"]
+    assert src["notes"]["status"] == "source not present on this machine"
+    assert src["artifacts_discovered"] == 0
+
+
+def test_invalid_prompt_units_are_skipped_with_note(tmp_path):
+    """Write-time validation symmetry (ADR-0014 / C4): a prompt record with
+    no timestamp must not write a schema-invalid unit row."""
+    import json as _json
+    import shutil as _shutil
+
+    from caliper.cli.main import extract
+    from caliper.connectors import ClaudeCodePlugin
+    from tests.conftest import FIXTURES, SCHEMA
+
+    root = tmp_path / "claude_code"
+    _shutil.copytree(FIXTURES / "claude_code", root)
+    session_file = next(p for p in root.rglob("*.jsonl")
+                        if "subagents" not in str(p))
+    with open(session_file, "a") as fh:  # a user turn with no timestamp
+        fh.write(_json.dumps({"type": "user", "uuid": "u-no-ts",
+                              "sessionId": "x",
+                              "message": {"role": "user",
+                                          "content": "old log shape"}}) + "\n")
+    m = extract(["claude_code"], tmp_path / "out", SCHEMA,
+                include_content=False,
+                plugins_override={"claude_code": ClaudeCodePlugin(
+                    root=root, salt="test-salt")})
+    notes = m["sources"]["claude_code"]["notes"]
+    assert notes.get("prompt_units_invalid", 0) >= 1
+    units = (tmp_path / "out" / "claude_code" / "prompt_units.jsonl").read_text()
+    for line in units.splitlines():
+        assert _json.loads(line).get("started_at")  # nothing invalid landed

@@ -94,3 +94,10 @@ def test_fork_children_netted_from_spend_and_disclosed(run_extract):
     assert abs(s["headline"]["total_cost"] - expected) < 0.05
 
     assert "1 fork child netted from spend" in render(s)
+
+
+def test_chart_renders_nothing_for_empty_rows():
+    """C1: the empty-machine crash — _chart over no rows returns empty,
+    never ValueError."""
+    from caliper.cli.policy_flow import _chart
+    assert _chart([]) == ""

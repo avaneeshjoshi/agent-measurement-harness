@@ -218,14 +218,28 @@ class GitHistoryConnector:
         out = _git(root, "rev-list", "-1", f"--before={ts}", "HEAD")
         return out.strip() if out and out.strip() else None
 
-    def _blame_counts(self, root: Path, snapshot: str, path: str) -> Counter:
+    _BLAME_FAILED = object()  # cache sentinel: blame failed on an existing path
+
+    def _blame_counts(self, root: Path, snapshot: str, path: str):
+        """Counter of line-owner shas at the snapshot, or None when blame
+        FAILED on a path that exists there (timeout, shallow clone, git
+        error). A path absent at the snapshot is an empty Counter — those
+        lines are genuinely dead, which is a measurement, not a failure.
+        Conflating the two recorded fabricated '0% survival, measured'
+        figures until 2026-08-24 (ADR-0006 postscript)."""
         key = (snapshot, path)
         cached = self._blame_cache.get(key)
         if cached is not None:
-            return cached
-        counts: Counter = Counter()
+            return None if cached is self._BLAME_FAILED else cached
         out = _git(root, "blame", "--line-porcelain", snapshot, "--", path)
-        if out:
+        if out is None:
+            if _git(root, "cat-file", "-e", f"{snapshot}:{path}") is None:
+                counts: Counter = Counter()  # path absent at snapshot: dead
+            else:
+                self._blame_cache[key] = self._BLAME_FAILED
+                return None
+        else:
+            counts = Counter()
             for line in out.splitlines():
                 # line-porcelain: header lines start '<sha40> <orig> <final>'
                 if len(line) > 40 and line[40] == " " and not line.startswith("\t"):
@@ -236,8 +250,16 @@ class GitHistoryConnector:
         return counts
 
     def _surviving_lines(self, root: Path, commit: str, files: list[str],
-                         snapshot: str) -> int:
-        return sum(self._blame_counts(root, snapshot, f)[commit] for f in files)
+                         snapshot: str):
+        """Total surviving lines, or None when any file's blame truly failed
+        — the caller must record 'unmeasurable', never a confident zero."""
+        total = 0
+        for f in files:
+            counts = self._blame_counts(root, snapshot, f)
+            if counts is None:
+                return None
+            total += counts[commit]
+        return total
 
     def analyze_repo(self, root_str: str) -> list[dict]:
         root = Path(root_str)
@@ -347,6 +369,13 @@ class GitHistoryConnector:
                                      "surviving_fraction": None})
                     continue
                 surviving = self._surviving_lines(root, sha, files, snap)
+                if surviving is None:  # blame failed: unmeasurable, never 0%
+                    survival.append({"horizon_days": h,
+                                     "status": "unmeasurable",
+                                     "lines_surviving": None,
+                                     "lines_original": lines_added,
+                                     "surviving_fraction": None})
+                    continue
                 survival.append({
                     "horizon_days": h, "status": "measured",
                     "lines_surviving": surviving,
@@ -367,16 +396,22 @@ class GitHistoryConnector:
                 snap14 = self._snapshot_at(root, rework_target)
                 surviving14 = self._surviving_lines(root, sha, files, snap14) \
                     if snap14 else lines_added
-                reworked = max(0, lines_added - surviving14)
-                shas: list[str] = []
-                if reworked and files:
-                    out = _git(root, "log", "HEAD", "--no-merges", "--format=%H",
-                               f"--since={c['time'] + 1}",
-                               f"--until={rework_target}", "--", *files) or ""
-                    shas = [s for s in out.split() if s != sha][:20]
-                rework = {"window_days": _REWORK_WINDOW_DAYS, "status": "measured",
-                          "occurred": reworked > 0, "lines_reworked": reworked,
-                          "rework_commit_shas": shas}
+                if surviving14 is None:
+                    rework = None  # blame failed: absent, never a guess
+                else:
+                    reworked = max(0, lines_added - surviving14)
+                    shas: list[str] = []
+                    if reworked and files:
+                        out = _git(root, "log", "HEAD", "--no-merges",
+                                   "--format=%H", f"--since={c['time'] + 1}",
+                                   f"--until={rework_target}", "--",
+                                   *files) or ""
+                        shas = [s for s in out.split() if s != sha][:20]
+                    rework = {"window_days": _REWORK_WINDOW_DAYS,
+                              "status": "measured",
+                              "occurred": reworked > 0,
+                              "lines_reworked": reworked,
+                              "rework_commit_shas": shas}
 
             # attribution — evidence only, never content
             score = scores.get(sha)
