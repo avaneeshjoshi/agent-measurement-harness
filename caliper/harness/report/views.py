@@ -42,9 +42,9 @@ CSS = """
   --accent:#1F4A38; --measured:#4F7A4A; --provisional:#A15F28;
   --absent:#8B867D; --danger:#A8443A; --hover:rgba(0,0,0,.04);
   --in:#1F4A38; --out:#5D594F; --cr:#C9C5BE; --cw:#8B867D;
-  --cat-1:#4A6B8A; --cat-2:#8A5A44; --cat-3:#5E7D54; --cat-4:#7A5E80;
-  --cat-5:#9A7B3F; --cat-6:#4F7D7B; --cat-7:#8A4F5E; --cat-8:#6B6B5E;
-  --cat-9:#5A5F8C; --cat-10:#7D6B4F; }
+  --cat-1:#3D7FD9; --cat-2:#E07A38; --cat-3:#3FA455; --cat-4:#D9A63A;
+  --cat-5:#E06C9F; --cat-6:#35AEAE; --cat-7:#D9564A; --cat-8:#8A66D9;
+  --cat-9:#A8845A; --cat-10:#7593A6; }
 @media (prefers-color-scheme: dark) { :root { color-scheme: dark;
   --bg:#0F0F0E; --surface-1:#191917; --surface-2:#232320;
   --edge:rgba(255,255,255,.11); --edge-strong:#4A4843;
@@ -52,9 +52,9 @@ CSS = """
   --accent:#8FBFA4; --measured:#8FAE8B; --provisional:#D9A47E;
   --danger:#C97B6F; --hover:rgba(255,255,255,.06);
   --in:#8FBFA4; --out:#B6B1A8; --cr:#4A4843; --cw:#8B867D;
-  --cat-1:#8FB0CC; --cat-2:#C49A83; --cat-3:#9DBA92; --cat-4:#B79ABD;
-  --cat-5:#CDB075; --cat-6:#8FB5B3; --cat-7:#C48D9C; --cat-8:#A8A895;
-  --cat-9:#9FA3C9; --cat-10:#B3A183; } }
+  --cat-1:#5E9BE6; --cat-2:#EE9459; --cat-3:#57BE6E; --cat-4:#E6BC55;
+  --cat-5:#EE8DB7; --cat-6:#4FC6C6; --cat-7:#E67468; --cat-8:#A588E6;
+  --cat-9:#C29D6E; --cat-10:#8FAEC2; } }
 * { box-sizing:border-box; }
 body { margin:0; background:var(--bg); color:var(--text-1);
   font:14px/22px Inter,system-ui,-apple-system,"Segoe UI",sans-serif; }
@@ -124,10 +124,19 @@ tbody tr:hover { background:var(--hover); }
 .prox .hd { font-weight:500; }
 .prox .wrap { border:none; background:none; }
 figure.chart { margin:8px 0 4px; background:var(--surface-1);
-  border:1px solid var(--edge); border-radius:10px; padding:12px 16px; }
-figure.chart figcaption { font-size:12px; line-height:18px;
-  color:var(--text-2); margin-bottom:8px; }
+  border:1px solid var(--edge); border-radius:10px; padding:0; }
+figure.chart figcaption { display:flex; justify-content:space-between;
+  align-items:baseline; gap:16px; padding:8px 16px;
+  background:var(--surface-2); border-bottom:1px solid var(--edge-strong);
+  border-radius:10px 10px 0 0; }
+.ct { font-size:11px; line-height:16px; font-weight:500;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--text-2);
+  white-space:nowrap; }
+.cm { font-size:12px; line-height:16px; color:var(--text-3);
+  text-align:right; }
+.cbody { padding:12px 16px 14px; }
 figure.chart svg { width:100%; height:auto; display:block; }
+figure.chart g[data-tip]:hover .hit { fill:var(--hover); }
 svg .ax { font:11px "JetBrains Mono",ui-monospace,Menlo,monospace;
   fill:var(--text-3); }
 svg .pt { font:11px Inter,system-ui,sans-serif; fill:var(--text-1); }
@@ -136,16 +145,29 @@ svg .pt .ax { fill:var(--text-2); }
 .sw { display:inline-block; width:10px; height:10px; border-radius:2px;
   margin:0 4px 0 10px; vertical-align:baseline; }
 .legend .sw:first-child { margin-left:0; }
-.pbar { width:100%; max-width:640px; height:16px; border-radius:2px;
-  vertical-align:middle; }
-.bbar { height:12px; width:400px; max-width:44vw; vertical-align:middle;
-  border-radius:2px; }
-.crow { display:flex; gap:12px; align-items:center; margin:4px 0;
-  font-size:13px; line-height:20px; }
-.crow .lbl { flex:0 0 220px; color:var(--text-2);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.brow { margin:12px 0 0; }
+.brow .bl { display:flex; justify-content:space-between;
+  align-items:baseline; gap:12px; font-size:13px; line-height:20px; }
+.brow .br { color:var(--text-2); font-size:12px; text-align:right; }
+.pbar { display:block; width:100%; height:18px; border-radius:2px;
+  margin-top:4px; }
+.bbar { display:block; width:100%; height:16px; border-radius:2px;
+  margin-top:4px; }
 .band { font-size:13px; line-height:20px; color:var(--text-2);
-  border-top:1px solid var(--edge); margin-top:8px; padding-top:8px; }
+  border-top:1px solid var(--edge); margin-top:12px; padding-top:8px; }
+.tip { position:fixed; z-index:10; min-width:180px; max-width:340px;
+  background:var(--surface-1); border:1px solid var(--edge-strong);
+  border-radius:6px; padding:8px 12px; pointer-events:none;
+  font:12px/20px "JetBrains Mono",ui-monospace,Menlo,monospace;
+  font-variant-numeric:tabular-nums; color:var(--text-1);
+  box-shadow:0 1px 2px rgb(0 0 0 / 0.06); }
+.tip .th { display:block; font-weight:500; border-bottom:1px solid var(--edge);
+  padding-bottom:4px; margin-bottom:4px; }
+.tip .tr, .tip .tt { display:flex; justify-content:space-between;
+  align-items:center; gap:16px; }
+.tip .tr b, .tip .tt b { font-weight:500; }
+.tip .tr .sw { margin:0 6px 0 0; }
+.tip .tt { border-top:1px solid var(--edge); margin-top:4px; padding-top:4px; }
 footer { margin-top:48px; padding-top:12px; border-top:1px solid var(--edge);
   font-size:12px; line-height:18px; color:var(--text-3); }
 .empty { font-size:14px; line-height:22px; margin:24px 0; }
@@ -185,6 +207,30 @@ document.addEventListener('click', function (e) {
     return (a < b ? -1 : a > b ? 1 : 0) * (dir === 'a' ? 1 : -1);
   });
   rows.forEach(function (r) { tb.appendChild(r); });
+});
+
+// Instant pointer tooltip for [data-tip] marks. Server-authored payload,
+// shown/hidden with no delay and no animation; native SVG <title> was
+// measured unusable (ADR-0017 postscript 2).
+var tip = document.createElement('div');
+tip.className = 'tip';
+tip.hidden = true;
+document.body.appendChild(tip);
+document.addEventListener('mousemove', function (e) {
+  var t = e.target && e.target.closest ? e.target.closest('[data-tip]') : null;
+  if (!t) { if (!tip.hidden) tip.hidden = true; return; }
+  var payload = t.getAttribute('data-tip');
+  if (tip.dataset.for !== payload) {
+    tip.innerHTML = payload;
+    tip.dataset.for = payload;
+  }
+  tip.hidden = false;
+  var r = tip.getBoundingClientRect();
+  var x = e.clientX + 14, y = e.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = x + 'px';
+  tip.style.top = y + 'px';
 });
 """
 
@@ -514,6 +560,18 @@ def _spend_section(title: str, data: dict, src: str, chrono: bool = False) -> st
     keys = sorted(data) if chrono else sorted(
         data, key=lambda k: -sum(data[k].get(b, 0) for b in
                                  ("input", "output", "cache_read", "cache_creation")))
+    trunc_note = ""
+    if chrono and len(keys) > 21:
+        # DESIGN.md overflow rule: truncate to recent rows with a STATED
+        # count of what is not shown — never an unlabeled cutoff
+        earlier = keys[:-21]
+        n_sess = sum(data[k].get("sessions", 0)
+                     + data[k].get("sessions_no_tokens", 0) for k in earlier)
+        cost = sum(data[k].get("cost_x1000", 0) for k in earlier) / 1000
+        trunc_note = (f'<p class="faint">+ {len(earlier)} earlier days · '
+                      f"{n_sess} sessions · ${cost:,.2f} list-equivalent — "
+                      "narrow the range to see them</p>")
+        keys = keys[-21:]
     rows = []
     for k in keys:
         c = data[k]
@@ -543,7 +601,7 @@ def _spend_section(title: str, data: dict, src: str, chrono: bool = False) -> st
     cols = [(title, False), ("sessions", True), ("input", True),
             ("output", True), ("cache read", True), ("cache write", True),
             ("list-$", True)]
-    return table(cols, rows) + evidence(src)
+    return table(cols, rows) + trunc_note + evidence(src)
 
 
 def _day_group_costs(raw: dict, split: str):
@@ -584,38 +642,43 @@ def _spend_chart(raw: dict, filters: dict) -> str:
     if not per_day:
         return ""
     tokens = {g: f"--cat-{i % 10 + 1}" for i, g in enumerate(groups)}
-    unpriced_note = (f" · {n_unpriced} unpriced sessions excluded from the "
-                     "chart (the tables keep them)" if n_unpriced else "")
-    no_tok_note = (f" · {n_no_tok} sessions log no tokens (Cursor) and "
-                   "cannot appear in a dollar chart" if n_no_tok else "")
-    caption = (f"Spend per day, split by {split} · quiet days are gaps, "
-               f"not zeros · n = {len(per_day)} active days, {n_priced} "
-               f"priced sessions{unpriced_note}{no_tok_note}")
+    excluded = []
+    if n_unpriced:
+        excluded.append(f"{n_unpriced} unpriced")
+    if n_no_tok:
+        excluded.append(f"{n_no_tok} token-less")
+    meta = (f"n = {len(per_day)} active days · {n_priced} priced sessions"
+            + (f" · {' + '.join(excluded)} excluded — the tables keep them"
+               if excluded else "")
+            + " · quiet days are gaps, not zeros")
     other = "model" if split == "tool" else "tool"
     toggle_qs = _qs({**{k: v for k, v in filters.items() if k != "split"},
                      "split": other})
     toggle = (f'<p class="meta">split by {split} · '
               f'<a href="/{toggle_qs or "?"}">split by {other}</a> · '
-              "click a day to filter to it · hover for the breakdown</p>")
-    return toggle + charts.spend_columns(per_day, groups, tokens, filters,
-                                         H.escape(caption))
+              "hover a day for its breakdown</p>")
+    return toggle + charts.spend_columns(
+        per_day, groups, tokens, f"Spend per day · by {split}", meta)
 
 
-def _mix_bars(groups: dict, order: list[str]) -> str:
+def _mix_bars(unit: str, groups: dict, order: list[str]) -> str:
     """One stacked proportion bar per cohort — cohorts stay unpooled,
-    unclassified always a visible segment (absent gray)."""
+    unclassified always a visible segment (absent gray). Reference row
+    pattern: cohort + n on the label line, the bar full-width beneath."""
     rows = []
     for key, cnt in sorted(groups.items()):
         n = sum(cnt.values())
         segments = [(t, cnt.get(t, 0)) for t in order]
-        rows.append(f'<div class="crow"><span class="lbl">{H.escape(key)}'
-                    f"</span>{charts.proportion_bar(segments, f'n={n}')}"
-                    "</div>")
+        rows.append(
+            f'<div class="brow"><div class="bl"><span>{H.escape(key)}</span>'
+            f'<span class="br">n={n}</span></div>'
+            f"{charts.proportion_bar(segments)}</div>")
     legend = charts.swatch_legend(
         [(t.replace("_", " "), charts.cat_token(t)) for t in order])
-    return ('<figure class="chart"><figcaption>Task mix per cohort · share '
-            "of classified units · hover a segment for class · count · "
-            "share</figcaption>" + "".join(rows) + legend + "</figure>")
+    return charts.figure(
+        f"Task mix · {unit} grain",
+        "share of classified units per cohort · hover a segment",
+        "".join(rows) + legend)
 
 
 def _outcome_scatter(raw: dict, s: dict, filters: dict) -> str:
@@ -640,17 +703,15 @@ def _outcome_scatter(raw: dict, s: dict, filters: dict) -> str:
                 f"{H.escape(name)}</a> ({' · '.join(reasons)})")
     if not pts and not banded:
         return ""
-    caption = (f"Cost × 30d survival per repo · x is session list-$ "
-               f"(√ scale), y is per-commit median survival, point size is "
-               f"commit count · click a point for the repo · n = {len(pts)} "
-               f"repos plotted"
-               + (f", {len(banded)} not plottable, listed below"
-                  if banded else ""))
+    meta = (f"n = {len(pts)} repos plotted"
+            + (f" · {len(banded)} not plottable, listed below" if banded
+               else "")
+            + " · x session list-$ (√ scale) · point size = commits · "
+            "click a point for the repo")
     band = (f'<p class="band">Not plottable — never omitted, never at the '
             f'origin: {", ".join(banded)}</p>' if banded else "")
     svg = charts.scatter(pts, _qs(filters)) if pts else ""
-    return (f'<figure class="chart"><figcaption>{H.escape(caption)}'
-            f"</figcaption>{svg}{band}</figure>")
+    return charts.figure("Cost × 30d survival per repo", meta, svg + band)
 
 
 def _bucket_chart(by_model: dict) -> str:
@@ -672,17 +733,17 @@ def _bucket_chart(by_model: dict) -> str:
                + money(cost / 1000 if cost is not None else None)
                + f' <span class="n-of">(n={c.get("sessions", 0)} '
                "sessions)</span>")
-        rows.append(f'<div class="crow"><span class="lbl mono">'
-                    f"{H.escape(str(k))}</span>"
-                    + charts.bucket_bar(c, max_total)
-                    + f"<span>{fig}</span></div>")
+        rows.append(
+            f'<div class="brow"><div class="bl"><span class="mono">'
+            f'{H.escape(str(k))}</span><span class="br">{fig}</span></div>'
+            f"{charts.bucket_bar(c, max_total)}</div>")
     legend = charts.swatch_legend(
         [(b.replace("_", " "), tok) for b, tok in charts.BUCKET_TOKENS])
-    return ('<figure class="chart"><figcaption>Token buckets per model · '
-            "bar length is share of the largest model's total · cache "
-            "reads dominate real agent traffic — this is the shape the "
-            "table makes you compute · hover a segment for the count"
-            "</figcaption>" + "".join(rows) + legend + "</figure>")
+    return charts.figure(
+        "Token buckets per model",
+        "bar length = share of the largest model's total · cache reads "
+        "dominate real traffic · hover a segment",
+        "".join(rows) + legend)
 
 
 def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
@@ -761,7 +822,7 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
                     cells.append((pair(f"{v / n:.0%}", f"{v}"), v / n)
                                  if v else ('<span class="fig">0</span>', 0))
                 rows.append(cells)
-            mix_html += _mix_bars(groups, cols_present)
+            mix_html += _mix_bars(unit, groups, cols_present)
             mix_html += table(cols, rows)
         mix_html += evidence("~/.caliper/derived/classes/task_classes.jsonl "
                              "× sessions.jsonl cohort — cohorts never pooled "

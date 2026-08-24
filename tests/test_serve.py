@@ -338,27 +338,72 @@ def test_spend_chart_quiet_days_are_gaps_not_zero_bars():
            "sessions": {"a": mk("a", "2026-08-01"),
                         "b": mk("b", "2026-08-04")}}
     html = views._spend_chart(raw, {})
-    assert html.count('<a href="/?from=') == 2
-    assert "n = 2 active days, 2 priced sessions" in html
+    assert html.count("<g data-tip=") == 2  # two hoverable columns only
+    assert html.count('class="hit"') == 2   # each with a full-height target
+    assert "n = 2 active days · 2 priced sessions" in html
     assert "quiet days are gaps, not zeros" in html
+    # day columns no longer navigate — a single-day filter re-rendering
+    # one stretched bar is not a destination (ADR-0017 postscript 2)
+    assert '<a href="/?from=' not in html
 
 
-def test_every_chart_carries_its_n_and_click_targets(serve_url):
-    """Charts without their sample size do not render; day columns link to
-    that day's filtered view; scatter points link to their repo."""
+def test_every_chart_carries_its_n_and_hover_payloads(serve_url):
+    """Charts without their sample size do not render; hover payloads carry
+    the underlying dollars; scatter points still click through to their
+    repo (the one genuinely different destination)."""
+    import re
+
     base, loc, s0 = serve_url
     _, body = _get(base + "/")
     assert " active days" in body                       # spend chart n
     assert "repos plotted" in body                      # scatter n
-    assert 'href="/?from=' in body                      # day column links
+    assert "<g data-tip=" in body                       # hoverable columns
     assert '<a href="/repo/r_test1' in body             # scatter point link
-    assert "(n=1 sessions)" in body or " sessions)" in body  # bucket rows
-    # every figure element opens with its caption — no caption, no chart
+    # a day tooltip payload carries per-group dollars and the ruled total
+    m = re.search(r'<g data-tip="([^"]+)"', body)
+    assert m and "$" in m.group(1) and "Total" in m.group(1)
+    # every panel opens with its header: title + meta with an n
+    figs = re.findall(r'<figcaption><span class="ct">(.*?)</span>'
+                      r'<span class="cm">(.*?)</span>', body)
+    assert figs and all("n" in meta or "n=" in meta or "share" in meta
+                        for _t, meta in figs)
+
+
+def test_tooltip_engine_ships_with_the_page(serve_url):
+    base, loc, s0 = serve_url
+    _, body = _get(base + "/")
+    assert "tip.className = 'tip'" in body   # the instant-tooltip JS
+    assert "data-tip" in body
+
+
+def test_cat_tokens_match_design_md():
+    """The chart-category token values in serve's CSS are DESIGN.md's,
+    byte-equal — a palette change that skips the design authority (and its
+    ADR) fails here."""
     import re
-    figs = re.findall(r'<figure class="chart"><figcaption>(.{0,160}?)'
-                      r"</figcaption>", body, re.S)
-    assert figs and all("n" in f and "=" in f or "n=" in f or "· n =" in f
-                        or "share" in f for f in figs)
+
+    from caliper.harness.report import views
+    from tests.conftest import REPO
+
+    design = (REPO / "DESIGN.md").read_text()
+    css_light = dict(re.findall(r"--cat-(\d+):(#[0-9A-Fa-f]{6})",
+                                views.CSS.split("prefers-color-scheme")[0]))
+    row = re.search(r"`--cat-1` … `--cat-10` \| ([^|]+) \|", design)
+    design_vals = re.findall(r"#[0-9A-Fa-f]{6}", row.group(1))
+    assert [css_light[str(i)] for i in range(1, 11)] == design_vals
+
+
+def test_chrono_table_truncates_with_stated_count():
+    from caliper.harness.report.views import _spend_section
+
+    data = {f"2026-07-{d:02d}": {"sessions": 1, "input": 10, "output": 1,
+                                 "cache_read": 0, "cache_creation": 0,
+                                 "cost_x1000": 1000}
+            for d in range(1, 27)}  # 26 days -> 5 truncated
+    html = _spend_section("day", data, "src", chrono=True)
+    assert "+ 5 earlier days · 5 sessions · $5.00" in html
+    assert "narrow the range to see them" in html
+    assert "2026-07-01" not in html and "2026-07-26" in html
 
 
 def test_scatter_bands_unplottable_repos_never_origin(serve_url):

@@ -122,6 +122,46 @@ agree with the by-model table, the band lists 4 unplottable repos with
 their absence words, and the empty HOME renders no chart frame and writes
 zero files.
 
+## Postscript 2 (same day): the user review — four failures, revised
+
+The charts' first user review rejected them on four counts, each traced to
+a concrete decision above and revised against a working reference
+(https://kj14god.github.io/token-spend/) whose clarity decomposes into
+mechanics, not taste:
+
+1. **Hover was effectively broken.** Native SVG `<title>` renders after a
+   ~1s delay in a tiny unstyled box — "I should get info when I hover"
+   means instantly. Replaced everywhere by a server-authored tooltip panel
+   (header, swatch·name·value rows, ruled Total) shown at the pointer with
+   no delay by ~25 lines of JS, plus a full-height hit rect per day column
+   with a hover wash so thin bars are hoverable anywhere in their slot.
+2. **Day-column clicks were worse than useless.** Filtering the page to a
+   single day re-renders the chart as one stretched bar — it read as "the
+   bar just got larger." Removed: columns no longer navigate; hover
+   carries the breakdown. The scatter keeps its clicks (a repo page is a
+   genuinely different destination). DESIGN.md's chart entry now states
+   the rule: no click that merely re-renders the same chart filtered to
+   one mark.
+3. **The muted palette failed its one job.** "Similar-saturation" hues are
+   indistinguishable between adjacent segments — the reference's clarity
+   is vivid blue/orange/green/gold/pink. `--cat-1…10` revised to
+   saturated, clearly-separable values (light `#3D7FD9 #E07A38 #3FA455
+   #D9A63A #E06C9F #35AEAE #D9564A #8A66D9 #A8845A #7593A6`; dark
+   lightened equivalents), through DESIGN.md's token table, with a test
+   pinning serve's CSS byte-equal to the table so the palette cannot
+   drift from the design authority again.
+4. **Too small, too noisy.** Spend chart 200→300 tall with thicker bars
+   and quarter gridlines; scatter 300→360; proportion/bucket bars became
+   the reference's row pattern (label line with figures, full-width bar
+   beneath, buckets on a faint track). Paragraph captions became panel
+   headers — uppercase title left, one faint meta line right carrying the
+   n and exclusions — and the chronological by-day table truncates to the
+   most recent 21 days with DESIGN's stated-count line.
+
+Nothing about the measurements changed: same numbers, same absences, same
+n discipline — the revision is entirely presentational, which is exactly
+why it lands as a postscript rather than a new ADR.
+
 ## Known limitations
 
 - Scatter labels can collide when repos cluster at high survival; the

@@ -59,28 +59,54 @@ def swatch_legend(items: list[tuple[str, str]]) -> str:
         for lab, tok in items) + "</p>")
 
 
+def figure(title: str, meta: str, inner: str) -> str:
+    """The chart panel: a one-line header bar — uppercase title left, the n
+    and honesty notes faint on the right — ruled off from the chart body.
+    The caption never crowds the chart (ADR-0017 postscript 2)."""
+    return (f'<figure class="chart"><figcaption><span class="ct">'
+            f'{H.escape(title)}</span><span class="cm">{H.escape(meta)}'
+            f'</span></figcaption><div class="cbody">{inner}</div></figure>')
+
+
+def tip_html(header: str, rows: list[tuple[str | None, str, str]],
+             total: str | None = None) -> str:
+    """data-tip attribute payload for the instant pointer tooltip
+    (views.JS): a boxed panel with a header line, swatch·name·value rows,
+    and a ruled Total. Server-authored HTML, entity-escaped into the
+    attribute; the tooltip sets it back as innerHTML. Native SVG <title>
+    is delayed and tiny — measured unusable in the first walkthrough."""
+    body = "".join(
+        '<span class="tr">'
+        + (f'<i class="sw" style="background:var({tok})"></i>' if tok else "")
+        + f"{H.escape(lab)}<b>{H.escape(val)}</b></span>"
+        for tok, lab, val in rows)
+    tot = (f'<span class="tt">Total<b>{H.escape(total)}</b></span>'
+           if total else "")
+    return H.escape(
+        f'<span class="th">{H.escape(header)}</span>{body}{tot}', quote=True)
+
+
 def spend_columns(per_day: dict[str, dict[str, float]], groups: list[str],
-                  tokens: dict[str, str], ui: dict, caption: str) -> str:
+                  tokens: dict[str, str], title: str, meta: str) -> str:
     """Daily stacked columns. per_day: day -> {group: $}. Days absent from
-    per_day render as gaps — ground, never a zero-height bar. Each column
-    links to that day's filtered overview (the other URL state preserved);
-    <title> carries the breakdown."""
-    from urllib.parse import urlencode
-    base_ui = {k: v for k, v in ui.items()
-               if k not in ("from", "to", "range")}
+    per_day render as gaps — ground, never a zero-height bar. Each active
+    day carries a full-height invisible hit rect so hovering ANYWHERE in
+    its slot shows the breakdown instantly. Columns do not navigate:
+    filtering the page to a single day re-renders one stretched bar, which
+    is not a destination (ADR-0017 postscript 2)."""
     if not per_day:
         return ""
     days = _days_between(min(per_day), max(per_day))
-    W, PH = 960, 200
-    LEFT, BOT, TOP = 52, 22, 8
+    W, PH = 960, 300
+    LEFT, BOT, TOP = 56, 24, 10
     plot_w, plot_h = W - LEFT - 8, PH - BOT - TOP
     cw = plot_w / len(days)
-    bw = max(1.0, cw * 0.72)
+    bw = max(1.5, cw * 0.8)
     peak = max(sum(g.values()) for g in per_day.values()) or 1.0
 
     parts = []
-    # gridlines + $ labels (0 / half / peak)
-    for frac in (0.0, 0.5, 1.0):
+    # quarter gridlines + $ labels
+    for frac in (0.0, 0.25, 0.5, 0.75, 1.0):
         y = TOP + plot_h * (1 - frac)
         parts.append(f'<line x1="{LEFT}" y1="{y:.1f}" x2="{W - 8}" '
                      f'y2="{y:.1f}" stroke="var(--edge)"/>')
@@ -100,7 +126,7 @@ def spend_columns(per_day: dict[str, dict[str, float]], groups: list[str],
         total = sum(g.values())
         x = LEFT + i * cw + (cw - bw) / 2
         y = TOP + plot_h
-        title = [f"{day} · ${total:,.2f}"]
+        rows = []
         rects = []
         for grp in groups:
             v = g.get(grp, 0.0)
@@ -109,41 +135,41 @@ def spend_columns(per_day: dict[str, dict[str, float]], groups: list[str],
             h = plot_h * v / peak
             y -= h
             rects.append(f'<rect x="{x:.2f}" y="{y:.2f}" width="{bw:.2f}" '
-                         f'height="{max(h, 0.5):.2f}" '
+                         f'height="{max(h, 0.8):.2f}" '
                          f'fill="var({tokens[grp]})"/>')
-            title.append(f"{grp} ${v:,.2f}")
-        href = "/?" + H.escape(urlencode({**base_ui, "from": day, "to": day}))
-        parts.append(f'<a href="{href}"><title>{H.escape(chr(10).join(title))}'
-                     f"</title>{''.join(rects)}</a>")
+            rows.append((tokens[grp], grp, f"${v:,.2f}"))
+        tip = tip_html(day, rows, f"${total:,.2f}")
+        parts.append(
+            f'<g data-tip="{tip}">'
+            f'<rect class="hit" x="{LEFT + i * cw:.2f}" y="{TOP}" '
+            f'width="{cw:.2f}" height="{plot_h}" fill="transparent"/>'
+            f"{''.join(rects)}</g>")
 
     legend = swatch_legend([(g, tokens[g]) for g in groups])
-    return (f'<figure class="chart"><figcaption>{caption}</figcaption>'
-            f'<svg viewBox="0 0 {W} {PH}" role="img" '
-            f'preserveAspectRatio="xMidYMid meet">{"".join(parts)}</svg>'
-            f"{legend}</figure>")
+    svg = (f'<svg viewBox="0 0 {W} {PH}" role="img" '
+           f'preserveAspectRatio="xMidYMid meet">{"".join(parts)}</svg>')
+    return figure(title, meta, svg + legend)
 
 
-def proportion_bar(segments: list[tuple[str, int]], n_label: str) -> str:
-    """One stacked 100% bar: (label, count) segments in the given order.
-    The figure (n) rides the row's end; <title> per segment carries
-    label · count · share. Returns one flex row (label outside)."""
+def proportion_bar(segments: list[tuple[str, int]]) -> str:
+    """One stacked 100% bar: (label, count) segments in the given order,
+    each hoverable for label · count · share. The caller renders the label
+    line (name left, n right) above it — the reference row pattern."""
     total = sum(c for _, c in segments) or 1
-    W, BH = 720, 16
+    W, BH = 720, 18
     x = 0.0
     rects = []
     for label, cnt in segments:
         if not cnt:
             continue
         w = W * cnt / total
+        tip = H.escape(f"{label} · {cnt} · {cnt / total:.0%}", quote=True)
         rects.append(
             f'<rect x="{x:.2f}" y="0" width="{max(w, 1):.2f}" height="{BH}" '
-            f'fill="var({cat_token(label)})"><title>'
-            f"{H.escape(f'{label} · {cnt} · {cnt / total:.0%}')}"
-            "</title></rect>")
+            f'fill="var({cat_token(label)})" data-tip="{tip}"/>')
         x += w
     return (f'<svg class="pbar" viewBox="0 0 {W} {BH}" '
-            f'preserveAspectRatio="none">{"".join(rects)}</svg>'
-            f'<span class="n-of">({H.escape(n_label)})</span>')
+            f'preserveAspectRatio="none">{"".join(rects)}</svg>')
 
 
 def scatter(points: list[dict], qs: str) -> str:
@@ -153,8 +179,8 @@ def scatter(points: list[dict], qs: str) -> str:
     origin. x is a √ scale (stated by the caller's caption)."""
     if not points:
         return ""
-    W, PH = 960, 300
-    LEFT, BOT, TOP, RIGHT = 52, 26, 10, 150
+    W, PH = 960, 360
+    LEFT, BOT, TOP, RIGHT = 52, 26, 12, 150
     plot_w, plot_h = W - LEFT - RIGHT, PH - BOT - TOP
     max_cost = max(p["cost"] for p in points) or 1.0
 
@@ -191,10 +217,13 @@ def scatter(points: list[dict], qs: str) -> str:
                   for x0, x1, yy in placed):
             ly += 14
         placed.append((lx, lx + lw, ly))
-        label = (f"{p['name']} {p['surv']:.0%} "
-                 f"(n={p['commits']}) · ${p['cost']:,.2f}")
+        tip = tip_html(p["name"], [
+            (None, "30d survival", f"{p['surv']:.0%} (n={p['commits']})"),
+            (None, "session list-$", f"${p['cost']:,.2f}"),
+            (None, "commits", f"{p['commits']}"),
+        ])
         parts.append(
-            f'<a href="/repo/{p["ref"]}{qs}"><title>{H.escape(label)}</title>'
+            f'<a href="/repo/{p["ref"]}{qs}" data-tip="{tip}">'
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" '
             'fill="var(--accent)" fill-opacity="0.25" '
             'stroke="var(--accent)"/>'
@@ -207,25 +236,28 @@ def scatter(points: list[dict], qs: str) -> str:
 
 
 def bucket_bar(buckets: dict[str, int], max_total: int) -> str:
-    """One horizontal stacked bar, absolute scale (share of the chart's
-    max). The caller renders the model name before it and the figures
-    after — the bar is never the sole carrier."""
+    """One full-width bar on a faint track: the filled length is this
+    model's share of the chart's largest total, split by bucket, each
+    segment hoverable. The caller renders the label line (model left,
+    figures right) above it — the bar is never the sole carrier."""
     total = sum(buckets.get(b, 0) for b, _ in BUCKET_TOKENS)
     if not total or not max_total:
         return ""
-    W, BH = 400, 12
+    W, BH = 720, 16
     w_total = max(2.0, W * total / max_total)
     x = 0.0
-    rects = []
+    rects = [f'<rect x="0" y="0" width="{W}" height="{BH}" '
+             'fill="var(--surface-2)"/>']
     for bucket, tok in BUCKET_TOKENS:
         v = buckets.get(bucket, 0)
         if not v:
             continue
         w = w_total * v / total
+        tip = H.escape(f"{bucket.replace('_', ' ')} · {v:,} tokens · "
+                       f"{v / total:.0%}", quote=True)
         rects.append(
             f'<rect x="{x:.2f}" y="0" width="{max(w, 0.8):.2f}" '
-            f'height="{BH}" fill="var({tok})"><title>'
-            f"{H.escape(f'{bucket} {v:,} ({v / total:.0%})')}</title></rect>")
+            f'height="{BH}" fill="var({tok})" data-tip="{tip}"/>')
         x += w
     return (f'<svg class="bbar" viewBox="0 0 {W} {BH}" '
             f'preserveAspectRatio="none">{"".join(rects)}</svg>')
