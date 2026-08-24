@@ -225,3 +225,167 @@ def test_blame_failure_is_unmeasurable_never_zero(signals_run, monkeypatch):
     assert all(e["surviving_fraction"] is None
                for r in records for e in r["survival"]
                if e["status"] == "unmeasurable")
+
+
+# ---- known-answer verification (user-mandated ground truth) ----------------
+# A purpose-built repo where every durability answer is KNOWN in advance and
+# the tool must report exactly it — not a plausible-looking output. Timeline
+# (days before NOW): K1@44 K2orig@43 K3orig@42 K5orig@41 K6@40, revert@35,
+# K5 delete@33, K2 rewrite@32, K4@10.
+
+@pytest.fixture()
+def known_answer_repo(tmp_path):
+    repo = tmp_path / "ka-repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)],
+                   check=True, capture_output=True)
+    k = {}
+    k["k1"] = _commit(repo, 44, "K1 stable module",
+                      {"stable.py": "".join(f"s{i}\n" for i in range(6))})
+    k["k2"] = _commit(repo, 43, "K2 hot module",
+                      {"hot.py": "".join(f"h{i}\n" for i in range(10))})
+    k["k3"] = _commit(repo, 42, "K3 oops",
+                      {"oops.py": "o1\no2\no3\n"})
+    k["k5"] = _commit(repo, 41, "K5 doomed file",
+                      {"gone.py": "g1\ng2\ng3\ng4\n"})
+    k["k6"] = _commit(repo, 40, "K6 generated lockfile",
+                      {"package-lock.json":
+                       "".join(f'"dep-{i}": "1.0.{i}"\n' for i in range(50000))})
+    # real revert, marker with an ABBREVIATED sha (the untested match path)
+    (repo / "oops.py").unlink()
+    k["k3_reverter"] = _commit(
+        repo, 35, f'Revert "K3 oops"\n\nThis reverts commit {k["k3"][:7]}.', {})
+    # true deletion (cat-file-absent path — c5's truncation never reaches it)
+    (repo / "gone.py").unlink()
+    k["k5_deleter"] = _commit(repo, 33, "K5 remove doomed file", {})
+    # rework ~8 days after K2: rewrite 4 of its 10 lines
+    k["k2_rewriter"] = _commit(
+        repo, 32, "K2 partial rewrite",
+        {"hot.py": "".join(f"h{i}\n" for i in range(6))
+         + "".join(f"H{i}\n" for i in range(6, 10))})
+    k["k4"] = _commit(repo, 10, "K4 too young",
+                      {"young.py": "y1\ny2\ny3\ny4\ny5\n"})
+    k["root"] = repo
+    return k
+
+
+@pytest.fixture()
+def known_answers(known_answer_repo, tmp_path):
+    from caliper.connectors.git_history import GitHistoryConnector
+    nope = tmp_path / "no-such"
+    conn = GitHistoryConnector(
+        claude_root=nope, codex_root=nope,
+        cursor_tracking_db=tmp_path / "no.db", cursor_state_db=tmp_path / "no2.db",
+        extra_repos=[known_answer_repo["root"]], salt="test-salt", now=NOW)
+    records = conn.analyze_repo(str(known_answer_repo["root"]))
+    v = Draft202012Validator(json.loads(SIGNAL_SCHEMA.read_text()))
+    for r in records:
+        v.validate(r)
+    by = {r["change_ref"]["commit_sha"]: r for r in records}
+    return by, known_answer_repo
+
+
+def _s30(rec):
+    return next(e for e in rec["survival"] if e["horizon_days"] == 30)
+
+
+def test_k1_untouched_commit_survives_fully(known_answers):
+    by, k = known_answers
+    rec = by[k["k1"]]
+    e = _s30(rec)
+    assert (e["status"], e["lines_original"], e["lines_surviving"],
+            e["surviving_fraction"]) == ("measured", 6, 6, 1.0)
+    for h in (60, 90):  # NOW is only 44d after K1
+        eh = next(x for x in rec["survival"] if x["horizon_days"] == h)
+        assert eh["status"] == "not_yet_measurable"
+    rw = rec["rework"]
+    assert (rw["status"], rw["occurred"], rw["lines_reworked"]) == \
+        ("measured", False, 0)
+
+
+def test_k2_rework_eight_days_later(known_answers):
+    by, k = known_answers
+    rec = by[k["k2"]]
+    rw = rec["rework"]
+    assert (rw["status"], rw["occurred"], rw["lines_reworked"]) == \
+        ("measured", True, 4)
+    assert k["k2_rewriter"] in rw["rework_commit_shas"]
+    e = _s30(rec)
+    assert (e["status"], e["lines_surviving"], e["surviving_fraction"]) == \
+        ("measured", 6, 0.6)
+
+
+def test_k3_real_revert_with_abbreviated_marker(known_answers):
+    by, k = known_answers
+    assert by[k["k3"]]["revert"] == {
+        "reverted": True,
+        "revert_commit_sha": k["k3_reverter"],
+        "revert_detection": "git_revert_marker"}
+    e = _s30(by[k["k3"]])
+    assert (e["status"], e["lines_surviving"], e["surviving_fraction"]) == \
+        ("measured", 0, 0.0)
+    # the reverting commit itself is not "reverted"
+    assert by[k["k3_reverter"]]["revert"]["reverted"] is False
+
+
+def test_k4_too_young_is_never_zero(known_answers):
+    by, k = known_answers
+    for e in by[k["k4"]]["survival"]:
+        assert e["status"] == "not_yet_measurable"
+        assert e["lines_surviving"] is None
+        assert e["surviving_fraction"] is None  # NEVER 0%
+
+
+def test_k5_deleted_file_is_a_measurement_not_a_failure(known_answers):
+    by, k = known_answers
+    e = _s30(by[k["k5"]])
+    # post-C3: path absent at the snapshot = lines genuinely dead — measured
+    # 0.0, explicitly NOT unmeasurable
+    assert (e["status"], e["lines_original"], e["lines_surviving"],
+            e["surviving_fraction"]) == ("measured", 4, 0, 0.0)
+    rw = by[k["k5"]]["rework"]
+    assert (rw["occurred"], rw["lines_reworked"]) == (True, 4)
+
+
+def test_k6_generated_file_is_not_filtered_and_skews_line_weighting(known_answers):
+    by, k = known_answers
+    e = _s30(by[k["k6"]])
+    # pins the ADR-0006 deferral: NO generated-file filter exists — the
+    # lockfile measures like any code
+    assert (e["status"], e["lines_original"], e["surviving_fraction"]) == \
+        ("measured", 50000, 1.0)
+    # and the skew is an executable fact: line-weighted survival is ~1 while
+    # the per-commit distribution says something else entirely
+    fracs, orig, surv = [], 0, 0
+    for rec in by.values():
+        s = _s30(rec)
+        if s["status"] == "measured":
+            fracs.append(s["surviving_fraction"])
+            orig += s["lines_original"]
+            surv += s["lines_surviving"]
+    assert surv / orig > 0.99          # line-weighted: the lockfile's story
+    assert sum(fracs) / len(fracs) == 0.6  # per-commit mean: the honest one
+    assert min(fracs) == 0.0           # dead commits exist; weighting hides them
+
+
+def test_existing_fixture_untested_knowns(signals_run):
+    """Exact values the original fixture produced but nothing asserted."""
+    _, recs, _, s = signals_run
+    # c2: its own 2 lines survive everywhere measurable
+    for e in recs[s["c2"]]["survival"]:
+        if e["status"] == "measured":
+            assert e["surviving_fraction"] == 1.0
+    # c4: reverted at day-30 -> 30d snapshot sees the empty file: measured 0.0
+    e = _s30(recs[s["c4"]])
+    assert (e["status"], e["surviving_fraction"]) == ("measured", 0.0)
+    rw = recs[s["c4"]]["rework"]
+    assert (rw["occurred"], rw["lines_reworked"]) == (True, 1)
+    assert s["c5"] in rw["rework_commit_shas"]
+    # c5: pure deletion -> unmeasurable everywhere, rework null, not reverted
+    for e in recs[s["c5"]]["survival"]:
+        assert e["status"] == "unmeasurable"
+    assert recs[s["c5"]]["rework"] is None
+    assert recs[s["c5"]]["revert"]["reverted"] is False
+    # pr_number: only c3 carries the (#7) squash marker
+    assert recs[s["c1"]]["change_ref"]["pr_number"] is None
+    assert recs[s["c5"]]["change_ref"]["pr_number"] is None
