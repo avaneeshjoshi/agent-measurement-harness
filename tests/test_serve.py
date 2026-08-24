@@ -356,9 +356,9 @@ def test_every_chart_carries_its_n_and_hover_payloads(serve_url):
     base, loc, s0 = serve_url
     _, body = _get(base + "/")
     assert " active days" in body                       # spend chart n
-    assert "repos plotted" in body                      # scatter n
+    assert " repos · survival = per-commit median" in body  # outcomes n
     assert "<g data-tip=" in body                       # hoverable columns
-    assert '<a href="/repo/r_test1' in body             # scatter point link
+    assert '<a href="/repo/r_test1' in body             # outcome row link
     # a day tooltip payload carries per-group dollars and the ruled total
     m = re.search(r'<g data-tip="([^"]+)"', body)
     assert m and "$" in m.group(1) and "Total" in m.group(1)
@@ -406,9 +406,12 @@ def test_chrono_table_truncates_with_stated_count():
     assert "2026-07-01" not in html and "2026-07-26" in html
 
 
-def test_scatter_bands_unplottable_repos_never_origin(serve_url):
-    """A repo with no measured survival lands in the labeled band with its
-    absence word and a link — never omitted, never a circle at zero."""
+def test_outcome_rows_absences_are_words_never_tracks(serve_url):
+    """Every repo gets a row in the outcomes panel. A dimension the
+    instrument does not have renders its absence words in place with NO
+    track — an absence never becomes a bar of any length."""
+    import re
+
     base, loc, s0 = serve_url
     extra = _signal("dddd000011112222dddd000011112222dddd0000",
                     "2026-08-20T00:00:00+00:00", status="not_yet_measurable")
@@ -418,13 +421,19 @@ def test_scatter_bands_unplottable_repos_never_origin(serve_url):
     p.write_text(p.read_text() + json.dumps(extra) + "\n")
 
     _, body = _get(base + "/")
-    band = body.split('class="band"', 1)[1].split("</p>", 1)[0]
-    assert "youngrepo" in band
-    assert "not yet measurable" in band
-    assert 'href="/repo/r_young' in band
-    svg_scatter = body.split("repos plotted", 1)[1]
-    assert "youngrepo" not in svg_scatter.split("</figure>", 1)[0].split(
-        '<p class="band"')[0]  # not plotted, only banded
+    sec = body.split("Cost × 30d survival per repo", 1)[1] \
+              .split("</figure>", 1)[0]
+    per_row = sec.split('<div class="row2">')
+    young = next((r for r in per_row if "r_young" in r), None)
+    assert young, "young repo missing from outcome rows"
+    assert "not yet measurable" in young
+    assert "no commit has cleared the 30d horizon" in young
+    assert '"track"' not in young
+    # projA: measured survival -> a --measured track with its n beside it
+    proj = next((r for r in per_row if "projA" in r), None)
+    assert proj and "survival" in proj
+    assert "var(--measured)" in proj
+    assert " repos · survival = per-commit median" in body  # the panel's n
 
 
 def test_mix_bars_unclassified_is_absent_gray_and_present(serve_url):
@@ -510,6 +519,34 @@ def test_daily_table_is_newest_first(serve_url):
     seg = body[:idx]
     days = __import__("re").findall(r'<td data-s="(\d{4}-\d{2}-\d{2})"', seg)
     assert days == sorted(days, reverse=True) and days
+
+
+def test_cumulative_runs_to_the_headline_total_with_flat_gaps():
+    """The running total ends at the headline figure; quiet days are flat
+    segments (a true zero), and hover carries running total + that day."""
+    from caliper.harness.report import charts
+
+    svg = charts.cumulative({"2026-08-01": 10.0, "2026-08-04": 5.0},
+                            "Cumulative spend", "n = 2 active days")
+    assert "$15" in svg                       # end label = the total
+    assert svg.count('class="hit"') == 4      # every day in the span hoverable
+    assert "running total" in svg
+    assert "that day" in svg
+    # a single day cannot curve — the builder refuses, caller says why
+    assert charts.cumulative({"2026-08-01": 10.0}, "t", "m") == ""
+
+
+def test_cumulative_panel_on_overview_matches_headline(serve_home):
+    from caliper.harness.report import views
+
+    loc, s0 = serve_home
+    raw = load_data(loc.data_dir, loc.classes_path, loc.names_path,
+                    loc.salt_file)
+    s = summarize(raw)
+    html = views.overview(raw, s, {}, "t")
+    assert "Cumulative spend" in html
+    if "Pick a wider range" not in html:
+        assert f"runs to ${s['headline']['total_cost']:,.2f}" in html
 
 
 def test_bundle_cache_invalidates_on_mtime_change(serve_home):

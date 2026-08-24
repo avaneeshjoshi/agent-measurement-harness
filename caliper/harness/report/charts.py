@@ -8,7 +8,7 @@ encoded here, not left to callers:
   — callers pass n_note and it lands in the caption);
 - absence is a gap (time axis) or a labeled band (scatter), never a
   zero-height bar and never a point at the origin;
-- the figure rides the mark (row bars, scatter labels) or the paired table
+- the figure rides the mark (row bars, tracks) or the paired table
   beneath (dense time series), and hover carries the exact breakdown via
   native <title> — no tooltip script;
 - nothing animates: static markup, no transitions, no entrance states.
@@ -172,67 +172,87 @@ def proportion_bar(segments: list[tuple[str, int]]) -> str:
             f'preserveAspectRatio="none">{"".join(rects)}</svg>')
 
 
-def scatter(points: list[dict], qs: str) -> str:
-    """Cost × survival, one circle per repo, sized by √commits, the repo
-    name and its pair as text beside every mark. Points only — repos that
-    cannot be plotted go in the caller's labeled band, never here at an
-    origin. x is a √ scale (stated by the caller's caption)."""
-    if not points:
+def _nice_max(v: float) -> float:
+    """Round an axis maximum up to a tidy value (reference niceMax)."""
+    if v <= 0:
+        return 1.0
+    import math
+    p = 10 ** math.floor(math.log10(v))
+    for s in (1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10):
+        if v <= s * p:
+            return s * p
+    return 10 * p
+
+
+def cumulative(day_costs: dict[str, float], title: str, meta: str) -> str:
+    """Running-total area line over the full date domain (reference
+    CUMULATIVE SPEND). Quiet days are flat segments — a day with no priced
+    sessions adds $0, which is a true zero, not an absence. Fewer than two
+    days cannot make a curve; the caller renders the empty-state sentence
+    instead. Hover: a full-height hit slot per day carries running total
+    and that day's spend."""
+    if len(day_costs) < 2:
         return ""
-    W, PH = 1400, 400
-    LEFT, BOT, TOP, RIGHT = 60, 28, 14, 170
+    days = _days_between(min(day_costs), max(day_costs))
+    W, PH = 1400, 360
+    LEFT, BOT, TOP, RIGHT = 64, 26, 14, 16
     plot_w, plot_h = W - LEFT - RIGHT, PH - BOT - TOP
-    max_cost = max(p["cost"] for p in points) or 1.0
 
-    def sx(c):
-        return LEFT + plot_w * sqrt(c / max_cost)
+    running, acc = [], 0.0
+    for d in days:
+        acc += day_costs.get(d, 0.0)
+        running.append(acc)
+    total = acc
+    mx = _nice_max(total)
 
-    def sy(s):
-        return TOP + plot_h * (1 - s)
+    def x(i):
+        return LEFT + (i / (len(days) - 1)) * plot_w
+
+    def y(v):
+        return TOP + plot_h * (1 - v / mx)
 
     parts = []
-    for frac in (0.0, 0.5, 1.0):
-        y = sy(frac)
-        parts.append(f'<line x1="{LEFT}" y1="{y:.1f}" x2="{W - RIGHT}" '
-                     f'y2="{y:.1f}" stroke="var(--edge)"/>')
-        parts.append(f'<text x="{LEFT - 6}" y="{y + 4:.1f}" text-anchor="end" '
-                     f'class="ax">{frac:.0%}</text>')
-    for frac in (0.0, 0.25, 1.0):
-        c = max_cost * frac
-        x = sx(c)
-        parts.append(f'<text x="{x:.1f}" y="{PH - 8}" text-anchor="middle" '
-                     f'class="ax">${c:,.0f}</text>')
+    for frac in (0.0, 0.25, 0.5, 0.75, 1.0):
+        yy = y(mx * frac)
+        parts.append(f'<line x1="{LEFT}" y1="{yy:.1f}" x2="{W - RIGHT}" '
+                     f'y2="{yy:.1f}" stroke="var(--edge)"/>')
+        parts.append(f'<text x="{LEFT - 8}" y="{yy + 4:.1f}" '
+                     f'text-anchor="end" class="ax">${mx * frac:,.0f}</text>')
+    ticks = min(4, len(days))
+    for i in range(ticks):
+        idx = round(i * (len(days) - 1) / max(ticks - 1, 1))
+        anchor = "start" if i == 0 else ("end" if i == ticks - 1 else "middle")
+        parts.append(f'<text x="{x(idx):.1f}" y="{PH - 8}" '
+                     f'text-anchor="{anchor}" class="ax">'
+                     f"{days[idx][5:]}</text>")
 
-    # collision-aware label placement: repos cluster at high survival on
-    # real data, so labels stagger downward until they stop overlapping —
-    # the figure must ride the mark, and an unreadable label rides nothing
-    placed: list[tuple[float, float, float]] = []  # (x0, x1, y)
-    for p in sorted(points, key=lambda q: -q["commits"]):
-        x, y = sx(p["cost"]), sy(p["surv"])
-        r = 4 + 2.2 * sqrt(p["commits"])
-        text = f"{p['name']} {p['surv']:.0%} (n={p['commits']})"
-        lw = 6.2 * len(text)
-        lx, ly = x + r + 4, y + 4
-        while any(not (lx + lw < x0 or lx > x1 or abs(ly - yy) >= 13)
-                  for x0, x1, yy in placed):
-            ly += 14
-        placed.append((lx, lx + lw, ly))
-        tip = tip_html(p["name"], [
-            (None, "30d survival", f"{p['surv']:.0%} (n={p['commits']})"),
-            (None, "session list-$", f"${p['cost']:,.2f}"),
-            (None, "commits", f"{p['commits']}"),
+    pts = " ".join(f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(running))
+    parts.append(f'<path d="M{x(0):.1f},{y(0):.1f} '
+                 + " ".join(f"L{x(i):.1f},{y(v):.1f}"
+                            for i, v in enumerate(running))
+                 + f' L{x(len(days) - 1):.1f},{y(0):.1f} Z" '
+                 'fill="var(--cat-1)" opacity="0.13"/>')
+    parts.append(f'<path d="M{pts.replace(" ", " L")}" fill="none" '
+                 'stroke="var(--cat-1)" stroke-width="2" '
+                 'stroke-linejoin="round"/>')
+    end_y = max(y(total) - 9, TOP + 10)
+    parts.append(f'<text x="{W - RIGHT}" y="{end_y:.1f}" text-anchor="end" '
+                 f'class="pt" font-weight="700">${total:,.0f}</text>')
+
+    slot = plot_w / len(days)
+    for i, d in enumerate(days):
+        tip = tip_html(d, [
+            (None, "running total", f"${running[i]:,.2f}"),
+            (None, "that day", f"${day_costs.get(d, 0.0):,.2f}"),
         ])
-        parts.append(
-            f'<a href="/repo/{p["ref"]}{qs}" data-tip="{tip}">'
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" '
-            'fill="var(--accent)" fill-opacity="0.25" '
-            'stroke="var(--accent)"/>'
-            f'<text x="{lx:.1f}" y="{ly:.1f}" class="pt">'
-            f"{H.escape(p['name'])} <tspan class='ax'>"
-            f"{p['surv']:.0%} (n={p['commits']})</tspan></text></a>")
+        parts.append(f'<g data-tip="{tip}"><rect class="hit" '
+                     f'x="{LEFT + i * slot:.2f}" y="{TOP}" '
+                     f'width="{slot:.2f}" height="{plot_h}" '
+                     'fill="transparent"/></g>')
 
-    return (f'<svg viewBox="0 0 {W} {PH}" role="img" '
-            f'preserveAspectRatio="xMidYMid meet">{"".join(parts)}</svg>')
+    svg = (f'<svg viewBox="0 0 {W} {PH}" role="img" '
+           f'preserveAspectRatio="xMidYMid meet">{"".join(parts)}</svg>')
+    return figure(title, meta, svg)
 
 
 def bucket_bar(buckets: dict[str, int], max_total: int) -> str:

@@ -756,37 +756,70 @@ def _mix_bars(unit: str, groups: dict, order: list[str]) -> str:
         "".join(rows) + legend)
 
 
-def _outcome_scatter(raw: dict, s: dict, filters: dict) -> str:
-    pts, banded = [], []
-    for ref, rp in s["repos"].items():
+def _outcome_rows(raw: dict, s: dict, filters: dict) -> str:
+    """The cost×outcome join as paired-measure rank rows — the scatter this
+    replaces stranded ~95% of its plot because per-commit median survival
+    clusters at 99-100% on real data (ADR-0018 postscript). Every repo is
+    a row; per-dimension absences are words in place with NO track — an
+    absence never becomes a bar."""
+    if not s["repos"]:
+        return ""
+    repos = []
+    max_cost = max((c for c in (
+        s["proj_cost"].get(rp.get("path") or ref)
+        for ref, rp in s["repos"].items()) if c), default=1.0)
+    order = sorted(
+        s["repos"].items(),
+        key=lambda kv: (-(s["proj_cost"].get(kv[1].get("path") or kv[0])
+                          or 0), -kv[1]["commits"]))
+    for ref, rp in order:
         name = rp.get("path") or ref
         cost = s["proj_cost"].get(name)
         surv = rp["surv30_median"]
-        if surv is not None and cost is not None:
-            pts.append({"name": name, "ref": quote(ref), "cost": cost,
-                        "surv": surv, "commits": rp["commits"]})
+        link = (f'<a href="/repo/{quote(ref)}{_qs(filters)}">'
+                f"{H.escape(name)}</a>")
+        right = []
+        tracks = []
+        if surv is not None:
+            right.append(f'{surv:.0%} survival <span class="n-of">'
+                         f'(n={rp["surv30_n"]} commits)</span>')
+            tip = H.escape(f"{name} · 30d survival {surv:.0%} "
+                           f"(n={rp['surv30_n']} commits)", quote=True)
+            tracks.append(
+                f'<div class="track" data-tip="{tip}"><div class="fill" '
+                f'style="width:{max(surv * 100, 1):.1f}%;'
+                'background:var(--measured)"></div></div>')
         else:
-            reasons = []
-            if surv is None:
-                reasons.append(absent("not yet measurable",
-                                      "no measured 30d survival"))
-            if cost is None:
-                reasons.append(absent("not recorded", "no priced sessions "
-                                      "joined to this repo"))
-            banded.append(
-                f'<a href="/repo/{quote(ref)}{_qs(filters)}">'
-                f"{H.escape(name)}</a> ({' · '.join(reasons)})")
-    if not pts and not banded:
-        return ""
-    meta = (f"n = {len(pts)} repos plotted"
-            + (f" · {len(banded)} not plottable, listed below" if banded
-               else "")
-            + " · x session list-$ (√ scale) · point size = commits · "
-            "click a point for the repo")
-    band = (f'<p class="band">Not plottable — never omitted, never at the '
-            f'origin: {", ".join(banded)}</p>' if banded else "")
-    svg = charts.scatter(pts, _qs(filters)) if pts else ""
-    return charts.figure("Cost × 30d survival per repo", meta, svg + band)
+            right.append(absent("not yet measurable",
+                                "no commit has cleared the 30d horizon"))
+        if cost is not None:
+            right.append(f"${cost:,.2f}")
+            tip = H.escape(f"{name} · session list-$ {cost:,.2f} · "
+                           f"{cost / max_cost:.0%} of the largest repo",
+                           quote=True)
+            tracks.append(
+                f'<div class="track" data-tip="{tip}"><div class="fill" '
+                f'style="width:{max(cost / max_cost * 100, 1):.1f}%;'
+                'background:var(--cat-1)"></div></div>')
+        else:
+            right.append(absent("not recorded",
+                                "no priced sessions joined to this repo"))
+        repos.append(
+            f'<div class="row2"><div class="nm"><b>{link}</b></div>'
+            f'<div class="amt">{" · ".join(right)}</div>'
+            + "".join(tracks)
+            + f'<div class="sub">{rp["commits"]} commits measured</div>'
+            "</div>")
+    legend = ('<p class="legend">'
+              '<i class="sw" style="background:var(--measured)"></i>'
+              "30d survival (measured, with its n)"
+              '<i class="sw" style="background:var(--cat-1)"></i>'
+              "session list-$ (share of largest)</p>")
+    meta = (f"n = {len(repos)} repos · survival = per-commit median at 30d "
+            "· click a repo for its commits")
+    return charts.figure("Cost × 30d survival per repo", meta,
+                         '<div class="rows">' + "".join(repos)
+                         + "</div>" + legend)
 
 
 def _bucket_chart(by_model: dict) -> str:
@@ -1003,6 +1036,16 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
             "amt": f"${x / 1000:,.2f}", "share": x / pgrand,
             "fill": x / pmax, "sub": f'n={c.get("sessions", 0)} sessions'})
 
+    cum = charts.cumulative(
+        day_costs, "Cumulative spend",
+        f"n = {active_days} active days · runs to ${h['total_cost']:,.2f} "
+        "· quiet days are flat, not missing")
+    if not cum and day_costs:
+        # the reference's own empty state — one priced day cannot curve
+        cum = panel("Cumulative spend", f"n = {active_days} active day",
+                    '<p class="empty">Pick a wider range to see a '
+                    "curve.</p>")
+
     spend_html = (
         _spend_chart(raw, filters)
         + '<div class="cols"><div class="col">'
@@ -1016,15 +1059,16 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
                 tok_tiles(tok_sums)
                 + evidence("sessions.jsonl → tokens, four buckets never "
                            "pooled (ADR-0005)"), pad=False)
-        + '</div><div class="col">'
-        + _bucket_chart(spend["by_model"])
-        + panel("Spend by tool", f"{len(tool_rows)} tools",
-                rank_rows(tool_rows)
-                + evidence("extracted/*/sessions.jsonl → tokens"))
         + panel("Spend by project", f"{len(proj_rows)} projects",
                 rank_rows(proj_rows)
                 + evidence("sessions.jsonl → project_ref, display-named via "
                            "local-only mapping (never committed)"))
+        + '</div><div class="col">'
+        + cum
+        + _bucket_chart(spend["by_model"])
+        + panel("Spend by tool", f"{len(tool_rows)} tools",
+                rank_rows(tool_rows)
+                + evidence("extracted/*/sessions.jsonl → tokens"))
         + "</div></div>"
         + _spend_section("day", spend["by_day"],
                          "sessions.jsonl → started_at date", chrono=True))
@@ -1103,7 +1147,7 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
                 ("AI attr (k/p/u)", False), ("gen lines excluded", True),
                 ("session list-$", True)]
         out_html += (
-            _outcome_scatter(raw, s, filters)
+            _outcome_rows(raw, s, filters)
             + '<p class="note">One row per measured repo: click through for '
             "its commits and sessions. Survival is the per-commit median; "
             "attribution is known/partial/unknown commits, never inferred "

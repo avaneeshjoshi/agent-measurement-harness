@@ -73,6 +73,35 @@ pasted reference quietly override the design authority.
 - **The reference's palette values** — DESIGN's tokens already cover the
   roles; series colors remain `--cat-1…10` (ADR-0017 postscript 2).
 
+## Postscript (same day): the scatter post-mortem, and the cumulative chart adopted
+
+- **The scatter is gone, replaced by paired-measure rank rows.** On real
+  data, per-commit median 30d survival clusters at 99–100%, so the
+  scatter's 0–100% y-axis stranded ~95% of a 400px plot as empty space
+  with five points and staggered labels crammed into the top strip, and
+  half the repos exiled to a text band. The failure was the chart form,
+  not the measurement: at n≈9 repos with a degenerate y-distribution, a
+  scatter cannot earn its area. The join now renders as one rank row per
+  repo — name linked, the uncertainty pair and the dollars on the label
+  line, a `--measured` survival track (legal under the green rule: the
+  fraction sits beside its n) and a `--cat-1` cost-share track beneath,
+  each hoverable for the exact figures. Per-dimension absences render
+  their words in place with NO track, so the "not plottable" band dies —
+  nothing is unplottable in row form. Chart-form lesson recorded: check
+  the real distribution before choosing a form that allocates area to a
+  range the data never uses.
+- **The cumulative spend chart is adopted.** ADR-0017 declined it as
+  redundant with the daily columns; its own rule was "no fifth chart
+  without a reason recorded here." The user's explicit request, with the
+  reference's rendering supplied as the spec, is that reason. Server-side
+  SVG per the reference: running total over the full date domain with
+  quiet days as flat segments (a true zero, never an absence), quarter
+  gridlines on a niceMax axis, area fill + 2px line in `--cat-1`, the
+  bold end label pinned by test to equal the headline total, per-day
+  hover slots carrying running total and that day's spend. Fewer than
+  two priced days renders the reference's own empty state ("Pick a wider
+  range to see a curve.") instead of a degenerate line.
+
 ## What did not change
 
 The measurements. Absence words, uncertainty pairs, evidence lines, the
