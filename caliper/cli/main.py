@@ -294,8 +294,10 @@ def _aggregate_repo(records: list[dict]) -> dict:
     surv = {h: {"lines_orig": 0, "lines_surv": 0, "commits": 0} for h in (30, 60, 90)}
     rework_measured = rework_occurred = 0
     reverted = 0
+    gen_lines = 0
     attr = {"known": 0, "partial": 0, "unknown": 0}
     for r in records:
+        gen_lines += (r.get("generated") or {}).get("lines_added_excluded", 0)
         for s in r["survival"]:
             if s["status"] == "measured":
                 h = s["horizon_days"]
@@ -318,6 +320,7 @@ def _aggregate_repo(records: list[dict]) -> dict:
                    "occurred": rework_occurred,
                    "rate": frac(rework_occurred, rework_measured)},
         "reverted_commits": reverted,
+        "generated_lines_excluded": gen_lines,
         "attribution": attr,
     }
 
@@ -640,6 +643,9 @@ def main(argv: list[str] | None = None) -> int:
                                f"(n={m['rework']['commits_measured']})")
             if m["reverted_commits"]:
                 details.append(S.red(f"{m['reverted_commits']} reverted"))
+            gl = m.get("generated_lines_excluded", 0)
+            if gl:
+                details.append(S.dim(f"{gl:,} generated lines excluded"))
             a = m["attribution"]
             details.append(S.dim(f"attr {a.get('known', 0)}k/"
                                  f"{a.get('partial', 0)}p/{a.get('unknown', 0)}u"))

@@ -347,15 +347,29 @@ def test_k5_deleted_file_is_a_measurement_not_a_failure(known_answers):
     assert (rw["occurred"], rw["lines_reworked"]) == (True, 4)
 
 
-def test_k6_generated_file_is_not_filtered_and_skews_line_weighting(known_answers):
+def test_k6_generated_only_commit_is_excluded_not_measured(known_answers):
+    """ADR-0015 (flipping the ADR-0006 deferral pin): a commit touching only
+    a generated lockfile is EXCLUDED from the work-survival question — its
+    own absence word, never unmeasurable, never 0%."""
     by, k = known_answers
-    e = _s30(by[k["k6"]])
-    # pins the ADR-0006 deferral: NO generated-file filter exists — the
-    # lockfile measures like any code
-    assert (e["status"], e["lines_original"], e["surviving_fraction"]) == \
-        ("measured", 50000, 1.0)
-    # and the skew is an executable fact: line-weighted survival is ~1 while
-    # the per-commit distribution says something else entirely
+    rec = by[k["k6"]]
+    for e in rec["survival"]:
+        assert e["status"] == "excluded_generated"
+        assert e["surviving_fraction"] is None
+    assert rec["rework"]["status"] == "excluded_generated"
+    assert rec["generated"] == {"patterns_version": "gen-0.1.0",
+                                "files_excluded": 1,
+                                "lines_added_excluded": 50000,
+                                "lines_deleted_excluded": 0}
+    assert rec["change_ref"]["lines_added"] == 0  # work lines only
+
+
+def test_k6_skew_restated_line_weighting_is_honest_now(known_answers):
+    """The ADR-0006 skew fact under gen-0.1.0: with the lockfile excluded,
+    line-weighted and per-commit views tell the same story instead of the
+    lockfile's. Hand-derived: measured set K1 6/6, K2 6/10, K3 0/3, K5 0/4,
+    rewriter 4/4 -> line-weighted 16/27, per-commit mean 2.6/5."""
+    by, _ = known_answers
     fracs, orig, surv = [], 0, 0
     for rec in by.values():
         s = _s30(rec)
@@ -363,9 +377,61 @@ def test_k6_generated_file_is_not_filtered_and_skews_line_weighting(known_answer
             fracs.append(s["surviving_fraction"])
             orig += s["lines_original"]
             surv += s["lines_surviving"]
-    assert surv / orig > 0.99          # line-weighted: the lockfile's story
-    assert sum(fracs) / len(fracs) == 0.6  # per-commit mean: the honest one
-    assert min(fracs) == 0.0           # dead commits exist; weighting hides them
+    assert (orig, surv) == (27, 16)
+    assert abs(surv / orig - 16 / 27) < 1e-9
+    assert sum(fracs) / len(fracs) == 2.6 / 5
+    assert surv / orig < 0.99  # the domination is gone
+
+
+def test_mixed_commit_counts_work_lines_only(tmp_path):
+    """Code + lockfile in ONE commit: work lines render, the generated delta
+    travels alongside, survival is computed over the work lines alone."""
+    from caliper.connectors.git_history import GitHistoryConnector
+    repo = tmp_path / "mixed-repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)],
+                   check=True, capture_output=True)
+    sha = _commit(repo, 40, "feature plus lockfile",
+                  {"app.py": "a1\na2\na3\n",
+                   "package-lock.json": "".join(f"l{i}\n" for i in range(500))})
+    nope = tmp_path / "no"
+    conn = GitHistoryConnector(claude_root=nope, codex_root=nope,
+                               cursor_tracking_db=tmp_path / "n.db",
+                               cursor_state_db=tmp_path / "n2.db",
+                               extra_repos=[repo], salt="test-salt", now=NOW)
+    [rec] = conn.analyze_repo(str(repo))
+    assert rec["change_ref"]["lines_added"] == 3  # app.py only
+    assert rec["generated"]["lines_added_excluded"] == 500
+    e = next(x for x in rec["survival"] if x["horizon_days"] == 30)
+    assert (e["status"], e["lines_original"], e["lines_surviving"],
+            e["surviving_fraction"]) == ("measured", 3, 3, 1.0)
+
+
+def test_gitattributes_overrides_both_directions(tmp_path):
+    """The repo's own declaration wins: linguist-generated marks a
+    non-pattern file generated; -linguist-generated rescues a pattern-matched
+    path (the over-exclusion escape hatch, ADR-0015)."""
+    from caliper.connectors.git_history import GitHistoryConnector
+    repo = tmp_path / "attr-repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)],
+                   check=True, capture_output=True)
+    sha = _commit(repo, 40, "attrs",
+                  {".gitattributes": "docs/api.md linguist-generated\n"
+                                     "build/keep.c -linguist-generated\n",
+                   "docs/api.md": "g1\ng2\ng3\ng4\n",
+                   "build/keep.c": "c1\nc2\n"})
+    nope = tmp_path / "no"
+    conn = GitHistoryConnector(claude_root=nope, codex_root=nope,
+                               cursor_tracking_db=tmp_path / "n.db",
+                               cursor_state_db=tmp_path / "n2.db",
+                               extra_repos=[repo], salt="test-salt", now=NOW)
+    [rec] = conn.analyze_repo(str(repo))
+    # work = .gitattributes(2 lines) + build/keep.c(2, rescued);
+    # excluded = docs/api.md(4, declared generated despite no pattern)
+    assert rec["generated"]["files_excluded"] == 1
+    assert rec["generated"]["lines_added_excluded"] == 4
+    assert rec["change_ref"]["lines_added"] == 4
 
 
 def test_existing_fixture_untested_knowns(signals_run):

@@ -150,3 +150,14 @@ Two nuances recorded:
   no-snapshot branch assumes all lines survived where survival's equivalent
   says `unmeasurable`; it is dead code in practice (the commit itself is
   always a snapshot candidate) but should be aligned if ever touched.
+
+## Postscript 3 (2026-08-24): the generated-file deferral is implemented
+
+Finding 1's "exclude generated files or lead with per-commit distributions —
+deferred, not silently patched" is now implemented as ADR-0015: a versioned
+pattern list plus `.gitattributes linguist-generated`, filtered counts
+rendering with the excluded delta stated, and a sixth absence word
+(`excluded_generated`) for commits that touched only generated files. The
+6.5%-line-weighted figure this ADR reported was the unfiltered world; the
+recomputed figures live in ADR-0015's re-run table. This ADR's numbers stand
+as what the unfiltered instrument measured at the time.

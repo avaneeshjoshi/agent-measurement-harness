@@ -52,8 +52,8 @@ from .base import sha256_json
 from .cursor import _snapshot_db
 from .util import now_iso, project_ref
 
-GIT_CONNECTOR_VERSION = "0.1.0"
-SIGNAL_SCHEMA_VERSION = "0.2.0"
+GIT_CONNECTOR_VERSION = "0.2.0"  # ADR-0015
+SIGNAL_SCHEMA_VERSION = "0.3.0"  # ADR-0015: generated-file filter
 
 _AI_TRAILER_RE = re.compile(
     r"co-authored-by:.*\b(claude|codex|cursor|copilot|gpt|openai|anthropic|"
@@ -304,16 +304,16 @@ class GitHistoryConnector:
                 continue
             sha = lines[0].strip()
             fmap: dict[str, int] = {}
-            deleted = 0
+            dmap: dict[str, int] = {}
             for l in lines[1:]:
                 parts = l.split("\t")
                 if len(parts) == 3 and parts[0] != "-":  # '-' = binary
                     try:
                         fmap[parts[2]] = int(parts[0])
-                        deleted += int(parts[1])
+                        dmap[parts[2]] = int(parts[1])
                     except ValueError:
                         continue
-            files_by_sha[sha] = {"files": fmap, "deleted": deleted}
+            files_by_sha[sha] = {"files": fmap, "deleted_by_file": dmap}
 
         # PR patterns: merge commits map their second-parent commits to a PR
         pr_by_sha: dict[str, int] = {}
@@ -335,19 +335,46 @@ class GitHistoryConnector:
         now_ts = int(self.now.timestamp())
         records: list[dict] = []
 
+        from .generated import GENERATED_PATTERNS_VERSION, classify_paths
+
         for c in commits:
             sha = c["sha"]
-            entry = files_by_sha.get(sha, {"files": {}, "deleted": 0})
+            entry = files_by_sha.get(sha, {"files": {}, "deleted_by_file": {}})
             fmap = entry["files"]
-            files = [f for f, ins in fmap.items() if ins > 0]
-            lines_added = sum(fmap.values())
-            lines_deleted = entry["deleted"]
+            dmap = entry["deleted_by_file"]
+            # ADR-0015: generated paths are excluded from line counting —
+            # a lockfile regeneration is a real diff but not work; the
+            # filtered counts render, the excluded delta travels alongside
+            gen_of = classify_paths(root, sorted(set(fmap) | set(dmap)))
+            work_fmap = {f: n for f, n in fmap.items() if not gen_of.get(f)}
+            files = [f for f, ins in work_fmap.items() if ins > 0]
+            lines_added = sum(work_fmap.values())
+            lines_deleted = sum(n for f, n in dmap.items()
+                                if not gen_of.get(f))
+            gen_files = [f for f in gen_of if gen_of[f]]
+            gen_block = {
+                "patterns_version": GENERATED_PATTERNS_VERSION,
+                "files_excluded": len(gen_files),
+                "lines_added_excluded": sum(fmap.get(f, 0) for f in gen_files),
+                "lines_deleted_excluded": sum(dmap.get(f, 0) for f in gen_files),
+            }
+            generated_only = (lines_added == 0
+                              and gen_block["lines_added_excluded"] > 0)
             subject = c["body"].splitlines()[0] if c["body"] else ""
 
             # survival per horizon
             survival = []
             for h in _HORIZONS:
                 target_ts = c["time"] + h * _DAY_S
+                if generated_only:
+                    # ADR-0015: only generated files — excluded from the
+                    # work-survival question; not unmeasurable, not 0%
+                    survival.append({"horizon_days": h,
+                                     "status": "excluded_generated",
+                                     "lines_surviving": None,
+                                     "lines_original": 0,
+                                     "surviving_fraction": None})
+                    continue
                 if lines_added == 0:
                     survival.append({"horizon_days": h, "status": "unmeasurable",
                                      "lines_surviving": None,
@@ -385,7 +412,12 @@ class GitHistoryConnector:
 
             # rework within 14d (changed-or-deleted; see module docstring)
             rework_target = c["time"] + _REWORK_WINDOW_DAYS * _DAY_S
-            if lines_added == 0:
+            if generated_only:
+                rework = {"window_days": _REWORK_WINDOW_DAYS,
+                          "status": "excluded_generated",
+                          "occurred": None, "lines_reworked": None,
+                          "rework_commit_shas": []}
+            elif lines_added == 0:
                 rework = None
             elif now_ts < rework_target:
                 rework = {"window_days": _REWORK_WINDOW_DAYS,
@@ -394,8 +426,10 @@ class GitHistoryConnector:
                           "rework_commit_shas": []}
             else:
                 snap14 = self._snapshot_at(root, rework_target)
+                # no snapshot -> None (aligned with survival's honesty,
+                # ADR-0006 postscript 2; previously assumed all survived)
                 surviving14 = self._surviving_lines(root, sha, files, snap14) \
-                    if snap14 else lines_added
+                    if snap14 else None
                 if surviving14 is None:
                     rework = None  # blame failed: absent, never a guess
                 else:
@@ -475,6 +509,7 @@ class GitHistoryConnector:
                     "lines_deleted": lines_deleted,
                 },
                 "ai_attribution": attribution,
+                "generated": gen_block,
                 "survival": survival,
                 "rework": rework,
                 "review": None,  # iteration counts need a forge API; local git

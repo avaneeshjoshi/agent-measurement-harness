@@ -143,11 +143,17 @@ def collect(data_dir: Path, classes_path: Path,
     # ---- outcomes (git signals) ----------------------------------------
     signals = _jsonl(data_dir / "git_history" / "production_signals.jsonl")
     repos = defaultdict(lambda: {"commits": 0, "surv": [], "rework_m": 0,
-                                 "rework_y": 0, "attr": Counter(), "path": None})
+                                 "rework_y": 0, "attr": Counter(), "path": None,
+                                 "gen_lines_excluded": 0, "gen_commits": 0})
     for r in signals:
         ref = r["change_ref"]["repo_ref"]
         rp = repos[ref]
         rp["commits"] += 1
+        g = r.get("generated") or {}
+        rp["gen_lines_excluded"] += g.get("lines_added_excluded", 0)
+        if any(e.get("status") == "excluded_generated"
+               for e in r.get("survival") or []):
+            rp["gen_commits"] += 1
         rp["path"] = r["provenance"]["repo_path"].rsplit("/", 1)[-1]
         for s in r["survival"]:
             if s["horizon_days"] == 30 and s["status"] == "measured":

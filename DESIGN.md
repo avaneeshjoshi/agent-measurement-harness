@@ -242,7 +242,7 @@ Composition rules:
 
 **The figure pair.** The value in mono at its step, the `n` in `--text-2` at the metadata step, adjacent on the same line, in parentheses. Where a confidence interval exists it follows the `n`. Where a p-value exists it follows the comparison, not the figure. The pair never wraps such that the value and its `n` land on different lines — if the container is too narrow, the container is wrong.
 
-**The absence.** `not recorded` · `not yet measurable` · `not priced` · `unclassified` · `unmeasurable`. Five distinct words for five distinct absences, each carrying its own meaning and none substitutable for another. They render in `--absent`, italic, metadata step. A table cell that would be empty carries one of them instead; a row is never dropped because its value is missing, because the absence is the row's finding.
+**The absence.** `not recorded` · `not yet measurable` · `not priced` · `unclassified` · `unmeasurable` · `excluded_generated` (ADR-0015: the commit touched only generated files — measurable, but deliberately outside the work-survival question; renders with the pattern-list version nearby). Six distinct words for six distinct absences, each carrying its own meaning and none substitutable for another. They render in `--absent`, italic, metadata step. A table cell that would be empty carries one of them instead; a row is never dropped because its value is missing, because the absence is the row's finding.
 
 **The evidence line.** Metadata step, `--text-2`, beneath the thing it qualifies, prefixed `source:` in the micro-label style. It names a file path, a test, an ADR number, a run id, or a price-sheet date — something a reader can open. A prose description of where a number came from is not an evidence line.
 
