@@ -242,6 +242,20 @@ def test_filters_are_url_state(serve_url):
     assert "Filtered: tool codex" in cov
 
 
+def test_cli_dispatch_reaches_serve(monkeypatch):
+    """main() has a command whitelist that predates serve; the first live
+    run fell through it to print_help. This pins the dispatch path."""
+    import caliper.cli.main as main_mod
+
+    called = {}
+    monkeypatch.setattr("caliper.cli.serve.serve",
+                        lambda port=None, open_browser=True, loc=None:
+                        called.update(port=port, browser=open_browser) or 0)
+    rc = main_mod.main(["serve", "--no-browser", "--port", "1234"])
+    assert rc == 0
+    assert called == {"port": 1234, "browser": False}
+
+
 def test_bundle_cache_invalidates_on_mtime_change(serve_home):
     import os
 

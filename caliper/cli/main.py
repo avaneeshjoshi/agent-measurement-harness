@@ -488,7 +488,7 @@ def main(argv: list[str] | None = None) -> int:
         return status()
 
     if args.command not in ("extract", "signals", "replay", "classify",
-                            "report", "pricing", "policy", "setup",
+                            "report", "serve", "pricing", "policy", "setup",
                             "schedule", "uninstall"):
         parser.print_help()
         return 1
