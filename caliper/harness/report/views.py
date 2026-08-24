@@ -960,7 +960,7 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
             model_rows.append({
                 "token": tokn, "name": H.escape(str(k)),
                 "amt": absent("not priced", "no publishable rate"),
-                "sub": f'{c.get("sessions", 0)} sessions'})
+                "sub": f'n={c.get("sessions", 0)} sessions'})
         else:
             model_rows.append({
                 "token": tokn, "name": H.escape(str(k)),
