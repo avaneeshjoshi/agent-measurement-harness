@@ -54,129 +54,189 @@ CSS = """
   --cat-1:#5E9BE6; --cat-2:#EE9459; --cat-3:#57BE6E; --cat-4:#E6BC55;
   --cat-5:#EE8DB7; --cat-6:#4FC6C6; --cat-7:#E67468; --cat-8:#A588E6;
   --cat-9:#C29D6E; --cat-10:#8FAEC2; } }
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration:0.01ms !important; animation-duration:0.01ms !important; }
+}
 * { box-sizing:border-box; }
 body { margin:0; background:var(--bg); color:var(--text-1);
-  font:14px/22px Inter,system-ui,-apple-system,"Segoe UI",sans-serif; }
-main { max-width:1440px; margin:0 auto; padding:32px 40px 64px; }
-.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 24px;
+  font:13px/1.5 ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased; }
+main { max-width:1760px; margin:0 auto; padding:32px 22px 70px;
+  display:flex; flex-direction:column; gap:20px; }
+@media (min-width:1700px){ body { font-size:14px; }
+  main { padding:44px 40px 90px; gap:26px; } }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+code, .mono, .fig { font-family:inherit; }
+p { margin:0; }
+.mast { display:flex; align-items:baseline; justify-content:space-between;
+  flex-wrap:wrap; gap:10px 20px; }
+.mast h1 { margin:0; font-size:clamp(26px,4.5vw,40px); letter-spacing:-.02em;
+  text-transform:uppercase; font-weight:700; }
+.stamp { font-size:12px; color:var(--text-3); max-width:60ch;
+  text-align:right; }
+.ctl { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.ctl .lbl { font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--text-3); margin-right:3px; }
+.ctl .gap { flex:1; min-width:8px; }
+.btn, form.flt button { font:inherit; font-size:12px; letter-spacing:.06em;
+  text-transform:uppercase; background:transparent; color:var(--text-2);
+  border:2px solid var(--edge-strong); border-radius:0; padding:5px 12px;
+  cursor:pointer; display:inline-block; }
+.btn:hover, form.flt button:hover { border-color:var(--text-1);
+  color:var(--text-1); text-decoration:none; }
+.btn[aria-pressed="true"] { background:var(--text-1);
+  border-color:var(--text-1); color:var(--bg); }
+form.flt { display:inline-flex; gap:8px; align-items:center; flex-wrap:wrap;
+  font-size:12px; color:var(--text-2); }
+form.flt input, form.flt select { font:inherit; font-size:12px;
+  color:var(--text-1); background:var(--surface-1);
+  border:2px solid var(--edge-strong); border-radius:0; padding:4px 8px; }
+.fstate { font-size:12px; color:var(--provisional); }
+.stats { display:grid; grid-template-columns:repeat(4,1fr);
+  border:2px solid var(--text-1); }
+@media (max-width:780px){ .stats { grid-template-columns:repeat(2,1fr); } }
+.stat { padding:15px 14px; border-right:2px solid var(--text-1);
+  background:var(--surface-1); min-width:0; }
+.stat:last-child { border-right:0; }
+@media (max-width:780px){ .stat:nth-child(2n){ border-right:0; }
+  .stat:nth-child(-n+2){ border-bottom:2px solid var(--text-1); } }
+.stat .k { font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--text-3); }
+.stat .v { font-size:clamp(22px,3vw,32px); font-weight:700;
+  letter-spacing:-.02em; margin-top:3px; white-space:nowrap; }
+.stat .n { font-size:11px; color:var(--text-2); margin-top:1px; }
+.stat.lead { background:var(--text-1); color:var(--bg); }
+.stat.lead .k, .stat.lead .n { color:var(--bg); opacity:.72; }
+.note-line { font-size:12px; color:var(--text-2); max-width:none; }
+.wrap, figure.chart, .panelbox { border:2px solid var(--edge-strong);
+  background:var(--surface-1); margin:0; }
+.wrap { overflow-x:auto; }
+figure.chart figcaption, .phead { display:flex; justify-content:space-between;
+  align-items:baseline; gap:12px; padding:9px 14px;
+  border-bottom:2px solid var(--edge-strong); }
+.ct, .phead .ct { font-size:11px; letter-spacing:.16em;
+  text-transform:uppercase; font-weight:700; color:var(--text-2);
+  white-space:nowrap; }
+.cm { font-size:11px; color:var(--text-3); text-align:right; }
+.cbody, .pbody { padding:16px 14px; }
+figure.chart svg { width:100%; height:auto; display:block; }
+figure.chart g[data-tip]:hover .hit { fill:var(--hover); }
+svg .ax { font-family:inherit; font-size:11px; fill:var(--text-3); }
+svg .pt { font-family:inherit; font-size:12px; fill:var(--text-1); }
+svg .pt .ax { fill:var(--text-2); }
+.cols { display:grid; grid-template-columns:1fr 1fr; gap:20px;
+  align-items:stretch; }
+.cols .col { display:flex; flex-direction:column; gap:20px; min-width:0; }
+.cols .col > *:last-child { flex:1 1 auto; }
+@media (max-width:880px){ .cols { grid-template-columns:1fr; }
+  .cols .col > *:last-child { flex:0 0 auto; } }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 20px;
   align-items:start; }
 .grid2 > div { min-width:0; }
 .grid2 > div > h2:first-child { margin-top:8px; }
 @media (max-width:1100px){ .grid2 { grid-template-columns:1fr; } }
-code, .mono, td.n, .fig { font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
-  font-variant-numeric:tabular-nums; }
-h1 { font:20px/28px Inter,system-ui,sans-serif; font-weight:600; margin:0; }
-h2 { font:16px/24px Inter,system-ui,sans-serif; font-weight:600; margin:32px 0 4px; }
-.big { font:32px/38px "JetBrains Mono",ui-monospace,Menlo,monospace;
-  font-weight:600; font-variant-numeric:tabular-nums; }
-.meta, .n-of { font-size:12px; line-height:18px; color:var(--text-2); }
-.faint { font-size:12px; line-height:18px; color:var(--text-3); }
-.note { font-size:14px; line-height:22px; color:var(--text-2); max-width:680px;
-  margin:4px 0 8px; }
-p { max-width:680px; }
-a { color:var(--accent); text-decoration:none; }
-a:hover { text-decoration:underline; }
-a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
-  outline:1px solid var(--accent); outline-offset:2px; }
-header.top { display:flex; gap:16px; align-items:baseline; flex-wrap:wrap;
-  padding-bottom:12px; border-bottom:1px solid var(--edge-strong); }
-nav.views { margin-left:auto; font-size:13px; }
-nav.views a { margin-left:16px; color:var(--text-2); }
-nav.views a.on { color:var(--accent); font-weight:500; }
-form.flt { display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-  margin:12px 0 0; font-size:12px; color:var(--text-2); }
-form.flt input, form.flt select { font:12px/18px Inter,system-ui,sans-serif;
-  color:var(--text-1); background:var(--surface-1); border:1px solid var(--edge);
-  border-radius:6px; padding:4px 8px; }
-form.flt button { font:12px/18px Inter,system-ui,sans-serif; font-weight:500;
-  color:var(--bg); background:var(--accent); border:1px solid var(--accent);
-  border-radius:6px; padding:4px 12px; cursor:pointer; }
-nav.range { display:inline-flex; gap:4px; align-items:baseline; margin-left:8px; }
-nav.range a { font-size:12px; line-height:18px; color:var(--text-2);
-  border:1px solid var(--edge); border-radius:6px; padding:2px 8px; }
-nav.range a.on { color:var(--bg); background:var(--accent);
-  border-color:var(--accent); }
-nav.range .faint { margin-right:4px; }
-.fstate { font-size:12px; line-height:18px; color:var(--provisional); margin:8px 0 0; }
-.wrap { overflow-x:auto; background:var(--surface-1); border:1px solid var(--edge);
-  border-radius:10px; margin:8px 0 4px; }
-table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
-thead th { font-size:11px; line-height:16px; font-weight:500; letter-spacing:.06em;
-  text-transform:uppercase; color:var(--text-2); background:var(--surface-2);
-  text-align:left; padding:8px 12px; border-bottom:1px solid var(--edge-strong);
-  cursor:pointer; user-select:none; white-space:nowrap; }
-thead th .si { color:var(--accent); margin-left:4px; }
-td { padding:6px 12px; font-size:13px; line-height:20px; height:32px; }
-td.n, th.r { text-align:right; }
-tbody tr:hover { background:var(--hover); }
-.ab { color:var(--absent); font-style:italic; font-variant-caps:all-small-caps;
-  font-size:12px; letter-spacing:.02em;
-  background:color-mix(in srgb, var(--surface-2) 40%, transparent);
-  border-radius:6px; padding:0 4px; }
-.why { color:var(--text-3); font-size:12px; font-style:normal; }
-.src { font-size:12px; line-height:18px; color:var(--text-2); margin:2px 0 12px; }
-.src b { font-size:11px; letter-spacing:.06em; text-transform:uppercase;
-  font-weight:500; }
-.cav { background:var(--surface-2); border-left:3px solid var(--provisional);
-  border-radius:14px; padding:12px 16px; margin:24px 0 0; font-size:14px;
-  line-height:22px; color:var(--text-1); }
-.cav .hd { font-size:11px; line-height:16px; letter-spacing:.06em;
-  text-transform:uppercase; font-weight:500; color:var(--text-2); }
-.cav p { margin:6px 0 0; max-width:none; }
-.prox { border:1px solid var(--edge); border-radius:10px; padding:12px 16px;
-  margin:8px 0; }
-.prox .hd { font-weight:500; }
-.prox .wrap { border:none; background:none; }
-figure.chart { margin:8px 0 4px; background:var(--surface-1);
-  border:1px solid var(--edge); border-radius:10px; padding:0; }
-figure.chart figcaption { display:flex; justify-content:space-between;
-  align-items:baseline; gap:16px; padding:8px 16px;
-  background:var(--surface-2); border-bottom:1px solid var(--edge-strong);
-  border-radius:10px 10px 0 0; }
-.ct { font-size:11px; line-height:16px; font-weight:500;
-  letter-spacing:.06em; text-transform:uppercase; color:var(--text-2);
+h2 { font-size:13px; letter-spacing:.1em; text-transform:uppercase;
+  font-weight:700; margin:14px 0 4px; }
+.meta, .n-of { font-size:12px; color:var(--text-2); }
+.faint { font-size:12px; color:var(--text-3); }
+.note { font-size:12px; color:var(--text-2); max-width:760px; margin:4px 0 8px; }
+.legend { display:flex; flex-wrap:wrap; gap:5px 16px; padding:8px 0 0;
+  font-size:12px; color:var(--text-2); margin:0; }
+.sw { display:inline-block; width:11px; height:11px; flex:none;
+  margin:0 6px 0 0; vertical-align:-1px; }
+.rows { display:flex; flex-direction:column; }
+.row2 { display:grid; grid-template-columns:1fr auto; gap:4px 14px;
+  padding:11px 0; border-top:1px solid var(--edge-strong); }
+.row2:first-child { border-top:0; padding-top:2px; }
+.row2 .nm { display:flex; align-items:center; gap:8px; min-width:0; }
+.row2 .nm i { width:10px; height:10px; flex:none; font-style:normal; }
+.row2 .nm b { font-weight:400; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; }
-.cm { font-size:12px; line-height:16px; color:var(--text-3);
-  text-align:right; }
-.cbody { padding:12px 16px 14px; }
-figure.chart svg { width:100%; height:auto; display:block; }
-figure.chart g[data-tip]:hover .hit { fill:var(--hover); }
-svg .ax { font:11px "JetBrains Mono",ui-monospace,Menlo,monospace;
-  fill:var(--text-3); }
-svg .pt { font:11px Inter,system-ui,sans-serif; fill:var(--text-1); }
-svg .pt .ax { fill:var(--text-2); }
-.legend { font-size:12px; line-height:18px; color:var(--text-2); margin:8px 0 0; }
-.sw { display:inline-block; width:10px; height:10px; border-radius:2px;
-  margin:0 4px 0 10px; vertical-align:baseline; }
-.legend .sw:first-child { margin-left:0; }
+.row2 .amt { white-space:nowrap; }
+.row2 .amt span { color:var(--text-3); margin-left:8px; }
+.row2 .track { grid-column:1 / -1; height:8px; background:var(--surface-2); }
+.row2 .fill { height:100%; }
+.row2 .sub { grid-column:1 / -1; font-size:11px; color:var(--text-3);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tokgrid { display:grid; grid-template-columns:1fr 1fr; }
+@media (max-width:520px){ .tokgrid { grid-template-columns:1fr; } }
+.tok { padding:14px; border-top:1px solid var(--edge-strong);
+  border-right:1px solid var(--edge-strong); }
+.tok:nth-child(-n+2){ border-top:0; }
+.tok:nth-child(2n){ border-right:0; }
+.tok .k { font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-3); display:flex; align-items:center; gap:7px; }
+.tok .v { font-size:24px; font-weight:700; letter-spacing:-.02em;
+  margin:3px 0 5px; }
+.tok .v small { font-size:12px; font-weight:400; color:var(--text-3);
+  margin-left:6px; }
+.tok .exact { font-size:11px; color:var(--text-3); }
+.tok .track { height:6px; background:var(--surface-2); margin-bottom:6px; }
+.tok .fill { height:100%; }
 .brow { margin:12px 0 0; }
+.brow:first-child { margin-top:0; }
 .brow .bl { display:flex; justify-content:space-between;
-  align-items:baseline; gap:12px; font-size:13px; line-height:20px; }
+  align-items:baseline; gap:12px; font-size:13px; }
 .brow .br { color:var(--text-2); font-size:12px; text-align:right; }
-.pbar { display:block; width:100%; height:18px; border-radius:2px;
-  margin-top:4px; }
-.bbar { display:block; width:100%; height:16px; border-radius:2px;
-  margin-top:4px; }
-.band { font-size:13px; line-height:20px; color:var(--text-2);
-  border-top:1px solid var(--edge); margin-top:12px; padding-top:8px; }
-.tip { position:fixed; z-index:10; min-width:180px; max-width:340px;
-  background:var(--surface-1); border:1px solid var(--edge-strong);
-  border-radius:6px; padding:8px 12px; pointer-events:none;
-  font:12px/20px "JetBrains Mono",ui-monospace,Menlo,monospace;
-  font-variant-numeric:tabular-nums; color:var(--text-1);
-  box-shadow:0 1px 2px rgb(0 0 0 / 0.06); }
-.tip .th { display:block; font-weight:500; border-bottom:1px solid var(--edge);
-  padding-bottom:4px; margin-bottom:4px; }
-.tip .tr, .tip .tt { display:flex; justify-content:space-between;
-  align-items:center; gap:16px; }
-.tip .tr b, .tip .tt b { font-weight:500; }
-.tip .tr .sw { margin:0 6px 0 0; }
-.tip .tt { border-top:1px solid var(--edge); margin-top:4px; padding-top:4px; }
-footer { margin-top:48px; padding-top:12px; border-top:1px solid var(--edge);
-  font-size:12px; line-height:18px; color:var(--text-3); }
-.empty { font-size:14px; line-height:22px; margin:24px 0; }
+.pbar { display:block; width:100%; height:18px; margin-top:4px; }
+.bbar { display:block; width:100%; height:16px; margin-top:4px; }
+table { border-collapse:collapse; width:100%; font-size:12px; }
+thead th { font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-3); text-align:right; padding:7px 9px;
+  border-bottom:2px solid var(--edge-strong); background:var(--surface-1);
+  position:sticky; top:0; cursor:pointer; user-select:none;
+  white-space:nowrap; }
+thead th:first-child { text-align:left; }
+thead th .si { color:var(--accent); margin-left:4px; }
+td { padding:6px 9px; text-align:right; border-bottom:1px solid
+  var(--edge-strong); white-space:nowrap; color:var(--text-2); }
+td:first-child { text-align:left; }
+td.n { text-align:right; }
+tbody tr:last-child td { border-bottom:0; }
+tbody tr:hover td { background:var(--bg); }
+.zero { color:var(--edge-strong); }
+.scroll { max-height:460px; overflow:auto; }
 .kv td:first-child { color:var(--text-2); width:220px; }
-@media (max-width:900px){ main { padding:16px 16px 48px; } }
+.ab { color:var(--absent); font-style:italic;
+  font-variant-caps:all-small-caps; font-size:12px; letter-spacing:.02em;
+  background:color-mix(in srgb, var(--surface-2) 40%, transparent);
+  padding:0 4px; }
+.why { color:var(--text-3); font-size:11px; font-style:normal; }
+.src { font-size:11px; color:var(--text-3); margin:4px 0 0; }
+.panelbox > .src { padding:8px 14px 10px; margin:0; }
+.src b { letter-spacing:.08em; text-transform:uppercase; font-weight:700; }
+.cav { border:2px solid var(--edge-strong); border-left:4px solid
+  var(--provisional); background:var(--surface-1); padding:12px 14px;
+  font-size:12px; color:var(--text-1); }
+.cav .hd { font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+  font-weight:700; color:var(--text-2); }
+.cav p { margin:6px 0 0; max-width:none; }
+.prox { border:2px solid var(--edge-strong); background:var(--surface-1);
+  padding:12px 14px; }
+.prox .hd { font-weight:700; font-size:12px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-2); }
+.prox .wrap { border:none; background:none; }
+.band { font-size:12px; color:var(--text-2); border-top:1px solid
+  var(--edge-strong); margin-top:12px; padding-top:8px; }
+.tip { position:fixed; z-index:50; pointer-events:none; max-width:300px;
+  background:var(--surface-1); color:var(--text-1);
+  border:2px solid var(--text-1); padding:8px 10px; font-size:12px;
+  opacity:0; transition:opacity .08s linear; }
+.tip.on { opacity:1; }
+.tip .th { display:block; font-weight:700; letter-spacing:.05em;
+  text-transform:uppercase; margin-bottom:5px; }
+.tip .tr, .tip .tt { display:flex; justify-content:space-between;
+  align-items:center; gap:14px; }
+.tip .tr b, .tip .tt b { font-weight:400; }
+.tip .tt { border-top:1px solid var(--edge-strong); margin-top:5px;
+  padding-top:4px; font-weight:700; }
+.tip .tt b { font-weight:700; }
+footer { font-size:11px; color:var(--text-3); }
+.empty { font-size:13px; margin:10px 0; }
+.big { font-size:32px; font-weight:700; letter-spacing:-.02em; }
 """
 
 # Column sort on header click. Runs only on user action — nothing animates
@@ -218,24 +278,26 @@ document.addEventListener('click', function (e) {
 // measured unusable (ADR-0017 postscript 2).
 var tip = document.createElement('div');
 tip.className = 'tip';
-tip.hidden = true;
 document.body.appendChild(tip);
 document.addEventListener('mousemove', function (e) {
   var t = e.target && e.target.closest ? e.target.closest('[data-tip]') : null;
-  if (!t) { if (!tip.hidden) tip.hidden = true; return; }
+  if (!t) { tip.classList.remove('on'); return; }
   var payload = t.getAttribute('data-tip');
   if (tip.dataset.for !== payload) {
     tip.innerHTML = payload;
     tip.dataset.for = payload;
   }
-  tip.hidden = false;
+  tip.classList.add('on');
   var r = tip.getBoundingClientRect();
   var x = e.clientX + 14, y = e.clientY + 14;
   if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
   if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
-  tip.style.left = x + 'px';
-  tip.style.top = y + 'px';
+  tip.style.left = Math.max(8, x) + 'px';
+  tip.style.top = Math.max(8, y) + 'px';
 });
+addEventListener('scroll', function () { tip.classList.remove('on'); },
+  { passive: true });
+addEventListener('blur', function () { tip.classList.remove('on'); });
 """
 
 
@@ -277,7 +339,7 @@ def caveat_block(sentences: list[str]) -> str:
 
 
 def table(cols: list[tuple[str, bool]], rows: list[list[tuple[str, object]]],
-          sort_note: str | None = None) -> str:
+          sort_note: str | None = None, cls: str = "") -> str:
     """cols: (label, numeric). rows: cells as (html, sortkey|None).
     Sortable by any column on click; initial order is the caller's and is
     stated when not obvious."""
@@ -295,7 +357,8 @@ def table(cols: list[tuple[str, bool]], rows: list[list[tuple[str, object]]],
             tds.append(f"<td{cls}{k}>{cell}</td>")
         body.append("<tr>" + "".join(tds) + "</tr>")
     note = f'<p class="faint">{H.escape(sort_note)}</p>' if sort_note else ""
-    return (f'<div class="wrap"><table><thead><tr>{head}</tr></thead>'
+    wrap_cls = f"wrap {cls}".strip()
+    return (f'<div class="{wrap_cls}"><table><thead><tr>{head}</tr></thead>'
             f'<tbody>{"".join(body)}</tbody></table></div>{note}')
 
 
@@ -378,10 +441,10 @@ def _range_row(ui: dict) -> str:
         q = dict(base)
         if key != "all":
             q["range"] = key
-        cls = ' class="on"' if active == key else ""
-        links.append(f'<a{cls} href="?{H.escape(urlencode(q))}">{key}</a>')
-    return ('<nav class="range"><span class="faint">range</span>'
-            + "".join(links) + "</nav>")
+        pressed = "true" if active == key else "false"
+        links.append(f'<a class="btn" aria-pressed="{pressed}" '
+                     f'href="?{H.escape(urlencode(q))}">{key}</a>')
+    return '<span class="lbl">range</span>' + "".join(links)
 
 
 def _survival30(rec: dict, now: datetime) -> tuple[str, object]:
@@ -493,7 +556,8 @@ def page(title: str, body: str, active: str, loaded_at: str,
          filters: dict, resolved: dict | None = None) -> str:
     q = _qs(filters)
     nav = "".join(
-        f'<a href="{href}{q}"{" class=" + chr(34) + "on" + chr(34) if active == key else ""}>'
+        f'<a class="btn" aria-pressed='
+        f'"{"true" if active == key else "false"}" href="{href}{q}">'
         f"{label}</a>"
         for key, href, label in (
             ("overview", "/", "Overview"),
@@ -501,27 +565,27 @@ def page(title: str, body: str, active: str, loaded_at: str,
     tool_opts = '<option value="">all tools</option>' + "".join(
         f'<option value="{t}"{" selected" if filters.get("tool") == t else ""}>{t}</option>'
         for t in TOOLS)
-    clear = ('<a href="?">clear</a>' if filters else "")
+    clear = ('<a class="btn" aria-pressed="false" href="?">clear</a>'
+             if filters else "")
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{H.escape(title)}</title><style>{CSS}</style></head><body><main>
-<header class="top"><h1>Caliper</h1><span class="meta">local view ·
-127.0.0.1 only · reads ~/.caliper read-only, writes nothing</span>
-<nav class="views">{nav}</nav></header>
+<header class="mast"><h1>Caliper</h1>
+<span class="stamp">data loaded {H.escape(loaded_at)} · re-reads when the
+records change · 127.0.0.1 only · reads ~/.caliper read-only, writes
+nothing</span></header>
+<div class="ctl">{nav}<span class="gap"></span>
 <form class="flt" method="get" action="">
 <label>from <input type="date" name="from" value="{H.escape(filters.get("from", ""))}"></label>
 <label>to <input type="date" name="to" value="{H.escape(filters.get("to", ""))}"></label>
 <label>tool <select name="tool">{tool_opts}</select></label>
-<button type="submit">Apply</button> {clear}
-{_range_row(filters)}
-<span class="faint">filters are URL state — this page is linkable and
-reload-safe</span></form>
+<button type="submit">Apply</button> {clear}</form>
+{_range_row(filters)}</div>
 {_filter_state(filters, resolved if resolved is not None else filters)}
 {body}
-<footer>data loaded {H.escape(loaded_at)} · re-read automatically when the
-record files change (mtime-keyed cache, ADR-0016) · serve renders the same
-figures as <span class="mono">caliper report</span> from the same data
-layer</footer>
+<footer>filters are URL state — every view is linkable and reload-safe ·
+serve renders the same figures as caliper report from the same data layer
+(mtime-keyed cache, ADR-0016)</footer>
 </main><script>{JS}</script></body></html>"""
 
 
@@ -576,6 +640,8 @@ def _spend_section(title: str, data: dict, src: str, chrono: bool = False) -> st
                       f"{n_sess} sessions · ${cost:,.2f} list-equivalent — "
                       "narrow the range to see them</p>")
         keys = keys[-21:]
+    if chrono:
+        keys = list(reversed(keys))  # newest first (stated in the header)
     rows = []
     for k in keys:
         c = data[k]
@@ -595,9 +661,11 @@ def _spend_section(title: str, data: dict, src: str, chrono: bool = False) -> st
             bucket_cells = [(absent("not recorded"), -1)] * 4
             cost_cell = (absent("not recorded", "no tokens logged"), -1)
         else:
-            bucket_cells = [(count(c.get(b, 0)), c.get(b, 0))
-                            for b in ("input", "output", "cache_read",
-                                      "cache_creation")]
+            bucket_cells = [
+                ((count(v) if v else '<span class="zero">0</span>'), v)
+                for v in (c.get(b, 0) for b in
+                          ("input", "output", "cache_read",
+                           "cache_creation"))]
             cost_cell = (money(cost / 1000 if cost is not None else None),
                          cost / 1000 if cost is not None else -1)
         rows.append([(H.escape(label), label),
@@ -605,7 +673,10 @@ def _spend_section(title: str, data: dict, src: str, chrono: bool = False) -> st
     cols = [(title, False), ("sessions", True), ("input", True),
             ("output", True), ("cache read", True), ("cache write", True),
             ("list-$", True)]
-    return table(cols, rows) + trunc_note + evidence(src)
+    note = "newest first" if chrono else None
+    return (table(cols, rows, sort_note=note,
+                  cls="scroll" if chrono else "")
+            + trunc_note + evidence(src))
 
 
 def _day_group_costs(raw: dict, split: str):
@@ -750,6 +821,82 @@ def _bucket_chart(by_model: dict) -> str:
         "".join(rows) + legend)
 
 
+def _compact(n: int) -> str:
+    if n >= 1e9:
+        return f"{n / 1e9:.2f}B" if n < 1e10 else f"{n / 1e9:.0f}B"
+    if n >= 1e6:
+        return f"{n / 1e6:.1f}M" if n < 1e7 else f"{n / 1e6:.0f}M"
+    if n >= 1e3:
+        return f"{n / 1e3:.1f}K" if n < 1e4 else f"{n / 1e3:.0f}K"
+    return f"{n:,}"
+
+
+def tiles(items: list[tuple[str, str, str, bool]]) -> str:
+    """The stats strip (ADR-0018): every tile carries its basis line — a
+    tile without one does not render — and at most the first is the lead."""
+    cells = []
+    for k, v, n, lead in items:
+        if not n:
+            raise ValueError(f"a stat tile needs its basis line: {k}")
+        cells.append(f'<div class="stat{" lead" if lead else ""}">'
+                     f'<div class="k">{H.escape(k)}</div>'
+                     f'<div class="v">{v}</div>'
+                     f'<div class="n">{H.escape(n)}</div></div>')
+    return '<div class="stats">' + "".join(cells) + "</div>"
+
+
+def panel(title: str, note: str, body: str, pad: bool = True) -> str:
+    return (f'<section class="panelbox"><div class="phead">'
+            f'<span class="ct">{H.escape(title)}</span>'
+            f'<span class="cm">{H.escape(note)}</span></div>'
+            + (f'<div class="pbody">{body}</div>' if pad else body)
+            + "</section>")
+
+
+def rank_rows(rows: list[dict]) -> str:
+    """Reference rank rows: swatch+name left, amount+share right, a
+    full-width track beneath, an optional faint sub-line. An absent value
+    renders its absence words and NO track — an absence never becomes a
+    bar of any length."""
+    out = []
+    for r in rows:
+        sw = (f'<i style="background:var({r["token"]})"></i>'
+              if r.get("token") else "")
+        share = (f'<span>{r["share"]:.0%}</span>'
+                 if r.get("share") is not None else "")
+        track = ""
+        if r.get("fill") is not None:
+            track = (f'<div class="track"><div class="fill" '
+                     f'style="width:{max(r["fill"] * 100, 1):.1f}%;'
+                     f'background:var({r.get("token") or "--cat-1"})">'
+                     "</div></div>")
+        sub = (f'<div class="sub">{r["sub"]}</div>' if r.get("sub") else "")
+        out.append(f'<div class="row2"><div class="nm">{sw}'
+                   f'<b>{r["name"]}</b></div>'
+                   f'<div class="amt">{r["amt"]}{share}</div>{track}{sub}'
+                   "</div>")
+    return '<div class="rows">' + "".join(out) + "</div>"
+
+
+def tok_tiles(sums: dict[str, int]) -> str:
+    """Tokens-by-type tiles: compact figure + share + track + exact count."""
+    grand = sum(sums.values()) or 1
+    mx = max(sums.values()) if any(sums.values()) else 1
+    cells = []
+    for bucket, tok in charts.BUCKET_TOKENS:
+        v = sums.get(bucket, 0)
+        cells.append(
+            f'<div class="tok"><div class="k">'
+            f'<i class="sw" style="background:var({tok})"></i>'
+            f'{H.escape(bucket.replace("_", " "))}</div>'
+            f'<div class="v">{_compact(v)}<small>{v / grand:.1%}</small></div>'
+            f'<div class="track"><div class="fill" style="width:'
+            f'{(v / mx) * 100 if v else 0:.1f}%;background:var({tok})">'
+            f"</div></div>"
+            f'<div class="exact">{v:,} tokens</div></div>')
+    return '<div class="tokgrid">' + "".join(cells) + "</div>"
+
+
 def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
     if not s["n_sessions"]:
         if filters:
@@ -770,39 +917,117 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
     ranges = [c["range"] for c in s["coverage"].values()]
     span = (f"{min(r[0] for r in ranges)} → {max(r[1] for r in ranges)}"
             if ranges else "")
-    head = (f'<h2>Spend</h2><div class="big">${h["total_cost"]:,.2f}</div>'
-            '<p class="note">The total price of everything you ran, at '
-            "pay-as-you-go API rates — if a subscription covered it, that "
-            "is what you saved.</p>"
-            f'<p class="meta">{h["priced_sessions"]} priced of '
-            f'{s["n_sessions"]} sessions'
-            f"{H.escape(netted)} · {H.escape(span)} · "
-            f'{h["unpriced_sessions"]} with tokens but no publishable rate, '
-            f'{h["no_token_sessions"]} with no tokens logged — the total is '
-            "a floor, not a sum</p>")
 
     spend = s["spend"]
-    # the trend runs full width; everything narrower pairs up in a
-    # two-column grid so a wide window is used, not framed (ADR-0017
-    # postscript 2 — "use the space")
+    day_costs = {d: c.get("cost_x1000", 0) / 1000
+                 for d, c in spend["by_day"].items() if c.get("cost_x1000")}
+    active_days = len(day_costs)
+    peak_day = max(day_costs, key=day_costs.get) if day_costs else None
+    tok_sums = {b: sum(c.get(b, 0) for c in spend["by_tool"].values())
+                for b, _ in charts.BUCKET_TOKENS}
+    grand_tokens = sum(tok_sums.values())
+    head = (tiles([
+        ("Total spend", f'${h["total_cost"]:,.2f}',
+         f"{span} · at API list rates", True),
+        ("Per active day",
+         f'${h["total_cost"] / active_days if active_days else 0:,.2f}',
+         f"{active_days} days with priced usage", False),
+        ("Tokens", _compact(grand_tokens),
+         f"{grand_tokens:,} total, all four buckets", False),
+        ("Heaviest day",
+         f"${day_costs[peak_day]:,.2f}" if peak_day else "$0.00",
+         peak_day or "no priced days", False),
+    ])
+        + '<p class="note-line">The total price of everything you ran, at '
+        "pay-as-you-go API rates — if a subscription covered it, that "
+        "is what you saved. "
+        f'{h["priced_sessions"]} priced of {s["n_sessions"]} sessions'
+        f"{H.escape(netted)} · "
+        f'{h["unpriced_sessions"]} with tokens but no publishable rate, '
+        f'{h["no_token_sessions"]} with no tokens logged — the total is '
+        "a floor, not a sum.</p>")
+    # the trend runs full width; the .cols pack independently (ADR-0018)
+    model_rows = []
+    mcosts = {k: c.get("cost_x1000") for k, c in spend["by_model"].items()}
+    grand_cost = sum(v for v in mcosts.values() if v) or 1
+    max_cost = max((v for v in mcosts.values() if v), default=1)
+    for i, (k, c) in enumerate(sorted(
+            spend["by_model"].items(),
+            key=lambda kv: -(kv[1].get("cost_x1000") or 0))):
+        tokn = f"--cat-{i % 10 + 1}"
+        x = c.get("cost_x1000")
+        if x is None:
+            model_rows.append({
+                "token": tokn, "name": H.escape(str(k)),
+                "amt": absent("not priced", "no publishable rate"),
+                "sub": f'{c.get("sessions", 0)} sessions'})
+        else:
+            model_rows.append({
+                "token": tokn, "name": H.escape(str(k)),
+                "amt": f"${x / 1000:,.2f}", "share": x / grand_cost,
+                "fill": x / max_cost,
+                "sub": f'n={c.get("sessions", 0)} sessions'})
+
+    tool_rows = []
+    tcosts = {k: c.get("cost_x1000") or 0 for k, c in spend["by_tool"].items()}
+    tgrand = sum(tcosts.values()) or 1
+    tmax = max(tcosts.values()) if any(tcosts.values()) else 1
+    for i, (k, c) in enumerate(sorted(spend["by_tool"].items(),
+                                      key=lambda kv: -tcosts[kv[0]])):
+        no_tok = c.get("sessions_no_tokens", 0)
+        n_sess = c.get("sessions", 0) + no_tok
+        if c.get("sessions", 0) == 0 and no_tok:
+            tool_rows.append({
+                "name": H.escape(str(k)),
+                "amt": absent("not recorded", "source logs no tokens"),
+                "sub": f"{n_sess} sessions, none with tokens (ADR-0004)"})
+        else:
+            x = tcosts[k]
+            tool_rows.append({
+                "token": f"--cat-{i % 10 + 1}", "name": H.escape(str(k)),
+                "amt": f"${x / 1000:,.2f}", "share": x / tgrand,
+                "fill": x / tmax,
+                "sub": f"n={n_sess} sessions"
+                       + (f" ({no_tok} log no tokens)" if no_tok else "")})
+
+    proj_rows = []
+    pcosts = {k: c.get("cost_x1000") or 0
+              for k, c in spend["by_project"].items()}
+    pgrand = sum(pcosts.values()) or 1
+    pmax = max(pcosts.values()) if any(pcosts.values()) else 1
+    for k, c in sorted(spend["by_project"].items(),
+                       key=lambda kv: -pcosts[kv[0]]):
+        x = pcosts[k]
+        proj_rows.append({
+            "token": "--cat-1", "name": H.escape(str(k)),
+            "amt": f"${x / 1000:,.2f}", "share": x / pgrand,
+            "fill": x / pmax, "sub": f'n={c.get("sessions", 0)} sessions'})
+
     spend_html = (
         _spend_chart(raw, filters)
-        + '<div class="grid2"><div>'
-        + _spend_section("day", spend["by_day"],
-                         "sessions.jsonl → started_at date", chrono=True)
-        + "</div><div>"
+        + '<div class="cols"><div class="col">'
+        + panel("Total by model", f"{len(model_rows)} models · list-$",
+                rank_rows(model_rows)
+                + evidence("extracted/*/sessions.jsonl → tokens, models[] · "
+                           "dominant-model pricing (approximation)"))
+        + panel("Tokens by type",
+                f"{_compact(grand_tokens)} total · " + (
+                    "filtered range" if s["filters"] else "all time"),
+                tok_tiles(tok_sums)
+                + evidence("sessions.jsonl → tokens, four buckets never "
+                           "pooled (ADR-0005)"), pad=False)
+        + '</div><div class="col">'
         + _bucket_chart(spend["by_model"])
+        + panel("Spend by tool", f"{len(tool_rows)} tools",
+                rank_rows(tool_rows)
+                + evidence("extracted/*/sessions.jsonl → tokens"))
+        + panel("Spend by project", f"{len(proj_rows)} projects",
+                rank_rows(proj_rows)
+                + evidence("sessions.jsonl → project_ref, display-named via "
+                           "local-only mapping (never committed)"))
         + "</div></div>"
-        + '<div class="grid2"><div>'
-        + _spend_section("model (dominant per session)", spend["by_model"],
-                         "~/.caliper/extracted/*/sessions.jsonl → tokens, models[]")
-        + "</div><div>"
-        + _spend_section("tool", spend["by_tool"],
-                         "~/.caliper/extracted/*/sessions.jsonl → tokens")
-        + _spend_section("project", spend["by_project"],
-                         "sessions.jsonl → project_ref, display-named via "
-                         "local-only mapping (never committed)")
-        + "</div></div>")
+        + _spend_section("day", spend["by_day"],
+                         "sessions.jsonl → started_at date", chrono=True))
 
     # task mix by cohort — never pooled, unclassified always visible
     mix_html = "<h2>Task mix</h2>"

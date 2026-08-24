@@ -82,6 +82,7 @@ The CLI renders inside a terminal it does not own. Three obligations, and they a
 ### Typography
 
 - UI family: **Inter** (fallback: system-ui). Mono: **JetBrains Mono** — and in this product mono carries more than usual: every measured figure, every sha, path, model id, p-value, token count, and command renders mono. A number in a proportional face reads as prose about a number rather than the number itself.
+- **Serve variant (ADR-0018):** the interactive local view renders mono-everywhere — `ui-monospace` for all text at 13px/1.5 (14px on very wide windows), uppercase letterspaced micro-labels, 2px structural borders, squared buttons whose pressed state is the inverted ink fill. The instrument-face look is serve's identity; the report keeps the Inter system until its own pass.
 - Complete scale (size/line-height, weight). No other sizes exist.
 
 | Step | Use |
@@ -319,7 +320,7 @@ Each rule is testable in review; violating any one fails the review.
 11. No pills, badges, or status dots. Status is words.
 12. No cards in cards; maximum one border level per region.
 13. No surface with fewer than three type-scale steps.
-14. No dashboard furniture: no stat tiles, no donut charts, no gauges, no sparklines standing alone. Counts are text in rows.
+14. No dashboard furniture: no donut charts, no gauges, no sparklines standing alone. Amended by ADR-0018: a **stats strip** is permitted — a single bordered row of tiles in which every tile carries its basis line (what the figure covers, at the metadata step) and at most the first tile is the inverted lead. A naked-number tile — a figure with no basis — remains prohibited, as does more than one strip per surface.
 15. No number that counts up, no chart that draws itself, no entrance animation, no unprompted motion; nothing loops but the working indicator.
 16. No machinery — run ids, schema versions, salted refs — beside a headline figure.
 17. No emoji anywhere in chrome, output, or documentation.

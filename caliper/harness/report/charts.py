@@ -97,8 +97,8 @@ def spend_columns(per_day: dict[str, dict[str, float]], groups: list[str],
     if not per_day:
         return ""
     days = _days_between(min(per_day), max(per_day))
-    W, PH = 960, 300
-    LEFT, BOT, TOP = 56, 24, 10
+    W, PH = 1400, 340
+    LEFT, BOT, TOP = 64, 26, 12
     plot_w, plot_h = W - LEFT - 8, PH - BOT - TOP
     cw = plot_w / len(days)
     bw = max(1.5, cw * 0.8)
@@ -179,8 +179,8 @@ def scatter(points: list[dict], qs: str) -> str:
     origin. x is a √ scale (stated by the caller's caption)."""
     if not points:
         return ""
-    W, PH = 960, 360
-    LEFT, BOT, TOP, RIGHT = 52, 26, 12, 150
+    W, PH = 1400, 400
+    LEFT, BOT, TOP, RIGHT = 60, 28, 14, 170
     plot_w, plot_h = W - LEFT - RIGHT, PH - BOT - TOP
     max_cost = max(p["cost"] for p in points) or 1.0
 

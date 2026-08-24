@@ -448,6 +448,70 @@ def test_empty_home_renders_no_chart_frame(tmp_path):
     assert '<figure class="chart"' not in html
 
 
+def test_stats_strip_every_tile_carries_its_basis(serve_url):
+    """ADR-0018's amendment condition: a stats strip is legal only when
+    every tile states its basis; the builder refuses a naked number."""
+    import pytest as _pytest
+
+    from caliper.harness.report.views import tiles
+
+    base, loc, s0 = serve_url
+    _, body = _get(base + "/")
+    assert body.count('<div class="stats">') == 1  # one strip, max
+    assert body.count('class="stat lead"') == 1    # one lead tile, max
+    assert "at API list rates" in body             # the lead's basis
+    assert "days with priced usage" in body        # per-active-day basis
+    assert "total, all four buckets" in body       # tokens basis
+    with _pytest.raises(ValueError):
+        tiles([("Naked", "$1", "", False)])
+
+
+def test_empty_home_has_no_stats_strip(tmp_path):
+    from caliper.harness.report import views
+
+    empty = tmp_path / "nothing"
+    empty.mkdir()
+    (empty / ".salt").write_text("s")
+    raw = load_data(empty, empty / "c.jsonl", empty / "n.json",
+                    empty / ".salt")
+    html = views.overview(raw, summarize(raw), {}, "t")
+    assert '<div class="stats">' not in html
+    assert "No sessions extracted yet. Run" in html
+
+
+def test_controls_are_pressed_buttons(serve_url):
+    base, loc, s0 = serve_url
+    _, body = _get(base + "/?range=7d")
+    assert 'class="btn" aria-pressed="true"' in body   # active range
+    assert body.count('aria-pressed="true"') >= 2      # + active nav view
+
+
+def test_tool_rank_rows_keep_absence_words_without_a_bar(serve_url):
+    """Cursor's spend row: absence words, session count in the sub-line,
+    and NO track — an absence never becomes a bar of any length."""
+    import re
+
+    base, loc, s0 = serve_url
+    _, body = _get(base + "/")
+    m = re.search(r'<div class="row2"><div class="nm"><b>cursor</b>'
+                  r"</div>(.*?)</div></div>", body)
+    assert m, "cursor rank row missing"
+    row = m.group(1)
+    assert "not recorded" in row
+    assert "none with tokens (ADR-0004)" in row
+    assert '"track"' not in row
+
+
+def test_daily_table_is_newest_first(serve_url):
+    base, loc, s0 = serve_url
+    _, body = _get(base + "/")
+    assert "newest first" in body
+    idx = body.rindex("sessions.jsonl → started_at date")
+    seg = body[:idx]
+    days = __import__("re").findall(r'<td data-s="(\d{4}-\d{2}-\d{2})"', seg)
+    assert days == sorted(days, reverse=True) and days
+
+
 def test_bundle_cache_invalidates_on_mtime_change(serve_home):
     import os
 
