@@ -61,6 +61,27 @@ def salt_path(data_dir: Path | None = None) -> Path:
     return data_root() / ".salt"
 
 
+# ---- packaged-vs-checkout resolution (ADR-0014) ---------------------------
+
+def checkout_root() -> Path | None:
+    """The source checkout this package runs from, or None under a wheel
+    install (site-packages has no top-level schemas/). Dev-only surfaces
+    (replay, pricing, classify --validate) gate on this."""
+    root = Path(__file__).resolve().parents[2]
+    return root if (root / "schemas").is_dir() else None
+
+
+def schema_path(name: str) -> Path:
+    """A record contract by filename. The checkout's schemas/ wins so the
+    repo copy stays the single source of truth; a wheel install reads the
+    force-included copy in caliper.assets (ADR-0014)."""
+    root = checkout_root()
+    if root is not None:
+        return root / "schemas" / name
+    from importlib.resources import files
+    return Path(str(files("caliper.assets"))) / "schemas" / name
+
+
 # ---- read fallbacks --------------------------------------------------------
 # Reading repo-side evidence is fine; writing is the sin. First existing
 # candidate wins: home derived -> shipped ADR evidence -> legacy repo path

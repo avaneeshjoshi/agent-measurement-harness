@@ -227,7 +227,8 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
             return 0
 
         since = None if full else dict(state.get("watermark") or {})
-        schema = repo_root() / "schemas" / "session.schema.json"
+        from .paths import schema_path
+        schema = schema_path("session.schema.json")
         manifest = extract(list(plugins), data_dir, schema,
                            include_content=bool(state.get("include_content")),
                            plugins_override=plugins_override,
@@ -255,8 +256,8 @@ def run_scheduled(root: Path, plugins_override: dict | None = None) -> int:
         if full and state.get("mode") == "full":
             try:
                 from .main import signals as run_signals
-                sm = run_signals(data_dir, repo_root() / "schemas"
-                                 / "production_signal.schema.json")
+                sm = run_signals(data_dir,
+                                 schema_path("production_signal.schema.json"))
                 _log(f"signals: {sm['records']['emitted']} records across "
                      f"{len(sm['repos'])} repos")
             except Exception as exc:

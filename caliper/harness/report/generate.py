@@ -72,7 +72,7 @@ def _cohort(rec: dict) -> str:
     return "eval_harness" if "caliper-eval" in paths else "organic"
 
 
-def collect(repo_root: Path, data_dir: Path, classes_path: Path,
+def collect(data_dir: Path, classes_path: Path,
             names_path: Path, salt_file: Path) -> dict:
     """All locations are resolved by the caller through cli.paths (ADR-0012)
     — this layer stays path-agnostic. data_dir is the extracted tree;

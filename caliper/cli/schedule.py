@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .collection import load_state, save_state
-from .paths import extracted_dir, logs_dir, state_dir
+from .paths import data_root, extracted_dir, logs_dir, state_dir
 from .style import S, box, child, sep, step
 
 LABEL = "dev.caliper.extract"
@@ -47,7 +47,7 @@ def caliper_executable() -> list[str]:
     return [sys.executable, "-m", "caliper.cli.main"]
 
 
-def generate_plist(program: list[str], repo_root: Path, log_path: Path) -> bytes:
+def generate_plist(program: list[str], log_path: Path) -> bytes:
     return plistlib.dumps({
         "Label": LABEL,
         "ProgramArguments": [*program, "extract", "--scheduled"],
@@ -56,7 +56,8 @@ def generate_plist(program: list[str], repo_root: Path, log_path: Path) -> bytes
         "ProcessType": "Background",
         "LowPriorityBackgroundIO": True,
         "Nice": 10,
-        "WorkingDirectory": str(repo_root),
+        # the job needs no CWD; the data home always exists (ADR-0014)
+        "WorkingDirectory": str(data_root()),
         "StandardOutPath": str(log_path),
         "StandardErrorPath": str(log_path),
         # no KeepAlive: a failing job must not respawn-loop (ADR-0011)
@@ -132,7 +133,7 @@ def _fda_instructions(runner) -> None:
     del _launchctl_ignore
 
 
-def install(repo_root: Path, mode: str | None = None,
+def install(mode: str | None = None,
             runner=subprocess.run, choose=None,
             verify_timeout_s: float = 25.0) -> int:
     if sys.platform != "darwin":
@@ -152,7 +153,7 @@ def install(repo_root: Path, mode: str | None = None,
     program = caliper_executable()
     pp = plist_path()
     pp.parent.mkdir(parents=True, exist_ok=True)
-    pp.write_bytes(generate_plist(program, repo_root, log_path))
+    pp.write_bytes(generate_plist(program, log_path))
 
     uid = os.getuid()
     _launchctl(runner, "bootout", f"gui/{uid}/{LABEL}")  # replace-safe

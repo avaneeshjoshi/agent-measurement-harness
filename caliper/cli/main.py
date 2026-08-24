@@ -299,6 +299,9 @@ def _aggregate_repo(records: list[dict]) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="caliper",
                                      description="Caliper: coding-agent traffic measurement.")
+    from importlib.metadata import version as _pkg_version
+    parser.add_argument("--version", action="version",
+                        version=f"caliper {_pkg_version('caliper')}")
     sub = parser.add_subparsers(dest="command")
 
     p_extract = sub.add_parser("extract", help="Extract sessions from local agent logs.")
@@ -323,7 +326,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p_replay = sub.add_parser("replay",
                               help="Replay mined tasks across model tiers "
-                                   "(harness/replay).")
+                                   "(dev: source checkout + real API spend).")
     p_replay.add_argument("action", choices=["mine", "run"])
     p_replay.add_argument("--repo", default=str(Path.home() / "caliper-eval" / "commons-lang"))
     p_replay.add_argument("--tasks", default=str(Path.home() / "caliper-eval" / "tasks" / "tasks.jsonl"))
@@ -350,7 +353,7 @@ def main(argv: list[str] | None = None) -> int:
     p_report.add_argument("--out", default=None)
 
     p_pricing = sub.add_parser("pricing",
-                               help="Price-sheet management (build-time fetch).")
+                               help="Price-sheet management (dev: source checkout).")
     p_pricing.add_argument("action", choices=["update"])
 
     p_setup = sub.add_parser("setup", help="First-run setup: trust screen, "
@@ -374,7 +377,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p_policy = sub.add_parser("policy",
                               help="Review the routing policy against your "
-                                   "traffic and decide on it.")
+                                   "traffic (dev preview: needs eval "
+                                   "evidence from your own traffic).")
     p_policy.add_argument("action", nargs="?", choices=["apply"],
                           help="'apply' accepts the policy without the review flow")
     grp = p_policy.add_mutually_exclusive_group()
@@ -432,7 +436,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.action == "install":
             mode = "full" if args.full else \
                 ("extract_only" if args.extract_only else None)
-            return install(repo_root(), mode=mode)
+            return install(mode=mode)
         if args.action == "uninstall":
             return uninstall()
         return status()
@@ -443,6 +447,12 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.command == "pricing":
+        from .paths import checkout_root
+        if checkout_root() is None:
+            print("caliper pricing is a development instrument — price "
+                  "snapshots are maintained in a source checkout of Caliper, "
+                  "not in an installed copy.")
+            return 1
         from caliper.harness.replay.pricing_update import update
         update()
         return 0
@@ -452,7 +462,7 @@ def main(argv: list[str] | None = None) -> int:
         from caliper.harness.report.render import render
         from .paths import salt_path, task_classes_path
         root_dir = repo_root()
-        summary = collect(root_dir, extracted_dir(),
+        summary = collect(extracted_dir(),
                           task_classes_path(root_dir),
                           state_dir() / ".project_names.json", salt_path())
         html = render(summary)
@@ -483,7 +493,8 @@ def main(argv: list[str] | None = None) -> int:
         data_dir = Path(args.data_dir) if args.data_dir else extracted_dir()
         units = ("prompt", "segment", "session") if args.unit == "all" else (args.unit,)
         records = classify_all(data_dir, units)
-        validator = load_validator(root_dir / "schemas" / "task_class.schema.json")
+        from .paths import schema_path as _sp2
+        validator = load_validator(_sp2("task_class.schema.json"))
         for r in records:
             validator.validate(r)
         out = Path(args.out) if args.out else \
@@ -511,6 +522,12 @@ def main(argv: list[str] | None = None) -> int:
             print()
         print(S.dim(f"→ {relpath(out, root_dir)}"))
         if args.validate:
+            from .paths import checkout_root
+            if checkout_root() is None:
+                print("classify --validate is a development instrument — the "
+                      "calibration set ships with a source checkout of "
+                      "Caliper, not with an installed copy.")
+                return 1
             from caliper.harness.classifier import CLASSIFIER_VERSION
             from caliper.harness.classifier.validation import print_report, validate
 
@@ -525,6 +542,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "replay":
+        from .paths import checkout_root
+        if checkout_root() is None:
+            print("caliper replay is a development instrument — it needs a "
+                  "source checkout of Caliper, a mined task workspace, and "
+                  "real API spend.")
+            return 1
         from caliper.harness.replay import mining, runner
         repo = Path(args.repo)
         tasks_path = Path(args.tasks)
@@ -546,7 +569,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "signals":
         from caliper.connectors.git_history import GitHistoryConnector
-        schema_path = root / "schemas" / "production_signal.schema.json"
+        from .paths import schema_path as _sp3
+        schema_path = _sp3("production_signal.schema.json")
         from .paths import salt_path as _sp
         conn = GitHistoryConnector(salt=load_salt(_sp(data_dir)),
                                    extra_repos=[Path(p) for p in args.repo])
@@ -585,7 +609,8 @@ def main(argv: list[str] | None = None) -> int:
         print(S.dim(f"→ {mpath}"))
         return 0
 
-    schema_path = root / "schemas" / "session.schema.json"
+    from .paths import schema_path as _sp4
+    schema_path = _sp4("session.schema.json")
 
     if args.source:
         sources = []

@@ -48,7 +48,7 @@ def darwin(monkeypatch, tmp_path):
 
 def test_plist_roundtrips_with_expected_keys(tmp_path):
     raw = schedule.generate_plist(["/usr/local/bin/caliper"],
-                                  Path("/repo"), tmp_path / "x.log")
+                                  tmp_path / "x.log")
     p = plistlib.loads(raw)
     assert p["Label"] == schedule.LABEL
     assert p["ProgramArguments"] == ["/usr/local/bin/caliper",
@@ -81,7 +81,7 @@ def test_install_bootout_then_bootstrap_and_state(darwin):
             save_state(state_dir(), st)
 
     runner = FakeRunner(side_effect=kick_writes_heartbeat)
-    rc = schedule.install(Path("/repo"), mode="extract_only", runner=runner)
+    rc = schedule.install(mode="extract_only", runner=runner)
     assert rc == 0
     assert runner.verbs() == ["bootout", "bootstrap", "kickstart"]
     assert schedule.plist_path().exists()
@@ -91,14 +91,14 @@ def test_install_bootout_then_bootstrap_and_state(darwin):
 
 
 def test_install_unverified_is_loud_nonzero(darwin, capsys):
-    rc = schedule.install(Path("/repo"), mode="extract_only",
+    rc = schedule.install(mode="extract_only",
                           runner=FakeRunner(), verify_timeout_s=0.1)
     assert rc == 1
     assert "NOT verified" in capsys.readouterr().out
 
 
 def test_install_bootstrap_failure_reported(darwin, capsys):
-    rc = schedule.install(Path("/repo"), mode="extract_only",
+    rc = schedule.install(mode="extract_only",
                           runner=FakeRunner(fail_verbs={"bootstrap"}))
     assert rc == 1
     assert "bootstrap failed" in capsys.readouterr().out
@@ -106,7 +106,7 @@ def test_install_bootstrap_failure_reported(darwin, capsys):
 
 def test_install_refuses_off_macos(monkeypatch):
     monkeypatch.setattr(sys, "platform", "linux")
-    assert schedule.install(Path("/repo"), mode="extract_only",
+    assert schedule.install(mode="extract_only",
                             runner=FakeRunner()) == 1
 
 

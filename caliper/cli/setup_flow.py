@@ -73,7 +73,8 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
 
     # ---- staged pipeline ------------------------------------------------
     from caliper.connectors import PLUGINS
-    schema = repo_root / "schemas" / "session.schema.json"
+    from .paths import schema_path
+    schema = schema_path("session.schema.json")
     total_sessions = 0
     for name in PLUGINS:
         m = _stage(f"Backfilling {name}",
@@ -94,7 +95,7 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
         from caliper.harness.classifier.classify import classify_all
         records = classify_all(data_dir)
         v = Draft202012Validator(json.loads(
-            (repo_root / "schemas" / "task_class.schema.json").read_text()))
+            schema_path("task_class.schema.json").read_text()))
         for rec in records:
             v.validate(rec)
         from .paths import derived_dir
@@ -115,7 +116,7 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
     if mode == "full":
         m = _stage("Mining git history for outcome signals (blame is slow)",
                    lambda: run_signals(data_dir,
-                                       repo_root / "schemas" / "production_signal.schema.json"))
+                                       schema_path("production_signal.schema.json")))
         n_commits = sum(r["commits_analyzed"] for r in m["repos"].values())
         print(step(sep("Mined outcome signals",
                        f"{n_commits} commits across {len(m['repos'])} repos",
@@ -126,7 +127,7 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
         from caliper.harness.report.generate import collect
         from caliper.harness.report.render import render
         from .paths import reports_dir, salt_path, state_dir, task_classes_path
-        summary = collect(repo_root, data_dir, task_classes_path(repo_root),
+        summary = collect(data_dir, task_classes_path(repo_root),
                           state_dir() / ".project_names.json", salt_path())
         html = render(summary)
         out = reports_dir() / "first_look.html"
@@ -305,7 +306,7 @@ def _collection_step(repo_root: Path) -> None:
         return
 
     from .schedule import install
-    if install(repo_root) != 0:
+    if install() != 0:
         return
 
     # sidecar opt-in: off by default, forward-only (ADR-0011 decision 5)

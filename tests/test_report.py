@@ -67,7 +67,7 @@ def test_fork_children_netted_from_spend_and_disclosed(run_extract):
     _, data_dir = run_extract()
     names_path = data_dir / "names.json"
     names_path.write_text("{}")
-    s = collect(REPO, data_dir,
+    s = collect(data_dir,
                 classes_path=data_dir / "no-classes.jsonl",
                 names_path=names_path, salt_file=data_dir / ".salt")
     assert s["headline"]["fork_children_netted"] == 1
