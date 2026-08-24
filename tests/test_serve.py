@@ -281,6 +281,37 @@ def test_cli_dispatch_reaches_serve(monkeypatch):
     assert called == {"port": 1234, "browser": False}
 
 
+def test_range_selector_is_url_state(serve_url):
+    """?range=7d resolves to a from-date server-side (fixture sessions are
+    months old, so nothing survives it); range links preserve the other
+    filters; the active state is stated in words."""
+    base, loc, s0 = serve_url
+    _, body = _get(base + "/?range=7d")
+    assert "No sessions match this filter." in body
+    assert "Filtered: last 7d (since " in body
+    _, all_body = _get(base + "/?range=all")
+    assert "No sessions match this filter." not in all_body
+    _, tooled = _get(base + "/?tool=codex")
+    assert 'href="?tool=codex&amp;range=7d"' in tooled
+    # an explicit date wins over a range (the range is ignored, said so
+    # by the state line naming only the dates)
+    _, both = _get(base + f"/?range=7d&from=2020-01-01")
+    assert "from 2020-01-01" in both
+
+
+def test_headline_framing_sentence(serve_home):
+    from caliper.harness.report import views
+
+    loc, s0 = serve_home
+    raw = load_data(loc.data_dir, loc.classes_path, loc.names_path,
+                    loc.salt_file)
+    s = summarize(raw)
+    html = views.overview(raw, s, {}, "t")
+    assert ("The total price of everything you ran, at pay-as-you-go API "
+            "rates — if a subscription covered it, that is what you saved."
+            in html)
+
+
 def test_bundle_cache_invalidates_on_mtime_change(serve_home):
     import os
 

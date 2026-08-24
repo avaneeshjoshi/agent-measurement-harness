@@ -78,6 +78,12 @@ form.flt input, form.flt select { font:12px/18px Inter,system-ui,sans-serif;
 form.flt button { font:12px/18px Inter,system-ui,sans-serif; font-weight:500;
   color:var(--bg); background:var(--accent); border:1px solid var(--accent);
   border-radius:6px; padding:4px 12px; cursor:pointer; }
+nav.range { display:inline-flex; gap:4px; align-items:baseline; margin-left:8px; }
+nav.range a { font-size:12px; line-height:18px; color:var(--text-2);
+  border:1px solid var(--edge); border-radius:6px; padding:2px 8px; }
+nav.range a.on { color:var(--bg); background:var(--accent);
+  border-color:var(--accent); }
+nav.range .faint { margin-right:4px; }
 .fstate { font-size:12px; line-height:18px; color:var(--provisional); margin:8px 0 0; }
 .wrap { overflow-x:auto; background:var(--surface-1); border:1px solid var(--edge);
   border-radius:10px; margin:8px 0 4px; }
@@ -215,7 +221,8 @@ def table(cols: list[tuple[str, bool]], rows: list[list[tuple[str, object]]],
 # shared bits
 
 def _qs(filters: dict) -> str:
-    return "?" + urlencode(filters) if filters else ""
+    """Query string for an href attribute (&-escaped for HTML)."""
+    return "?" + H.escape(urlencode(filters)) if filters else ""
 
 
 def _parse_iso(ts: str) -> datetime:
@@ -256,19 +263,43 @@ def _session_cost(raw: dict, rec: dict) -> float | None:
     return _price(tok, _dominant_models(rec), raw["pricing"])
 
 
-def _filter_state(filters: dict) -> str:
-    if not filters:
+def _filter_state(ui: dict, resolved: dict) -> str:
+    if not ui:
         return ""
     parts = []
-    if filters.get("from"):
-        parts.append(f"from {filters['from']}")
-    if filters.get("to"):
-        parts.append(f"to {filters['to']}")
-    if filters.get("tool"):
-        parts.append(f"tool {filters['tool']}")
+    if ui.get("range") and ui["range"] != "all" and not ui.get("from"):
+        parts.append(f"last {ui['range']}"
+                     + (f" (since {resolved['from']})"
+                        if resolved.get("from") else ""))
+    if ui.get("from"):
+        parts.append(f"from {ui['from']}")
+    if ui.get("to"):
+        parts.append(f"to {ui['to']}")
+    if ui.get("tool"):
+        parts.append(f"tool {ui['tool']}")
+    if not parts:
+        return ""
     return ('<p class="fstate">Filtered: ' + H.escape(" · ".join(parts)) +
             ". Every figure on this page is computed over the filtered "
             "records only.</p>")
+
+
+def _range_row(ui: dict) -> str:
+    """The persistent range selector: URL state like every other filter,
+    each link preserving the rest of the state. Picking a range clears an
+    explicit date pair (the range IS the date choice)."""
+    base = {k: v for k, v in ui.items() if k not in ("from", "to", "range")}
+    active = ui.get("range") or \
+        ("custom" if ("from" in ui or "to" in ui) else "all")
+    links = []
+    for key in ("1d", "7d", "30d", "90d", "all"):
+        q = dict(base)
+        if key != "all":
+            q["range"] = key
+        cls = ' class="on"' if active == key else ""
+        links.append(f'<a{cls} href="?{H.escape(urlencode(q))}">{key}</a>')
+    return ('<nav class="range"><span class="faint">range</span>'
+            + "".join(links) + "</nav>")
 
 
 def _survival30(rec: dict, now: datetime) -> tuple[str, object]:
@@ -377,7 +408,7 @@ def _nearby_commits(raw: dict, rec: dict, now: datetime) -> str:
 
 
 def page(title: str, body: str, active: str, loaded_at: str,
-         filters: dict) -> str:
+         filters: dict, resolved: dict | None = None) -> str:
     q = _qs(filters)
     nav = "".join(
         f'<a href="{href}{q}"{" class=" + chr(34) + "on" + chr(34) if active == key else ""}>'
@@ -400,9 +431,10 @@ def page(title: str, body: str, active: str, loaded_at: str,
 <label>to <input type="date" name="to" value="{H.escape(filters.get("to", ""))}"></label>
 <label>tool <select name="tool">{tool_opts}</select></label>
 <button type="submit">Apply</button> {clear}
+{_range_row(filters)}
 <span class="faint">filters are URL state — this page is linkable and
 reload-safe</span></form>
-{_filter_state(filters)}
+{_filter_state(filters, resolved if resolved is not None else filters)}
 {body}
 <footer>data loaded {H.escape(loaded_at)} · re-read automatically when the
 record files change (mtime-keyed cache, ADR-0016) · serve renders the same
@@ -492,7 +524,8 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
                           "caliper extract") + \
                    '<p class="note">Or start from <span class="mono">caliper' \
                    ' setup</span> for the guided first run.</p>'
-        return page("Caliper — overview", body, "overview", loaded_at, filters)
+        return page("Caliper — overview", body, "overview", loaded_at,
+                filters, s["filters"])
 
     h = s["headline"]
     netted = (f" ({h['fork_children_netted']} fork "
@@ -502,8 +535,11 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
     span = (f"{min(r[0] for r in ranges)} → {max(r[1] for r in ranges)}"
             if ranges else "")
     head = (f'<h2>Spend</h2><div class="big">${h["total_cost"]:,.2f}</div>'
-            f'<p class="meta">total list-price equivalent · '
-            f'{h["priced_sessions"]} priced of {s["n_sessions"]} sessions'
+            '<p class="note">The total price of everything you ran, at '
+            "pay-as-you-go API rates — if a subscription covered it, that "
+            "is what you saved.</p>"
+            f'<p class="meta">{h["priced_sessions"]} priced of '
+            f'{s["n_sessions"]} sessions'
             f"{H.escape(netted)} · {H.escape(span)} · "
             f'{h["unpriced_sessions"]} with tokens but no publishable rate, '
             f'{h["no_token_sessions"]} with no tokens logged — the total is '
@@ -608,7 +644,8 @@ def overview(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
 
     body = (head + spend_html + mix_html + out_html + cov_html
             + caveat_block(_overview_caveats(s)))
-    return page("Caliper — overview", body, "overview", loaded_at, filters)
+    return page("Caliper — overview", body, "overview", loaded_at,
+                filters, s["filters"])
 
 
 def _coverage_table(s: dict) -> str:
@@ -657,7 +694,8 @@ def coverage_view(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
                  if not filters else
                  _empty("No sessions match this filter.", "")
                  + '<p class="empty"><a href="?">Clear the filter</a>.</p>')
-        return page("Caliper — coverage", body, "coverage", loaded_at, filters)
+        return page("Caliper — coverage", body, "coverage", loaded_at,
+                    filters, s["filters"])
     body += _coverage_table(s)
     src = s["sources"]
     rows = [
@@ -684,7 +722,8 @@ def coverage_view(raw: dict, s: dict, filters: dict, loaded_at: str) -> str:
         "join; the measured session→repo join rates are ADR-0006's.",
         _LIST_PRICE,
     ])
-    return page("Caliper — coverage", body, "coverage", loaded_at, filters)
+    return page("Caliper — coverage", body, "coverage", loaded_at,
+                filters, s["filters"])
 
 
 def repo_detail(raw: dict, s: dict, ref: str, filters: dict,

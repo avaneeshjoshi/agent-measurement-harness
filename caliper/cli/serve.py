@@ -108,37 +108,51 @@ class ServeHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    RANGES = {"1d": 1, "7d": 7, "30d": 30, "90d": 90}
+
     def do_GET(self) -> None:  # noqa: N802 (http.server API)
         u = urlparse(self.path)
         q = parse_qs(u.query)
-        filters = {}
-        for k in ("from", "to", "tool"):
+        # ui = the URL state as given (what links and the form carry);
+        # resolved = what load_data filters on. A range resolves to a from
+        # date HERE, per request, so links stay relative ("last 7 days")
+        # while the cache key holds the absolute date and naturally expires
+        # at midnight.
+        ui = {}
+        for k in ("from", "to", "tool", "range"):
             v = q.get(k, [""])[0]
             if not v:
                 continue
             if k == "tool" and v not in TOOLS:
                 continue
+            if k == "range" and v not in (*self.RANGES, "all"):
+                continue
             if k in ("from", "to") and (len(v) != 10 or v[4] != "-"):
                 continue
-            filters[k] = v
+            ui[k] = v
+        filters = {k: ui[k] for k in ("from", "to", "tool") if k in ui}
+        days = self.RANGES.get(ui.get("range", ""))
+        if days and "from" not in filters:  # an explicit date wins
+            from datetime import date, timedelta
+            filters["from"] = (date.today() - timedelta(days=days)).isoformat()
         try:
             raw, loaded = self.cache.get(filters)
             s = summarize(raw)
             path = u.path
             if path == "/":
-                html = views.overview(raw, s, filters, loaded)
+                html = views.overview(raw, s, ui, loaded)
             elif path == "/coverage":
-                html = views.coverage_view(raw, s, filters, loaded)
+                html = views.coverage_view(raw, s, ui, loaded)
             elif path.startswith("/repo/"):
                 html = views.repo_detail(raw, s, unquote(path[len("/repo/"):]),
-                                         filters, loaded)
+                                         ui, loaded)
             elif path.startswith("/session/"):
                 html = views.session_detail(
-                    raw, s, unquote(path[len("/session/"):]), filters, loaded)
+                    raw, s, unquote(path[len("/session/"):]), ui, loaded)
             else:
                 html = None
             if html is None:
-                self._send(views.not_found(path, filters, loaded), 404)
+                self._send(views.not_found(path, ui, loaded), 404)
             else:
                 self._send(html)
         except BrokenPipeError:
