@@ -17,9 +17,34 @@ The harness produces four things:
 
 Governing principle: **glass box by default.** Every classification rule, rubric, and routing recommendation is versioned, documented, and logged with rationale (`docs/decisions/`). Reporting is team-level and above — no individual rankings, ever.
 
+## Quickstart
+
+```bash
+pipx install git+https://github.com/avaneeshjoshi/agent-measurement-harness.git@v0.2.0
+caliper setup
+open ~/.caliper/reports/first_look.html
+```
+
+Setup walks through a trust screen, backfills your local agent logs (Claude
+Code, Cursor, Codex — whichever exist), classifies the traffic without
+reading its content, and writes a self-contained HTML report. Everything
+Caliper produces lives in `~/.caliper/`, local only; nothing leaves your
+machine. Remove the scheduled job and see exactly how to delete your data
+with `caliper uninstall`; remove the command itself with
+`pipx uninstall caliper`.
+
+**Upgrade** (installs are pinned to a tag so two installs a week apart are
+the same tool): `pipx install --force git+https://github.com/avaneeshjoshi/agent-measurement-harness.git@v<newer-tag>`.
+Installing `@main` instead gives the moving development version.
+
+**Platforms:** macOS is fully supported, including hourly background
+collection. Linux runs everything except the scheduler (`caliper schedule`
+says so itself; run `caliper extract` manually or from your own timer).
+Windows is unsupported and untested.
+
 ## The intended product experience
 
-**This section is design narrative, not current capability.** It describes the product Caliper is being built toward, in present tense because that is how the design was written. What actually works today is stated — with evidence — in [`PROGRESS.md`](PROGRESS.md). As of the last review: install is `pip install -e .`, not npm; `caliper setup`, `extract`, `signals`, `classify`, `report`, `replay`, and `policy` are real; the apply step described below writes a decision log and **touches no agent configuration**; verified savings, org detection, and scheduled re-measurement are unbuilt.
+**This section is design narrative, not current capability.** It describes the product Caliper is being built toward, in present tense because that is how the design was written. What actually works today is stated — with evidence — in [`PROGRESS.md`](PROGRESS.md). As of the last review: the Quickstart above is the real install; `setup`, `extract`, `signals`, `classify`, `report`, and `schedule` are the shipped surface (`replay`, `policy`, and `pricing` are development instruments gated behind a source checkout — ADR-0014); the apply step described below writes a decision log and **touches no agent configuration**; verified savings, org detection, and vendor-router verification are unbuilt.
 
 Caliper is designed around one constraint: **engineers do not change how they work.**
 No new steps in the coding loop, no prompts to remember, no process to follow. Caliper
