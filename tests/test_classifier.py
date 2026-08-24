@@ -120,45 +120,18 @@ def test_neighborhood_tolerates_missing_optional_fields():
         {"nbr_browser": 0, "nbr_edits": 0}
 
 
-def test_r01c_neighborhood_browser_flips_edit_window():
+def test_neighborhood_features_are_inert_in_active_rules():
+    """The withdrawn 0.2.0 rules (ADR-0013) must stay withdrawn: nbr_*
+    features never change a verdict under the active ruleset."""
     from harness.classifier.features import features_from_units
     from harness.classifier.rules import classify_features
-    f = features_from_units([_unit(0, edits=1)],
-                            neighborhood={"nbr_browser": 1, "nbr_edits": 0})
-    v = classify_features(f)
-    assert v["rule_id"] == "R01c-neighborhood-browser"
-    assert v["task_type"] == "ui_verification_loop"
-    # in-window browser still wins as R01b — precedence preserved
-    f2 = features_from_units([_unit(0, edits=1, browser=1)],
-                             neighborhood={"nbr_browser": 3, "nbr_edits": 1})
-    assert classify_features(f2)["rule_id"] == "R01b-browser-present-edits"
-
-
-def test_r01d_flow_sandwich_reclaims_no_edit_windows():
-    from harness.classifier.features import features_from_units
-    from harness.classifier.rules import classify_features
-    # a no-activity window that R06 would take, sandwiched in a browser flow
-    f = features_from_units([_unit(5)],
-                            neighborhood={"nbr_browser": 2, "nbr_edits": 1})
-    v = classify_features(f)
-    assert v["rule_id"] == "R01d-flow-sandwich"
-    # weaker flow evidence does NOT reclaim it — thresholds are the contract
-    f2 = features_from_units([_unit(5)],
-                             neighborhood={"nbr_browser": 1, "nbr_edits": 1})
-    assert classify_features(f2)["rule_id"] == "R06-no-activity"
-    f3 = features_from_units([_unit(5)],
-                             neighborhood={"nbr_browser": 2, "nbr_edits": 0})
-    assert classify_features(f3)["rule_id"] == "R06-no-activity"
-
-
-def test_no_neighborhood_means_zero_flow_features():
-    """Segment/session grains pass no neighborhood — the flow rules must be
-    structurally unable to fire there."""
-    from harness.classifier.features import features_from_units
     f = features_from_units([_unit(0, edits=1)])
     assert f["nbr_browser"] == 0 and f["nbr_edits"] == 0
+    hot = features_from_units([_unit(0, edits=1)],
+                              neighborhood={"nbr_browser": 9, "nbr_edits": 9})
+    assert classify_features(hot) == classify_features(f)
 
 
-def test_classifier_version_stamped_020(tmp_path):
+def test_classifier_version_restored_011():
     from harness.classifier import CLASSIFIER_VERSION
-    assert CLASSIFIER_VERSION == "rules-0.2.0"
+    assert CLASSIFIER_VERSION == "rules-0.1.1"

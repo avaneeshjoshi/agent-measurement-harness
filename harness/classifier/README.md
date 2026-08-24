@@ -25,7 +25,7 @@ Planned: `harness/replay` drawing per-class task samples from these labels (toda
 
 ## Status (2026-08-10, ADR-0009)
 
-BUILT: rules-0.2.0 (14 documented rules incl. the ADR-0013 neighborhood flow rules R01c/R01d, content-free enforced by test),
+BUILT: rules-0.1.1 (12 documented rules, content-free enforced by test; the 0.2.0 neighborhood-rule experiment was pre-registered, validated once, and withdrawn on a negative result — ADR-0013),
 segmenter 0.1.0 (reproduces all validatable ADR-0002 segments exactly),
 `caliper classify --unit prompt|segment|session|all`. Consumes
 `~/.caliper/extracted/*/sessions.jsonl` + `prompt_units.jsonl`; emits

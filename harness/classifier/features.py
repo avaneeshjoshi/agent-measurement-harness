@@ -148,5 +148,4 @@ def features_from_session(rec: dict) -> dict:
 
 FEATURE_NAMES = ["window.tool_counts", "window.files_edited(flags)",
                  "window.lines_added", "window.lines_removed",
-                 "window.interrupted", "files_edited.top_dir_ref",
-                 "neighborhood.nbr_browser", "neighborhood.nbr_edits"]
+                 "window.interrupted", "files_edited.top_dir_ref"]

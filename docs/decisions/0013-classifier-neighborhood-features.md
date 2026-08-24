@@ -97,18 +97,46 @@ discipline, mirroring ADR-0007's predictions file:
 3. Segment- and session-grain numbers are byte-identical to 0.1.1 (no
    neighborhood at those grains) — any change there is a bug, not drift.
 
-## Results
+## Results (one run, 2026-08-24; frozen at `data/evidence/adr-0013/`) — HYPOTHESIS REJECTED
 
-*(Filled by the follow-up commit after the single run — the commit order is
-the audit trail that predictions preceded results.)*
+Prompt grain: **50.6% / κ 0.365** vs 0.1.1's 53.1% / κ 0.412 — a net loss of
+2 matches out of 81. Against the pre-registered predictions:
+
+1. **1 of 7 predicted flips landed** — `082b86fa/8`, the R01d sandwich (the
+   single case the design was built from). The other six did **not** flip,
+   and the pair-level diff shows why: their neighborhoods contain **zero
+   recorded browser activity** within the segment at any adjacent turn. The
+   humans labeled those windows uvl from *narrative* context — the session
+   is about verifying UI behavior — not from tool-call adjacency. **The
+   signal is not in the tool metadata at any radius.** That is a stronger
+   finding than ADR-0009's "flow context is invisible at single-window
+   grain": for most of these misses, flow context is invisible at *flow*
+   grain too.
+2. **3 regressions, exactly the predicted failure mode**: two exploratory_qa
+   windows (`25b2e1c2/34`, `79bae53e/3`) and one feature window
+   (`79bae53e/1`) inside verification-heavy segments were pulled into uvl by
+   R01d/R01c. uvl recall stayed 16/22 while precision fell 0.71 → 0.53.
+3. **Prediction 3 held**: segment and session grains byte-identical to 0.1.1.
+
+**Decision: the 0.2.0 rules are WITHDRAWN** — a go/no-go on the measured
+result, not tuning. `CLASSIFIER_VERSION` returns to `rules-0.1.1` (version
+identity follows behavior); the neighborhood machinery
+(`features.neighborhood_features`, the inert `nbr_*` features) stays in the
+tree, tested, for future label rounds; a regression test asserts the
+withdrawn rules cannot influence verdicts. Per the one-shot discipline there
+was no second run and no threshold adjustment — this ADR and the frozen
+report are the complete record of the attempt.
 
 ## Consequences
 
-- uvl stops being the class that punishes honest single-window rules; the
-  remaining known misses concentrate in intent distinctions metadata cannot
-  express (bug-fix vs feature, config-as-goal), which wait for the corpus.
-- `validation_report-<version>.json` files accumulate home-side per version,
-  so future comparisons are one command, not archaeology.
-- The 81 labels are now spent as an adjustment target. Next label money goes
-  to teacher-labeling over the sidecar corpus (accumulating since
-  2026-08-24) and, eventually, multi-rater enterprise labels (ADR-0002 gate).
+- The 53.1% / κ 0.41 figures stand as the production classifier's numbers.
+- uvl's remaining misses are now known to need **content**, not cleverer
+  metadata rules — which makes the corpus (Decision 1) the classifier's
+  critical path, exactly as ADR-0009's follow-up ranking guessed and this
+  experiment confirms.
+- `caliper classify --validate` remains: agreement runs are now one command,
+  reproducible, with reports versioned home-side per classifier version.
+- The 81 labels are spent as an adjustment target — twice is the limit this
+  ADR sets for itself. Next label money goes to teacher-labeling over the
+  sidecar corpus (accumulating since 2026-08-24) and, eventually,
+  multi-rater enterprise labels (ADR-0002 gate).

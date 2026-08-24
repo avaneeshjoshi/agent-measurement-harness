@@ -1,0 +1,1204 @@
+{
+  "prompt": {
+    "n_labels": 83,
+    "n_matched": 81,
+    "n_unmatched_rotated": 2,
+    "accuracy": 0.5061728395061729,
+    "cohens_kappa": 0.36458129044910775,
+    "per_class": {
+      "agent_meta_work": {
+        "support": 0,
+        "precision": 0.0,
+        "recall": null,
+        "f1": 0.0
+      },
+      "boilerplate_scaffolding": {
+        "support": 1,
+        "precision": null,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "config_infra": {
+        "support": 4,
+        "precision": null,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "documentation": {
+        "support": 2,
+        "precision": null,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "exploratory_qa": {
+        "support": 25,
+        "precision": 0.8421052631578947,
+        "recall": 0.64,
+        "f1": 0.7272727272727272
+      },
+      "feature_implementation": {
+        "support": 19,
+        "precision": 0.47058823529411764,
+        "recall": 0.42105263157894735,
+        "f1": 0.4444444444444444
+      },
+      "multi_file_refactor": {
+        "support": 2,
+        "precision": 1.0,
+        "recall": 0.5,
+        "f1": 0.6666666666666666
+      },
+      "other": {
+        "support": 4,
+        "precision": null,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "single_file_bug_fix": {
+        "support": 2,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "ui_verification_loop": {
+        "support": 22,
+        "precision": 0.5333333333333333,
+        "recall": 0.7272727272727273,
+        "f1": 0.6153846153846153
+      },
+      "unclassified": {
+        "support": 0,
+        "precision": 0.0,
+        "recall": null,
+        "f1": 0.0
+      }
+    },
+    "confusion": {
+      "exploratory_qa -> unclassified": 5,
+      "config_infra -> feature_implementation": 1,
+      "ui_verification_loop -> feature_implementation": 4,
+      "other -> feature_implementation": 2,
+      "feature_implementation -> exploratory_qa": 1,
+      "single_file_bug_fix -> feature_implementation": 2,
+      "feature_implementation -> agent_meta_work": 3,
+      "feature_implementation -> single_file_bug_fix": 1,
+      "feature_implementation -> ui_verification_loop": 6,
+      "documentation -> ui_verification_loop": 2,
+      "exploratory_qa -> ui_verification_loop": 4,
+      "other -> ui_verification_loop": 1,
+      "config_infra -> agent_meta_work": 1,
+      "multi_file_refactor -> ui_verification_loop": 1,
+      "ui_verification_loop -> unclassified": 1,
+      "ui_verification_loop -> exploratory_qa": 1,
+      "other -> unclassified": 1,
+      "boilerplate_scaffolding -> unclassified": 1,
+      "config_infra -> exploratory_qa": 1,
+      "config_infra -> unclassified": 1
+    },
+    "pairs": [
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          0
+        ],
+        "human": "exploratory_qa",
+        "ours": "unclassified",
+        "rule": "R08-shell-only-unclassified",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          1
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R07-read-search-no-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          2
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          3
+        ],
+        "human": "feature_implementation",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          4
+        ],
+        "human": "feature_implementation",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          5
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          6
+        ],
+        "human": "exploratory_qa",
+        "ours": "unclassified",
+        "rule": "R08-shell-only-unclassified",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          7
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          8
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          9
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          10
+        ],
+        "human": "config_infra",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          11
+        ],
+        "human": "feature_implementation",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          12
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          13
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          14
+        ],
+        "human": "feature_implementation",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          15
+        ],
+        "human": "feature_implementation",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          16
+        ],
+        "human": "feature_implementation",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          17
+        ],
+        "human": "ui_verification_loop",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          18
+        ],
+        "human": "ui_verification_loop",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          19
+        ],
+        "human": "other",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          20
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          21
+        ],
+        "human": "multi_file_refactor",
+        "ours": "multi_file_refactor",
+        "rule": "R11-balanced-multifile",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          22
+        ],
+        "human": "feature_implementation",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          23
+        ],
+        "human": "feature_implementation",
+        "ours": "exploratory_qa",
+        "rule": "R07-read-search-no-edits",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          24
+        ],
+        "human": "feature_implementation",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          25
+        ],
+        "human": "single_file_bug_fix",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          26
+        ],
+        "human": "feature_implementation",
+        "ours": "agent_meta_work",
+        "rule": "R02-agent-config-paths",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          27
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          28
+        ],
+        "human": "feature_implementation",
+        "ours": "agent_meta_work",
+        "rule": "R02-agent-config-paths",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          29
+        ],
+        "human": "feature_implementation",
+        "ours": "single_file_bug_fix",
+        "rule": "R10-single-small-balanced",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          30
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          31
+        ],
+        "human": "feature_implementation",
+        "ours": "agent_meta_work",
+        "rule": "R02-agent-config-paths",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          32
+        ],
+        "human": "feature_implementation",
+        "ours": "ui_verification_loop",
+        "rule": "R01c-neighborhood-browser",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          33
+        ],
+        "human": "documentation",
+        "ours": "ui_verification_loop",
+        "rule": "R01c-neighborhood-browser",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          34
+        ],
+        "human": "exploratory_qa",
+        "ours": "ui_verification_loop",
+        "rule": "R01d-flow-sandwich",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          35
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01-browser-loop",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          36
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01-browser-loop",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          37
+        ],
+        "human": "documentation",
+        "ours": "ui_verification_loop",
+        "rule": "R01d-flow-sandwich",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "25b2e1c2",
+          38
+        ],
+        "human": "exploratory_qa",
+        "ours": "ui_verification_loop",
+        "rule": "R01c-neighborhood-browser",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "79bae53e",
+          0
+        ],
+        "human": "exploratory_qa",
+        "ours": "unclassified",
+        "rule": "R08-shell-only-unclassified",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "79bae53e",
+          1
+        ],
+        "human": "feature_implementation",
+        "ours": "ui_verification_loop",
+        "rule": "R01c-neighborhood-browser",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "79bae53e",
+          2
+        ],
+        "human": "feature_implementation",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "79bae53e",
+          3
+        ],
+        "human": "exploratory_qa",
+        "ours": "ui_verification_loop",
+        "rule": "R01d-flow-sandwich",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "79bae53e",
+          4
+        ],
+        "human": "other",
+        "ours": "ui_verification_loop",
+        "rule": "R01c-neighborhood-browser",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "dfd1d887",
+          0
+        ],
+        "human": "config_infra",
+        "ours": "agent_meta_work",
+        "rule": "R02-agent-config-paths",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          0
+        ],
+        "human": "multi_file_refactor",
+        "ours": "ui_verification_loop",
+        "rule": "R01d-flow-sandwich",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          1
+        ],
+        "human": "feature_implementation",
+        "ours": "ui_verification_loop",
+        "rule": "R01-browser-loop",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          2
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          3
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          4
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          5
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          6
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          7
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          8
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01d-flow-sandwich",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          9
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          10
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          11
+        ],
+        "human": "exploratory_qa",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          12
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          13
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01-browser-loop",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          14
+        ],
+        "human": "feature_implementation",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          15
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          16
+        ],
+        "human": "feature_implementation",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          17
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01-browser-loop",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "082b86fa",
+          18
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01-browser-loop",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "208e4ab7",
+          0
+        ],
+        "human": "ui_verification_loop",
+        "ours": "unclassified",
+        "rule": "R08-shell-only-unclassified",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "208e4ab7",
+          1
+        ],
+        "human": "ui_verification_loop",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "208e4ab7",
+          2
+        ],
+        "human": "ui_verification_loop",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "208e4ab7",
+          3
+        ],
+        "human": "single_file_bug_fix",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "208e4ab7",
+          4
+        ],
+        "human": "ui_verification_loop",
+        "ours": "exploratory_qa",
+        "rule": "R07-read-search-no-edits",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "499d21c0",
+          0
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R07-read-search-no-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "499d21c0",
+          1
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "499d21c0",
+          2
+        ],
+        "human": "other",
+        "ours": "unclassified",
+        "rule": "R08-shell-only-unclassified",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "499d21c0",
+          3
+        ],
+        "human": "other",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "14e8ef03",
+          0
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "14e8ef03",
+          1
+        ],
+        "human": "exploratory_qa",
+        "ours": "unclassified",
+        "rule": "R08-shell-only-unclassified",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "14e8ef03",
+          2
+        ],
+        "human": "boilerplate_scaffolding",
+        "ours": "unclassified",
+        "rule": "R08-shell-only-unclassified",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "14e8ef03",
+          3
+        ],
+        "human": "config_infra",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "14e8ef03",
+          4
+        ],
+        "human": "config_infra",
+        "ours": "unclassified",
+        "rule": "R08-shell-only-unclassified",
+        "match": false
+      },
+      {
+        "key": [
+          "prompt",
+          "14e8ef03",
+          5
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "14e8ef03",
+          6
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "prompt",
+          "14e8ef03",
+          7
+        ],
+        "human": "exploratory_qa",
+        "ours": "unclassified",
+        "rule": "R08-shell-only-unclassified",
+        "match": false
+      }
+    ]
+  },
+  "segment": {
+    "n_labels": 14,
+    "n_matched": 13,
+    "n_unmatched_rotated": 1,
+    "accuracy": 0.38461538461538464,
+    "cohens_kappa": 0.23529411764705885,
+    "per_class": {
+      "agent_meta_work": {
+        "support": 0,
+        "precision": 0.0,
+        "recall": null,
+        "f1": 0.0
+      },
+      "config_infra": {
+        "support": 1,
+        "precision": null,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "documentation": {
+        "support": 1,
+        "precision": null,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "exploratory_qa": {
+        "support": 3,
+        "precision": 0.5,
+        "recall": 0.3333333333333333,
+        "f1": 0.4
+      },
+      "feature_implementation": {
+        "support": 3,
+        "precision": 0.4,
+        "recall": 0.6666666666666666,
+        "f1": 0.5
+      },
+      "other": {
+        "support": 1,
+        "precision": null,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "ui_verification_loop": {
+        "support": 4,
+        "precision": 0.6666666666666666,
+        "recall": 0.5,
+        "f1": 0.5714285714285715
+      },
+      "unclassified": {
+        "support": 0,
+        "precision": 0.0,
+        "recall": null,
+        "f1": 0.0
+      }
+    },
+    "confusion": {
+      "exploratory_qa -> feature_implementation": 1,
+      "documentation -> ui_verification_loop": 1,
+      "feature_implementation -> unclassified": 1,
+      "config_infra -> agent_meta_work": 1,
+      "ui_verification_loop -> feature_implementation": 1,
+      "ui_verification_loop -> exploratory_qa": 1,
+      "other -> feature_implementation": 1,
+      "exploratory_qa -> unclassified": 1
+    },
+    "pairs": [
+      {
+        "key": [
+          "segment",
+          "25b2e1c2",
+          "seg0"
+        ],
+        "human": "exploratory_qa",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "segment",
+          "25b2e1c2",
+          "seg1"
+        ],
+        "human": "exploratory_qa",
+        "ours": "exploratory_qa",
+        "rule": "R06-no-activity",
+        "match": true
+      },
+      {
+        "key": [
+          "segment",
+          "25b2e1c2",
+          "seg2"
+        ],
+        "human": "feature_implementation",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": true
+      },
+      {
+        "key": [
+          "segment",
+          "25b2e1c2",
+          "seg3"
+        ],
+        "human": "feature_implementation",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": true
+      },
+      {
+        "key": [
+          "segment",
+          "25b2e1c2",
+          "seg4"
+        ],
+        "human": "documentation",
+        "ours": "ui_verification_loop",
+        "rule": "R01-browser-loop",
+        "match": false
+      },
+      {
+        "key": [
+          "segment",
+          "79bae53e",
+          "seg0"
+        ],
+        "human": "feature_implementation",
+        "ours": "unclassified",
+        "rule": "R08-shell-only-unclassified",
+        "match": false
+      },
+      {
+        "key": [
+          "segment",
+          "dfd1d887",
+          "seg0"
+        ],
+        "human": "config_infra",
+        "ours": "agent_meta_work",
+        "rule": "R02-agent-config-paths",
+        "match": false
+      },
+      {
+        "key": [
+          "segment",
+          "082b86fa",
+          "seg0"
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "segment",
+          "082b86fa",
+          "seg1"
+        ],
+        "human": "ui_verification_loop",
+        "ours": "ui_verification_loop",
+        "rule": "R01b-browser-present-edits",
+        "match": true
+      },
+      {
+        "key": [
+          "segment",
+          "208e4ab7",
+          "seg0"
+        ],
+        "human": "ui_verification_loop",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "segment",
+          "208e4ab7",
+          "seg1"
+        ],
+        "human": "ui_verification_loop",
+        "ours": "exploratory_qa",
+        "rule": "R07-read-search-no-edits",
+        "match": false
+      },
+      {
+        "key": [
+          "segment",
+          "499d21c0",
+          "seg0"
+        ],
+        "human": "other",
+        "ours": "feature_implementation",
+        "rule": "R12-edit-default",
+        "match": false
+      },
+      {
+        "key": [
+          "segment",
+          "14e8ef03",
+          "seg0"
+        ],
+        "human": "exploratory_qa",
+        "ours": "unclassified",
+        "rule": "R08-shell-only-unclassified",
+        "match": false
+      }
+    ]
+  }
+}

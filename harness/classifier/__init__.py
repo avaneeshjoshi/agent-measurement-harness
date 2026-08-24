@@ -11,7 +11,7 @@ Versions (independent axes per docs/conventions.md):
 - SEGMENTER_VERSION: observable-boundary rules (0.1.0, conventions.md)
 """
 
-CLASSIFIER_VERSION = "rules-0.2.0"  # neighborhood flow rules, ADR-0013
+CLASSIFIER_VERSION = "rules-0.1.1"  # 0.2.0 withdrawn on its one-shot result, ADR-0013
 TAXONOMY_VERSION = "0.1.0"
 SEGMENTER_VERSION = "0.1.0"
 TASK_CLASS_SCHEMA_VERSION = "0.1.0"
