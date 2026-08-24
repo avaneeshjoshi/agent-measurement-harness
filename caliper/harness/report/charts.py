@@ -194,8 +194,10 @@ def cumulative(day_costs: dict[str, float], title: str, meta: str) -> str:
     if len(day_costs) < 2:
         return ""
     days = _days_between(min(day_costs), max(day_costs))
-    W, PH = 1400, 360
-    LEFT, BOT, TOP, RIGHT = 64, 26, 14, 16
+    # column-sized viewBox: this chart lives in a half-width .cols cell,
+    # and a 1400-wide box scaled to ~660px renders 5px axis text
+    W, PH = 700, 320
+    LEFT, BOT, TOP, RIGHT = 56, 24, 14, 14
     plot_w, plot_h = W - LEFT - RIGHT, PH - BOT - TOP
 
     running, acc = [], 0.0
