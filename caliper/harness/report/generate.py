@@ -72,19 +72,68 @@ def _cohort(rec: dict) -> str:
     return "eval_harness" if "caliper-eval" in paths else "organic"
 
 
-def collect(data_dir: Path, classes_path: Path,
-            names_path: Path, salt_file: Path) -> dict:
-    """All locations are resolved by the caller through cli.paths (ADR-0012)
-    — this layer stays path-agnostic. data_dir is the extracted tree;
-    classes_path the task_class records; names_path the local display-name
-    map; salt_file the ref salt."""
+def load_data(data_dir: Path, classes_path: Path, names_path: Path,
+              salt_file: Path, filters: dict | None = None) -> dict:
+    """Read every record the report and serve consume into one raw bundle.
+    All locations are resolved by the caller through cli.paths (ADR-0012)
+    — this layer stays path-agnostic.
+
+    filters ({"from": "YYYY-MM-DD", "to": ..., "tool": ...}, all optional)
+    are applied HERE, before any aggregation, so every consumer — the
+    report, serve's overview, and serve's detail views — sees the same
+    filtered universe and cannot disagree about what is in scope. Sessions
+    filter on started_at date and source_tool; commits filter on
+    authored_at date (a tool filter does not apply to git history);
+    prompt units follow their session; task classes join through the
+    session table downstream and need no filter of their own."""
+    f = filters or {}
     pricing = load_pricing()
     names = load_name_map(names_path, salt_file)
 
-    sessions = {}
+    sessions: dict[str, dict] = {}
     for tool in TOOLS:
+        if f.get("tool") and tool != f["tool"]:
+            continue
         for r in _jsonl(data_dir / tool / "sessions.jsonl"):
+            day = r["started_at"][:10]
+            if f.get("from") and day < f["from"]:
+                continue
+            if f.get("to") and day > f["to"]:
+                continue
             sessions[r["session_id"]] = r
+
+    units = {tool: [u for u in _jsonl(data_dir / tool / "prompt_units.jsonl")
+                    if u["session_id"] in sessions]
+             for tool in TOOLS}
+
+    classes = _jsonl(classes_path)
+
+    signals = []
+    for r in _jsonl(data_dir / "git_history" / "production_signals.jsonl"):
+        day = (r["change_ref"].get("authored_at") or "")[:10]
+        if f.get("from") and day and day < f["from"]:
+            continue
+        if f.get("to") and day and day > f["to"]:
+            continue
+        signals.append(r)
+
+    return {"pricing": pricing, "names": names, "sessions": sessions,
+            "units": units, "classes": classes, "signals": signals,
+            "filters": {k: v for k, v in f.items() if v}}
+
+
+def collect(data_dir: Path, classes_path: Path,
+            names_path: Path, salt_file: Path) -> dict:
+    """The report's entry point: exactly load + summarize, nothing else.
+    Serve calls the same two functions — one data layer, by construction."""
+    return summarize(load_data(data_dir, classes_path, names_path, salt_file))
+
+
+def summarize(raw: dict) -> dict:
+    """Aggregate a load_data bundle into the summary both surfaces render."""
+    pricing = raw["pricing"]
+    names = raw["names"]
+    sessions = raw["sessions"]
 
     # ---- spend ----------------------------------------------------------
     spend_by_model: dict[str, dict] = defaultdict(lambda: Counter())
@@ -124,7 +173,7 @@ def collect(data_dir: Path, classes_path: Path,
             unpriced_sessions += 1
 
     # ---- task mix -------------------------------------------------------
-    classes = _jsonl(classes_path)
+    classes = raw["classes"]
     mix = defaultdict(lambda: defaultdict(Counter))
     auto_mix = defaultdict(Counter)
     for r in classes:
@@ -141,7 +190,7 @@ def collect(data_dir: Path, classes_path: Path,
             auto_mix[akey][label] += 1
 
     # ---- outcomes (git signals) ----------------------------------------
-    signals = _jsonl(data_dir / "git_history" / "production_signals.jsonl")
+    signals = raw["signals"]
     repos = defaultdict(lambda: {"commits": 0, "surv": [], "rework_m": 0,
                                  "rework_y": 0, "attr": Counter(), "path": None,
                                  "gen_lines_excluded": 0, "gen_commits": 0})
@@ -218,12 +267,12 @@ def collect(data_dir: Path, classes_path: Path,
             "with_units": None,  # filled below
             "range": [starts[0][:10], starts[-1][:10]],
         }
-        units = _jsonl(data_dir / tool / "prompt_units.jsonl")
-        with_units = len({u["session_id"] for u in units})
+        with_units = len({u["session_id"] for u in raw["units"][tool]})
         coverage[tool]["with_units"] = with_units
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "filters": raw["filters"],
         "pricing": {"as_of": pricing["pricing_version"],
                     "source": pricing["pricing_source"]},
         "n_sessions": len(sessions),

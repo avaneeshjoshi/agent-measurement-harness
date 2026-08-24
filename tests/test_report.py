@@ -96,6 +96,49 @@ def test_fork_children_netted_from_spend_and_disclosed(run_extract):
     assert "1 fork child netted from spend" in render(s)
 
 
+def test_one_data_layer_collect_is_load_plus_summarize(run_extract):
+    """ADR-0016: the report and serve share ONE data layer. collect() must
+    be exactly summarize(load_data(...)) — a serve page disagreeing with a
+    report the user already sent someone is the worst bug this product can
+    have, and this identity is the tripwire."""
+    from caliper.harness.report.generate import collect, load_data, summarize
+
+    _, data_dir = run_extract()
+    names_path = data_dir / "names.json"
+    names_path.write_text("{}")
+    kw = dict(classes_path=data_dir / "no-classes.jsonl",
+              names_path=names_path, salt_file=data_dir / ".salt")
+    a = collect(data_dir, **kw)
+    b = summarize(load_data(data_dir, **kw))
+    a.pop("generated_at")
+    b.pop("generated_at")
+    assert a == b
+
+
+def test_load_data_filters_apply_before_aggregation(run_extract):
+    """Filters narrow the universe at load time, so aggregates and detail
+    views cannot disagree about scope. An impossible date range leaves
+    nothing; the active filter travels on the summary for the page to
+    state."""
+    from caliper.harness.report.generate import load_data, summarize
+
+    _, data_dir = run_extract()
+    names_path = data_dir / "names.json"
+    names_path.write_text("{}")
+    kw = dict(classes_path=data_dir / "no-classes.jsonl",
+              names_path=names_path, salt_file=data_dir / ".salt")
+
+    raw = load_data(data_dir, filters={"tool": "claude_code"}, **kw)
+    assert raw["sessions"]
+    assert all(r["source_tool"] == "claude_code"
+               for r in raw["sessions"].values())
+    assert summarize(raw)["filters"] == {"tool": "claude_code"}
+
+    none = load_data(data_dir, filters={"from": "2099-01-01"}, **kw)
+    assert not none["sessions"]
+    assert all(not v for v in none["units"].values())
+
+
 def test_chart_renders_nothing_for_empty_rows():
     """C1: the empty-machine crash — _chart over no rows returns empty,
     never ValueError."""
