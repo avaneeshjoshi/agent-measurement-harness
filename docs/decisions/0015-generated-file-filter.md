@@ -64,10 +64,34 @@ exclusion is stated rather than silently decided.
 
 ## Re-run against the real repos (before/after)
 
-*(Filled by the follow-up commit after the live re-run: which commits flip
-to `excluded_generated`, which mixed commits' counts shrink and by how much,
-per-repo line-weighted and per-commit-median 30d survival before/after, and
-wall-time before/after.)*
+Run 2026-08-24 (pre-filter records snapshotted first; 234 → 245 records —
+the 11 extra are commits landed since the previous day's run, ordinary
+drift). **Wall time: ~6 minutes → 36 seconds** (blame no longer runs on
+generated monsters).
+
+- **Flipped to `excluded_generated`: 1 commit** — Axlerate `8c8d654`
+  (1,994 generated lines, nothing else).
+- **Mixed commits with work counts shrunk: 16**, led by Axlerate `2fbaf77`:
+  lines_added **3,013,346 → 9** (3,013,337 excluded — the commit that
+  motivated this ADR turns out to contain nine lines of actual work),
+  Axlerate `2dca7f5` 12,806 → 889, AvaneeshJoshi-Portfolio `83ee91a`
+  18,598 → 7,872, echo-web `f904f27` 8,411 → 1,651, and so on down.
+- **Per-repo 30d survival, line-weighted / per-commit-median (n):**
+
+| repo | before | after |
+|---|---|---|
+| Axlerate | **0.0571** / 0.992 (19) | **0.9974** / 0.985 (19) |
+| Echo | 0.9423 / 0.996 (18) | 0.9292 / 0.996 (18) |
+| Personal-Portfolio-Website | 0.9591 / 1.0 (17) | 0.9467 / 0.987 (19) |
+| AvaneeshJoshi-Portfolio | 0.9998 / 1.0 (7) | 0.9996 / 1.0 (7) |
+| Cyrano | 0.9999 / 1.0 (4) | 0.9998 / 1.0 (4) |
+| ci-autofix, echo-web | 1.0 / 1.0 (1) | 1.0 / 1.0 (1) |
+
+The ADR-0006 pathology is resolved where it lived: Axlerate's line-weighted
+figure was 94 points below its own median because of one lockfile; under
+gen-0.1.0 the two views tell the same story. Where line-weighted moved
+*down* slightly (Echo, PPW), that is the filter removing high-surviving
+generated bulk — the honest direction.
 
 ## Known limitations
 
