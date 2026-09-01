@@ -131,8 +131,16 @@ def build_prompt_units(records: list[dict], session_id: str, git_branch,
                 elif pt in ("web_search_call", "tool_search_call"):
                     tool_counts[pt] = tool_counts.get(pt, 0) + 1
 
+        p0 = rec.get("payload") or {}
+        msg = p0.get("message")
+        imgs, limgs = p0.get("images"), p0.get("local_images")
+        if isinstance(imgs, list) or isinstance(limgs, list):
+            image_pastes = (len(imgs) if isinstance(imgs, list) else 0) \
+                + (len(limgs) if isinstance(limgs, list) else 0)
+        else:
+            image_pastes = None
         units.append({
-            "schema_version": "0.1.1",
+            "schema_version": "0.2.0",
             "session_id": session_id,
             "source_tool": "codex",
             "turn_index": n,
@@ -142,6 +150,8 @@ def build_prompt_units(records: list[dict], session_id: str, git_branch,
             "git_branch": git_branch,
             "prompt_source": None,
             "origin_kind": None,
+            "prompt_chars": len(msg) if isinstance(msg, str) else None,
+            "image_pastes": image_pastes,
             "window": {
                 "assistant_messages": agent_msgs,
                 "tool_calls": sum(tool_counts.values()),

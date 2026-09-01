@@ -384,3 +384,56 @@ def test_invalid_prompt_units_are_skipped_with_note(tmp_path):
     units = (tmp_path / "out" / "claude_code" / "prompt_units.jsonl").read_text()
     for line in units.splitlines():
         assert _json.loads(line).get("started_at")  # nothing invalid landed
+
+
+# ------------------------------------------------ prompt size signals (0.2.0)
+
+def test_prompt_units_carry_prompt_chars(run_extract):
+    """prompt_chars is a SIZE, never text (ADR-0020): every unit carries
+    the field, fixtures with real prompt text produce nonzero values, and
+    the fixture markers never appear in the unit files."""
+    _, data_dir = run_extract()
+    for tool in ("claude_code", "codex"):
+        raw = (data_dir / tool / "prompt_units.jsonl").read_text()
+        for marker in ALL_MARKERS:
+            assert marker not in raw
+        units = [json.loads(l) for l in raw.splitlines()]
+        assert units
+        for u in units:
+            assert u["schema_version"] == "0.2.0"
+            assert u["prompt_chars"] is None or u["prompt_chars"] >= 0
+        assert any(u["prompt_chars"] for u in units)
+
+
+def test_image_pastes_counted_when_recorded_null_when_not():
+    """Absent is not zero: a prompt record without imagePasteIds gets
+    null (older log versions omit the key entirely), one with the key
+    gets the count."""
+    from caliper.connectors.claude_code import build_prompt_units
+    base = {"type": "user", "message": {"content": "fix the login bug"},
+            "timestamp": "2026-01-01T00:00:00Z", "gitBranch": "main"}
+    units = build_prompt_units([{**base, "imagePasteIds": ["a", "b"]}],
+                               "s", "salt")
+    assert units[0]["image_pastes"] == 2
+    assert units[0]["prompt_chars"] == len("fix the login bug")
+    units = build_prompt_units([base], "s", "salt")
+    assert units[0]["image_pastes"] is None
+
+
+def test_codex_prompt_size_fields():
+    from caliper.connectors.codex import build_prompt_units
+    recs = [{"type": "event_msg", "timestamp": "2026-01-01T00:00:00Z",
+             "payload": {"type": "user_message", "message": "hello there",
+                         "images": ["i1"], "local_images": []}}]
+    units = build_prompt_units(recs, "s", "main", "salt")
+    assert units[0]["prompt_chars"] == 11
+    assert units[0]["image_pastes"] == 1
+
+
+def test_codex_prompt_size_null_when_unobserved():
+    from caliper.connectors.codex import build_prompt_units
+    recs = [{"type": "event_msg", "timestamp": "2026-01-01T00:00:00Z",
+             "payload": {"type": "user_message"}}]
+    units = build_prompt_units(recs, "s", "main", "salt")
+    assert units[0]["prompt_chars"] is None
+    assert units[0]["image_pastes"] is None

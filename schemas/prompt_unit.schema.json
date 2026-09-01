@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "caliper:prompt_unit:0.1.1",
+  "$id": "caliper:prompt_unit:0.2.0",
   "title": "PromptUnit",
-  "description": "One user prompt turn plus its response window (conventions.md), as CONTENT-FREE per-unit metadata emitted by connectors. Exists so the classifier can label prompt/segment units without touching raw logs (connectors stay the only source-reading layer) and without any content: no prompt text, no code, no paths in the clear. Turn indices are 0-based ordinals over user prompt turns per conventions.md, EXCLUDING task-notification records (matching the ADR-0002 calibration indexing). File identity is salted-hashed; path-derived booleans (is_test_path etc.) are computed connector-side so raw paths never leave the connector. 0.1.1: window.interrupted narrowed to interrupted TOOL RESULTS (plus codex turn_aborted); new window.interrupt_marker carries interruption-marker records separately \u2014 segmenter 0.1.0 splits on the former only, matching the ADR-0002 calibration reference behavior.",
+  "description": "One user prompt turn plus its response window (conventions.md), as CONTENT-FREE per-unit metadata emitted by connectors. Exists so the classifier can label prompt/segment units without touching raw logs (connectors stay the only source-reading layer) and without any content: no prompt text, no code, no paths in the clear. Turn indices are 0-based ordinals over user prompt turns per conventions.md, EXCLUDING task-notification records (matching the ADR-0002 calibration indexing). File identity is salted-hashed; path-derived booleans (is_test_path etc.) are computed connector-side so raw paths never leave the connector. 0.2.0 (ADR-0020): prompt_chars + image_pastes — content-free SIZE of the prompt, the pre-compiled-context signal; sizes and counts only, never text. 0.1.1: window.interrupted narrowed to interrupted TOOL RESULTS (plus codex turn_aborted); new window.interrupt_marker carries interruption-marker records separately \u2014 segmenter 0.1.0 splits on the former only, matching the ADR-0002 calibration reference behavior.",
   "type": "object",
   "required": [
     "schema_version",
@@ -75,6 +75,24 @@
         "null"
       ],
       "description": "origin.kind where recorded (human/automated/...); null = unrecorded."
+    },
+    "prompt_chars": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "x-provenance": "observed",
+      "description": "Character length of the user-authored prompt text (claude_code: the prompt turn's text content; codex: the user_message payload). A size, never the text — the content-free proxy for how much pre-compiled context arrived with the prompt (ADR-0020). null = the producing connector could not observe it."
+    },
+    "image_pastes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "x-provenance": "observed",
+      "description": "Count of images attached/pasted on the prompt, where the log records them (claude_code imagePasteIds; codex images + local_images). null = not recorded by the source — which is NOT zero: older log versions omit the field entirely (ADR-0020)."
     },
     "window": {
       "type": "object",

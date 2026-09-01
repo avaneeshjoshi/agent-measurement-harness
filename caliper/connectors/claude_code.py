@@ -184,8 +184,10 @@ def build_prompt_units(recs: list[dict], session_id: str, salt: str) -> list[dic
                     active_ms = (active_ms or 0) + int(d)
 
         from .util import iso_utc as _iso
+        prompt_text = _user_prompt_text(rec) or ""
+        paste_ids = rec.get("imagePasteIds")
         units.append({
-            "schema_version": "0.1.1",
+            "schema_version": "0.2.0",
             "session_id": session_id,
             "source_tool": "claude_code",
             "turn_index": n,
@@ -196,6 +198,9 @@ def build_prompt_units(recs: list[dict], session_id: str, salt: str) -> list[dic
             "prompt_source": rec.get("promptSource"),
             "origin_kind": (rec.get("origin") or {}).get("kind")
                 if isinstance(rec.get("origin"), dict) else None,
+            "prompt_chars": len(prompt_text),
+            "image_pastes": len(paste_ids) if isinstance(paste_ids, list)
+                else None,
             "window": {
                 "assistant_messages": len(msg_ids),
                 "tool_calls": sum(tool_counts.values()),
