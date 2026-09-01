@@ -240,8 +240,9 @@ def _highlights(summary: dict) -> None:
 
     auto = sum(summary["auto_mix"].get("automated", {}).values())
     if auto:
-        print(S.dim(f"    {auto} sessions look automated (CI-launched) — "
-                    "they answer different questions than human traffic"))
+        print(S.dim(f"    {auto} sessions look automated (subagent runs or "
+                    "non-user thread sources) — they answer different "
+                    "questions than human traffic"))
         print()
 
     repos = summary.get("repos") or {}
