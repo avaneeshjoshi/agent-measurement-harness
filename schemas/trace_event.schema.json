@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "caliper:trace_event:0.1.0",
+  "$id": "caliper:trace_event:0.2.0",
   "title": "TraceEvent",
   "description": "One link in the value chain: session -> commit/PR -> ticket/initiative -> deployment -> outcome. Each record is a single edge between two nodes, carrying HOW the link was established and how sure we are of it — a chain is only as strong as its weakest edge, and that weakness must be visible. Value dimensions live on the edge as separate fields and are never combined into a single score. This schema doubles as the external integration contract a customer org reviews before deployment, so it must stand alone as documentation.",
   "type": "object",
@@ -30,11 +30,12 @@
           "enum": [
             "explicit_id_reference",
             "vendor_tracking",
+            "file_overlap",
             "branch_name_match",
             "timestamp_correlation",
             "human_assertion"
           ],
-          "description": "How the edge was established, strongest to weakest: explicit_id_reference (ticket key in commit/PR, PR merge commit), vendor_tracking (e.g. Cursor conversationId->commit), branch_name_match (feature/PROJ-123), timestamp_correlation (session activity overlapping commit authorship — weakest automated method), human_assertion (an engineer said so)."
+          "description": "How the edge was established, strongest to weakest: explicit_id_reference (ticket key in commit/PR, PR merge commit), vendor_tracking (e.g. Cursor conversationId->commit), file_overlap (the files a session edited match the files a commit changed, via salted file refs; confidence scales with commit-side containment and file rarity — added in 0.2.0, ADR-0019), branch_name_match (feature/PROJ-123), timestamp_correlation (session activity overlapping commit authorship — weakest automated method), human_assertion (an engineer said so)."
         },
         "confidence_class": {
           "type": "string",

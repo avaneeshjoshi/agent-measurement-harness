@@ -354,6 +354,13 @@ def main(argv: list[str] | None = None) -> int:
     p_signals.add_argument("--repo", action="append", default=[],
                            help="Additional repo path(s) to analyze.")
 
+    p_trace = sub.add_parser("trace",
+                             help="Produce trace edges (session -> commit "
+                                  "-> ticket) from extracted data + local "
+                                  "git history. Read-only over sources.")
+    p_trace.add_argument("--data-dir", default=None,
+                         help="Data root (default: ~/.caliper/extracted).")
+
     p_replay = sub.add_parser("replay",
                               help="Replay mined tasks across model tiers "
                                    "(dev: source checkout + real API spend).")
@@ -487,11 +494,55 @@ def main(argv: list[str] | None = None) -> int:
             return uninstall()
         return status()
 
-    if args.command not in ("extract", "signals", "replay", "classify",
-                            "report", "serve", "pricing", "policy", "setup",
-                            "schedule", "uninstall"):
+    if args.command not in ("extract", "signals", "trace", "replay",
+                            "classify", "report", "serve", "pricing",
+                            "policy", "setup", "schedule", "uninstall"):
         parser.print_help()
         return 1
+
+    if args.command == "trace":
+        from caliper.harness.trace.tracer import TRACER_VERSION, run_trace
+
+        from .paths import schema_path as _sp_trace
+        from .style import S, box, child, sep, step
+        data_dir = Path(args.data_dir) if args.data_dir else extracted_dir()
+        summary = run_trace(
+            data_dir, validator=load_validator(_sp_trace("trace_event.schema.json")))
+        print(box(S.bold("caliper trace"),
+                  sep(f"{S.bold(str(summary['edges']))} edges",
+                      S.dim(TRACER_VERSION))))
+        print()
+        if not summary["commits_analyzed"] and not summary["sessions_total"]:
+            print("Nothing to trace yet. Run caliper extract first.")
+            return 0
+        print(step("Chain rate " + S.dim("· how often the pipeline is "
+                                         "observable in this data")))
+        print()
+        ct, ca = summary["commits_with_ticket_edge"], summary["commits_analyzed"]
+        print(child("commit → ticket",
+                    f"{ct}/{ca} commits carry a ticket key"
+                    + ("" if ca else " (no commits analyzed)")))
+        print()
+        sc = summary["sessions_with_commit_edge"]
+        ss = summary["sessions_in_repo_scope"]
+        cls = summary["session_commit_edges_by_class"]
+        print(child("session → commit",
+                    f"{sc}/{ss} repo-scoped sessions matched a commit "
+                    f"by file overlap",
+                    S.dim(f"{cls['inferred']} inferred · "
+                          f"{cls['speculative']} speculative edges")))
+        print()
+        sb = summary["sessions_with_branch_ticket_edge"]
+        print(child("session → ticket",
+                    f"{sb}/{summary['sessions_total']} sessions carry a "
+                    f"ticket key in their branch name"))
+        print()
+        if summary["invalid"]:
+            print(S.bred(f"{summary['invalid']} invalid edges rejected"))
+            print()
+        print(S.dim("Low chain-rates are a finding, not a failure: they "
+                    "map where the chain breaks (ADR-0019)."))
+        return 0
 
     if args.command == "pricing":
         from .paths import checkout_root
