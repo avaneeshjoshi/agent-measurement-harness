@@ -353,8 +353,8 @@ def table(cols: list[tuple[str, bool]], rows: list[list[tuple[str, object]]],
         tds = []
         for (cell, key), (_lab, num) in zip(r, cols):
             k = f' data-s="{H.escape(str(key), quote=True)}"' if key is not None else ""
-            cls = ' class="n"' if num else ""
-            tds.append(f"<td{cls}{k}>{cell}</td>")
+            td_cls = ' class="n"' if num else ""  # never shadow the wrapper's cls
+            tds.append(f"<td{td_cls}{k}>{cell}</td>")
         body.append("<tr>" + "".join(tds) + "</tr>")
     note = f'<p class="faint">{H.escape(sort_note)}</p>' if sort_note else ""
     wrap_cls = f"wrap {cls}".strip()

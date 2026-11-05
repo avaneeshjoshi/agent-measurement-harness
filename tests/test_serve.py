@@ -515,6 +515,10 @@ def test_daily_table_is_newest_first(serve_url):
     base, loc, s0 = serve_url
     _, body = _get(base + "/")
     assert "newest first" in body
+    # the wrapper keeps its scroll cap and well-formed markup: a loop
+    # variable once shadowed `cls` and emitted class="wrap  class="n""
+    assert 'class="wrap scroll"' in body
+    assert 'class="wrap  class=' not in body
     idx = body.rindex("sessions.jsonl → started_at date")
     seg = body[:idx]
     days = __import__("re").findall(r'<td data-s="(\d{4}-\d{2}-\d{2})"', seg)
