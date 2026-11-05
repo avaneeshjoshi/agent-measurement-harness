@@ -23,6 +23,22 @@ def test_dated_model_ids_price_against_undated_sheet_keys():
     assert _price(tok, ["<synthetic>", "claude-fable-5"], pricing) == 10.0
 
 
+def test_newer_model_ids_never_borrow_an_older_models_rate():
+    """ADR-0007 postscript 2: the pricer used to resolve ids by bare prefix,
+    so a version successor silently took its predecessor's rate and rendered
+    as a confident dollar figure. Only exact ids and dated variants
+    (-YYYYMMDD) may resolve; everything else is unpriced — absence, never a
+    borrowed number."""
+    pricing = load_pricing()
+    tok = {"input": 1_000_000, "output": 0, "cache_read": 0, "cache_creation": 0}
+    for successor in ("claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1",
+                      "claude-opus-4-85", "gpt-5.55", "claude-haiku-4-5x"):
+        assert _price(tok, [successor], pricing) is None, successor
+    # the dated form still resolves, and the exact key still prices
+    assert _price(tok, ["claude-haiku-4-5-20251001"], pricing) == 1.0
+    assert _price(tok, ["claude-opus-5"], pricing) == 5.0
+
+
 def test_absent_renders_not_recorded_never_zero():
     assert _fmt(None) == NR
     assert _fmt(None, money=True) == NR

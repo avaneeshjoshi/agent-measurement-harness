@@ -96,3 +96,35 @@ strengthening the mid-tier conclusion. Fable and haiku figures are unchanged (no
 promotional rates). The eval_result records are NOT rewritten — they carry
 pricing_as_of 2026-08-09 and remain reproducible under that sheet; this
 postscript and the updated demo artifact are the corrected citations.
+
+## Postscript 2 (2026-11-05): the report pricer matched model ids by prefix — found, fixed, impact unmeasurable
+
+`_price()` in `harness/report/generate.py` — the pricer behind `caliper
+report` and `caliper serve`, first committed 2026-08-10 — resolved a
+session's model id to a price-sheet key with `mid.startswith(k)`. The intent
+was dated ids (`claude-haiku-4-5-20251001` → `claude-haiku-4-5`); the effect
+was that **any version successor silently took its predecessor's rate**:
+`claude-opus-5-5` priced as `claude-opus-5`, `claude-sonnet-5-5` as
+`claude-sonnet-5`, `gpt-5.55` as `gpt-5.5` — each rendering as a confident
+dollar figure with no "not priced" anywhere. Same failure class as ADR-0006's
+blame-failure postscript: an absence (no rate for this model) collapsed into
+a number.
+
+Fix: a sheet key resolves only exactly or with a dated `-YYYYMMDD` suffix;
+every other id is unpriced and renders `not priced`. Regression test
+`tests/test_report.py::test_newer_model_ids_never_borrow_an_older_models_rate`.
+
+Impact on published figures: **unmeasurable at the time of the fix.** Every
+live record the pricer ever ran over was in the data home that became
+unavailable in November 2026 (PROGRESS.md, Known gaps); whether a model
+that triggered the pathway ever appeared in that traffic cannot be checked
+unless the data home is recovered. The replay pricer (`price_usage` in
+`harness/replay/runner.py`) looks ids up exactly and was never affected, so
+every eval figure in this ADR and ADR-0008 stands.
+
+Recorded, not fixed here: the report pricer applies the single latest price
+sheet to every session regardless of when it ran, which contradicts this
+ADR's own "billed rate at run date" convention — and the 2026-08-10 sheets
+still carry sonnet-5's intro rate that ended 2026-08-31. Per-session
+rate-by-date selection needs its own ADR; until then every report states
+the sheet date it priced at, which it already does.

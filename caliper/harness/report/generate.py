@@ -8,6 +8,7 @@ rates, not what you were billed; the page says so."""
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,9 +34,14 @@ def _price(tokens: dict | None, model_ids: list[str], pricing: dict) -> float | 
     def sheet_key(mid):
         if mid in pricing["models"]:
             return mid
-        # dated ids (claude-haiku-4-5-20251001) match their undated sheet key
+        # Only a DATED id (claude-haiku-4-5-20251001) may resolve to its
+        # undated sheet key. A bare prefix match is forbidden: it priced
+        # claude-opus-5-5 as claude-opus-5 and gpt-5.55 as gpt-5.5 — a newer
+        # model silently taking an older model's rate (ADR-0007 postscript 2).
+        # An unknown id is unpriced and renders "not priced", never a
+        # borrowed number.
         for k in pricing["models"]:
-            if mid.startswith(k + "-") or mid.startswith(k):
+            if re.fullmatch(re.escape(k) + r"-\d{8}", mid):
                 return k
         return None
     key = None
