@@ -297,3 +297,34 @@ def test_sources_untouched(tmp_path, repo):
     run_trace(data_dir, connector=_connector(tmp_path, repo["path"]))
     assert tree_hash(repo["path"]) == repo_before
     assert tree_hash(data_dir / "claude_code") == sessions_before
+
+
+def test_rerun_replaces_the_commit_edge_when_a_better_session_appears(tmp_path, repo):
+    """One edge per commit (ADR-0019) must survive re-runs: when a closer-
+    preceding session appears, the commit's edge moves to it rather than
+    a second edge accumulating beside the old one."""
+    _, edges, data_dir = _run(tmp_path, repo)
+    c1 = repo["shas"]["c1"]
+    before = [e for e in edges if e["to_node"]["id"] == c1
+              and e["from_node"]["kind"] == "session"]
+    assert [e["from_node"]["id"] for e in before] == ["s1"]
+
+    d = data_dir / "claude_code"
+    with open(d / "sessions.jsonl", "a") as fh:
+        fh.write(json.dumps({
+            "session_id": "s1b", "source_tool": "claude_code",
+            "project_ref": _project_ref(repo["root"]), "git_branch": "main",
+            "started_at": _iso(10.12), "ended_at": _iso(10.05)}) + "\n")
+    with open(d / "prompt_units.jsonl", "a") as fh:
+        fh.write(json.dumps({"session_id": "s1b", "window": {"files_edited": [
+            {"file_ref": _file_ref(repo["root"], "src/login.py")},
+            {"file_ref": _file_ref(repo["root"], "src/form.py")}]}}) + "\n")
+
+    summary = run_trace(data_dir, connector=_connector(tmp_path, repo["path"]))
+    edges2 = [json.loads(l) for l in
+              (data_dir / "trace" / "trace_events.jsonl").read_text().splitlines()]
+    after = [e for e in edges2 if e["to_node"]["id"] == c1
+             and e["from_node"]["kind"] == "session"]
+    assert [e["from_node"]["id"] for e in after] == ["s1b"]  # moved, not doubled
+    assert summary["store_counts"]["updated"] >= 1
+    assert len(edges2) == len(edges)  # same edge count: nothing accumulated

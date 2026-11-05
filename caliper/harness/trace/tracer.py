@@ -96,10 +96,15 @@ def _edge(trace_id: str, from_node: dict, to_node: dict, method: str,
 class TraceStore:
     """Idempotent edge store: <data_dir>/trace/trace_events.jsonl.
 
-    One record per edge identity (trace_id, from, to, method). A re-run
-    that recomputes an identical edge keeps the EXISTING record byte-for-
-    byte — created_at is the only per-run stamp and is ignored for
-    equality — so unchanged inputs produce an identical file."""
+    One record per edge identity (trace_id, to, method) — the FROM node is
+    deliberately not part of the key: a session->commit edge is "the one
+    best session for this commit" (one edge per commit, ADR-0019), so a
+    re-run that picks a different session REPLACES the edge instead of
+    leaving two. For commit->ticket and branch->ticket edges the from node
+    is already implied by trace_id, so nothing is lost. A re-run that
+    recomputes an identical edge keeps the EXISTING record byte-for-byte —
+    created_at is the only per-run stamp and is ignored for equality — so
+    unchanged inputs produce an identical file."""
 
     def __init__(self, out_dir: Path) -> None:
         self.out_dir = Path(out_dir)
@@ -121,9 +126,9 @@ class TraceStore:
 
     @staticmethod
     def _key(rec: dict) -> str:
-        f, t = rec["from_node"], rec["to_node"]
-        return "|".join([rec["trace_id"], f["kind"], f["id"],
-                         t["kind"], t["id"], rec["link"]["method"]])
+        t = rec["to_node"]
+        return "|".join([rec["trace_id"], t["kind"], t["id"],
+                         rec["link"]["method"]])
 
     @staticmethod
     def _same(old: dict, new: dict) -> bool:
