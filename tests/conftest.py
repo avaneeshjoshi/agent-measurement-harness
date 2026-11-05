@@ -24,6 +24,20 @@ def _fixed_salt(monkeypatch, tmp_path_factory):
     # into the developer's real ~/.caliper.
     monkeypatch.setenv("CALIPER_HOME",
                        str(tmp_path_factory.mktemp("caliper-home")))
+    # Name-map discovery reads real agent logs by default; point it at
+    # nothing so no test scans the developer's machine (tests that want a
+    # rebuild swap in a fixture-rooted connector themselves).
+    from caliper.connectors.git_history import GitHistoryConnector
+    from caliper.harness.report import names as _names
+    nowhere = tmp_path_factory.mktemp("no-sources")
+
+    def _hermetic(salt: str) -> GitHistoryConnector:
+        return GitHistoryConnector(
+            claude_root=nowhere / "claude", codex_root=nowhere / "codex",
+            cursor_tracking_db=nowhere / "t.db",
+            cursor_state_db=nowhere / "s.db", salt=salt)
+
+    monkeypatch.setattr(_names, "connector_factory", _hermetic)
 
 
 @pytest.fixture()

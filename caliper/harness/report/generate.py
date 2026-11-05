@@ -99,7 +99,6 @@ def load_data(data_dir: Path, classes_path: Path, names_path: Path,
     truly empty home, creating the salt as a side effect)."""
     f = filters or {}
     pricing = load_pricing()
-    names = load_name_map(names_path, salt_file, write=not readonly)
 
     sessions: dict[str, dict] = {}
     for tool in TOOLS:
@@ -112,6 +111,12 @@ def load_data(data_dir: Path, classes_path: Path, names_path: Path,
             if f.get("to") and day > f["to"]:
                 continue
             sessions[r["session_id"]] = r
+
+    # the name map must cover every project about to render; a saved map
+    # that predates a project is rebuilt (merged), not trusted forever
+    needed = {r["project_ref"] for r in sessions.values() if r.get("project_ref")}
+    names = load_name_map(names_path, salt_file, write=not readonly,
+                          needed_refs=needed)
 
     units = {tool: [u for u in _jsonl(data_dir / tool / "prompt_units.jsonl")
                     if u["session_id"] in sessions]

@@ -196,3 +196,45 @@ def test_policy_runs_for_dev_checkout(capsys):
     assert run_policy_flow(REPO, no=True) == 0
     out = capsys.readouterr().out
     assert "rp-0001" in out  # dev sees the draft against shipped evidence
+
+
+def test_name_map_rebuilds_when_a_project_is_missing(run_extract, monkeypatch):
+    """A saved map that predates a project must not strand it as
+    "(unmapped)" forever: load_data passes the sessions' project_refs and
+    the map rebuilds, MERGING over the saved names (a deleted project keeps
+    its name). The report path writes the rebuilt map; serve's read-only
+    path rebuilds in memory and persists nothing."""
+    import json
+
+    from caliper.connectors.git_history import GitHistoryConnector
+    from caliper.harness.report import names as names_mod
+    from caliper.harness.report.generate import load_data
+    from tests.conftest import FIXTURES
+
+    _, data_dir = run_extract()
+    sessions = [json.loads(l) for l in
+                (data_dir / "claude_code" / "sessions.jsonl").read_text().splitlines()]
+    ref = next(s["project_ref"] for s in sessions if s.get("project_ref"))
+
+    # discovery sees the fixture logs (cwd /Users/test/proja, not a git repo)
+    nowhere = data_dir / "nowhere"
+    monkeypatch.setattr(names_mod, "connector_factory", lambda salt:
+                        GitHistoryConnector(claude_root=FIXTURES / "claude_code",
+                                            codex_root=nowhere, cursor_tracking_db=nowhere / "t",
+                                            cursor_state_db=nowhere / "s", salt=salt))
+    names_path = data_dir / "names.json"
+    names_path.write_text(json.dumps({"p_deleted_project": "old-name"}))
+    kw = dict(classes_path=data_dir / "none.jsonl", names_path=names_path,
+              salt_file=data_dir / ".salt")
+
+    raw = load_data(data_dir, **kw)                   # report path: writes
+    assert raw["names"][ref] == "scratch / no repo"   # newly named
+    assert raw["names"]["p_deleted_project"] == "old-name"  # merged, not lost
+    on_disk = json.loads(names_path.read_text())
+    assert on_disk[ref] == "scratch / no repo"
+
+    names_path.write_text(json.dumps({}))             # stale again
+    before = names_path.read_bytes()
+    raw = load_data(data_dir, readonly=True, **kw)    # serve path: in memory
+    assert raw["names"][ref] == "scratch / no repo"
+    assert names_path.read_bytes() == before          # nothing persisted

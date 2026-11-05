@@ -15,16 +15,35 @@ from caliper.connectors.git_history import GitHistoryConnector
 from caliper.connectors.util import load_salt, project_ref
 
 
+def _default_connector(salt: str) -> GitHistoryConnector:
+    return GitHistoryConnector(salt=salt)
+
+
+# Discovery reads this machine's real agent logs; tests swap in a connector
+# rooted at fixtures so the suite never touches the developer's sources.
+connector_factory = _default_connector
+
+
 def build_name_map(map_path: Path, salt_file: Path,
                    write: bool = True) -> dict[str, str]:
     """write=False builds the map in memory only — serve's read-only
     guarantee (ADR-0016) forbids it persisting anything, while the report
-    path keeps owning the on-disk map."""
+    path keeps owning the on-disk map.
+
+    A rebuild MERGES over the saved map: a project whose directory has
+    since been deleted keeps the name it had, and projects first seen after
+    the map was written gain one (previously they rendered "(unmapped)"
+    forever and lost their spend-to-outcome join)."""
     salt = load_salt(salt_file)
-    conn = GitHistoryConnector(salt=salt)
+    conn = connector_factory(salt)
     cands = conn.collect_candidate_paths()
     _, cwd_to_root = conn.discover_repos()
     names: dict[str, str] = {}
+    if map_path.exists():
+        try:
+            names.update(json.loads(map_path.read_text()))
+        except (OSError, json.JSONDecodeError):
+            pass  # unreadable map: rebuilt from discovery alone
     for cwd in cands:
         ref = project_ref(salt, cwd)
         if cwd not in cwd_to_root and "caliper-eval" not in cwd:
@@ -48,9 +67,16 @@ def build_name_map(map_path: Path, salt_file: Path,
 
 
 def load_name_map(map_path: Path, salt_file: Path,
-                  write: bool = True) -> dict[str, str]:
+                  write: bool = True,
+                  needed_refs: set[str] | None = None) -> dict[str, str]:
+    """The saved map, rebuilt when it lacks any of `needed_refs` (the
+    project_refs of the sessions about to render). write=True persists the
+    rebuilt map; write=False (serve) rebuilds in memory only."""
     if map_path.exists():
-        return json.loads(map_path.read_text())
+        names = json.loads(map_path.read_text())
+        if not needed_refs or needed_refs <= set(names):
+            return names
+        return build_name_map(map_path, salt_file, write=write)
     import os
     if not write and not salt_file.exists() \
             and not os.environ.get("CALIPER_HASH_SALT"):
