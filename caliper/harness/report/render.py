@@ -111,11 +111,15 @@ def _tok_bar(c: dict, max_total: int) -> str:
 
 def _spend_table(title: str, data: dict, src: str, top: int = 14,
                  chrono: bool = False) -> str:
+    buckets = ("input", "output", "cache_read", "cache_creation")
     if chrono:
-        rows = sorted(data.items())[:top]
+        items = sorted(data.items())
+        cut = items[:-top] if len(items) > top else []
+        rows = list(reversed(items[-top:]))  # newest first, stated in the title
     else:
-        rows = sorted(data.items(), key=lambda kv: -sum(
-            kv[1].get(k, 0) for k in ("input", "output", "cache_read", "cache_creation")))[:top]
+        items = sorted(data.items(),
+                       key=lambda kv: -sum(kv[1].get(k, 0) for k in buckets))
+        cut, rows = items[top:], items[:top]
     max_total = max((sum(c.get(k, 0) for k in ("input", "output", "cache_read", "cache_creation"))
                      for _, c in rows), default=0)
     out = [f"<h3>{H.escape(title)}</h3>", '<div class="wrap"><table><tr>'
@@ -136,7 +140,19 @@ def _spend_table(title: str, data: dict, src: str, top: int = 14,
             f'<td class="r">{_fmt(c.get("cache_creation", 0))}</td>'
             f'<td class="r">{_fmt(cost / 1000 if cost is not None else None, money=True)}</td>'
             f"<td>{_tok_bar(c, max_total)}</td></tr>")
-    out.append(f'</table></div><p class="src">source: {H.escape(src)}</p>')
+    out.append("</table></div>")
+    if cut:
+        # DESIGN.md overflow rule: a truncated table states what it hides —
+        # never an unlabeled cutoff (the by-day table used to keep the
+        # OLDEST rows and say nothing)
+        n_sess = sum(c.get("sessions", 0) + c.get("sessions_no_tokens", 0)
+                     for _, c in cut)
+        cost = sum(c.get("cost_x1000") or 0 for _, c in cut) / 1000
+        what = "earlier days" if chrono else "more rows"
+        out.append(f'<p class="src">+ {len(cut)} {what} not shown · {n_sess} '
+                   f"sessions · ${cost:,.2f} list-equivalent of their priced "
+                   "sessions</p>")
+    out.append(f'<p class="src">source: {H.escape(src)}</p>')
     return "\n".join(out)
 
 
@@ -267,7 +283,7 @@ traffic; a view that hides them misprices everything.</p>
 {_spend_table('By model (dominant per session)', spend['by_model'], 'extracted/*/sessions.jsonl → tokens, models[]')}
 {_spend_table('By tool', spend['by_tool'], 'extracted/*/sessions.jsonl → tokens')}
 {_spend_table('By project', spend['by_project'], 'sessions.jsonl → project_ref, display-named via local-only mapping (never committed)')}
-{_spend_table('By day (chronological)', spend['by_day'], 'sessions.jsonl → started_at date', top=100, chrono=True)}
+{_spend_table('By day (newest first)', spend['by_day'], 'sessions.jsonl → started_at date', top=100, chrono=True)}
 {eval_day_note}
 
 <h2>2 · Task mix</h2>

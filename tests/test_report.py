@@ -238,3 +238,20 @@ def test_name_map_rebuilds_when_a_project_is_missing(run_extract, monkeypatch):
     raw = load_data(data_dir, readonly=True, **kw)    # serve path: in memory
     assert raw["names"][ref] == "scratch / no repo"
     assert names_path.read_bytes() == before          # nothing persisted
+
+
+def test_static_report_tables_state_what_they_cut_and_lead_with_newest():
+    """DESIGN.md overflow rule for the static report: the by-day table keeps
+    the NEWEST rows, newest first, and states how many earlier days it
+    hides; an untruncated table says nothing extra."""
+    from caliper.harness.report.render import _spend_table
+
+    data = {f"2026-07-{d:02d}": {"sessions": 1, "input": 10, "output": 1,
+                                 "cache_read": 0, "cache_creation": 0,
+                                 "cost_x1000": 1000} for d in range(1, 27)}
+    html = _spend_table("By day", data, "src", top=21, chrono=True)
+    assert "+ 5 earlier days not shown · 5 sessions · $5.00" in html
+    assert "2026-07-01" not in html and "2026-07-26" in html
+    assert html.index("2026-07-26") < html.index("2026-07-25")  # newest first
+    assert "not shown" not in _spend_table("By day", data, "src", top=100,
+                                           chrono=True)
