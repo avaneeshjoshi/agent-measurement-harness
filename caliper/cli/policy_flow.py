@@ -94,8 +94,11 @@ def present_policy(repo_root: Path, a: dict, yes: bool = False,
             print(S.dim(f"    {o['eval_sessions']} of {o['sessions']} are "
                         "Caliper's own eval runs"))
             print()
-    if a["below_floor"]["sessions"]:
-        print(f"    {S.yellow(f'{a['below_floor']['sessions']} sessions below the floor')} "
+    below = a["below_floor"]["sessions"]
+    if below:
+        # a plain variable, not a nested quoted subscript: the nested form
+        # is 3.12-only syntax and pyproject promises 3.10 (CI runs both)
+        print(f"    {S.yellow(f'{below} sessions below the floor')} "
               + S.dim("· small-tier runs on floored work · quality risk, not savings"))
         print()
 
