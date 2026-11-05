@@ -28,7 +28,8 @@ caliper serve   # interactive local view — 127.0.0.1 only, read-only
 Setup walks through a trust screen, backfills your local agent logs (Claude
 Code, Cursor, Codex — whichever exist), classifies the traffic without
 reading its content, and writes a self-contained HTML report
-(`~/.caliper/reports/first_look.html` — the file you can send someone).
+(`~/.caliper/reports/first_look.html`). The report names your projects by
+their directory names, so read it before you send it to anyone.
 `caliper serve` opens the same numbers live: sortable, filterable,
 per-repo and per-session detail, nothing leaving your machine. Everything
 Caliper produces lives in `~/.caliper/`, local only; nothing leaves your

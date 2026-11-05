@@ -28,8 +28,10 @@ def _trust_screen():
                                             "setup, which stay under ~/.caliper and never "
                                             "enter session records")))
     print()
-    print(child("raw paths", S.dim("salted-hashed at the connector; "
-                                   "display names stay local-only")))
+    print(child("raw paths", S.dim("never in a reportable field — reports and "
+                                   "serve render salted refs; the source file "
+                                   "and repo paths they came from live only in "
+                                   "local provenance fields under ~/.caliper")))
     print()
     print(S.dim("    everything Caliper does afterward is logged and inspectable "
                 "(manifests per run, ADRs per decision)"))
@@ -265,7 +267,7 @@ def _highlights(summary: dict) -> None:
         rw_y = sum(d["rework_y"] for d in repos.values())
         if rw_m:
             print(S.dim(f"    rework: {rw_y} of {rw_m} measured commits "
-                        f"({rw_y / rw_m:.0%}) were edited again within 30 days"))
+                        f"({rw_y / rw_m:.0%}) were edited again within 14 days"))
             print()
         n_unmeasured = sum(1 for d in repos.values() if not d["surv30_n"])
         if n_unmeasured:
