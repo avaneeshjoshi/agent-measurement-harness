@@ -3,6 +3,12 @@ __pycache__/
 .pytest_cache/
 build/
 dist/
+.venv/
+
+# Interview transcripts are private material that lives OUTSIDE the tree
+# (~/caliper-interviews). This guard exists because the folder was once
+# created inside the clone by mistake; nothing identifiable may be committed.
+caliper-interviews/
 
 # Extracted local traffic never enters the repo (data/README.md: no customer
 # data, no local traffic; only fixtures/calibration/synthetic are committed).
