@@ -53,6 +53,16 @@ COVERAGE_BASELINE_FLOOR = 0.8  # only fields that were reliably present
 COVERAGE_DROP_ABS = 0.3        # alarm on a >=30-point absolute drop
 
 
+def _from_iso(ts: str) -> datetime:
+    """fromisoformat that accepts the trailing Z the connectors write
+    (util.now_iso) on every supported Python. 3.11+ parses 'Z'; 3.10 raises
+    ValueError — which, until the 3.10 CI job caught it (2026-11-05), made
+    the scheduled job fail after every extract on 3.10 (the canary pass
+    raised inside run_scheduled) and silenced the manifest-fallback gap
+    warning (swallowed by health_nudge's guard)."""
+    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+
 @dataclass
 class RetentionWindow:
     days: float | None  # None = no rotation observed for this source
@@ -152,7 +162,7 @@ def last_covered_from_disk(state_d: Path, extracted: Path) -> dict[str, datetime
     if state_path.exists():
         state = json.loads(state_path.read_text())
         covered = state.get("last_covered") or {}
-        return {src: datetime.fromisoformat(ts)
+        return {src: _from_iso(ts)
                 for src, ts in covered.items() if ts}
 
     manifests = extracted / "manifests"
@@ -171,7 +181,7 @@ def last_covered_from_disk(state_d: Path, extracted: Path) -> dict[str, datetime
         ts = m.get("finished_at") or m.get("started_at")
         if not ts:
             continue
-        when = datetime.fromisoformat(ts)
+        when = _from_iso(ts)
         for src in m["sources"]:
             if src not in out or when > out[src]:
                 out[src] = when
@@ -269,7 +279,7 @@ def field_coverage_alarms(sessions: list[dict], source: str,
         ts = r.get("started_at")
         if not ts:
             continue
-        t = datetime.fromisoformat(ts)
+        t = _from_iso(ts)
         if t.tzinfo is None:
             t = t.replace(tzinfo=timezone.utc)
         if t >= recent_lo:

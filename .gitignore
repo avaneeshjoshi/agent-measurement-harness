@@ -3,7 +3,7 @@ __pycache__/
 .pytest_cache/
 build/
 dist/
-.venv/
+.venv*/
 
 # Interview transcripts are private material that lives OUTSIDE the tree
 # (~/caliper-interviews). This guard exists because the folder was once
