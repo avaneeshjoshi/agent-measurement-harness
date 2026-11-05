@@ -1,6 +1,6 @@
 # harness/trace/
 
-**Design README only — no code exists yet (see [`PROGRESS.md`](../../PROGRESS.md)).** The contract (`schemas/trace_event.schema.json`) is drafted; zero trace records exist anywhere. Everything below is the intended design.
+**Status (ADR-0019, see [`PROGRESS.md`](../../../PROGRESS.md)):** `tracer.py` is v0 — three edge producers behind `caliper trace`: commit → ticket (ticket key in the commit message, versioned regex + blocklist), session → ticket (key in the session's branch name), and session → commit by salted file-ref overlap with a causality constraint (time is a tiebreaker only; one edge per commit). Records write to `~/.caliper/extracted/trace/trace_events.jsonl`; `caliper trace` prints the chain-rate with its n. **Not built:** deployment and outcome nodes, any `value_dimensions` producer (every edge carries `null`), and any consumer — serve still labels nearby commits temporal proximity until a surface renders real edges. The rest of this page is the intended design.
 
 The value-traceability layer: connects agent activity to the work the organization intended to deliver. Technical quality says "the output was good"; this layer answers "was it worth doing."
 

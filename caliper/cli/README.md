@@ -1,7 +1,7 @@
 # cli/
 
-The `caliper` command-line tool. Installed by `pip install -e .` from the repo root
-(console script `caliper` → `cli.main:main`).
+The `caliper` command-line tool. Installed with `pipx install git+…` (README quickstart)
+or `pip install -e .` from a checkout (console script `caliper` → `caliper.cli.main:main`).
 
 ## Commands
 
@@ -28,6 +28,9 @@ caliper policy [apply] [--yes|--no]      # review the draft routing policy; a ye
                                          # decision locally — no agent config is touched yet
 caliper schedule [install|uninstall|status]   # hourly background collection (launchd;
                                          # extraction-only or full, FDA as explicit choice)
+caliper serve [--port N] [--no-browser]  # local interactive view, 127.0.0.1 only, read-only (ADR-0016)
+caliper trace                            # trace edges: commit→ticket, session→ticket, session→commit (ADR-0019)
+caliper uninstall                        # remove the scheduled job; say where the data lives and how to delete it
 ```
 
 ## What signals does

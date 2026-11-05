@@ -191,15 +191,15 @@ All components communicate **through data, not direct imports across layers**: e
 |---|---|
 | [`docs/`](docs/) | Conventions, the glass-box decision log (ADRs), and the web-demo spec |
 | [`schemas/`](schemas/) | The shared contracts: sessions, prompt units, task classes, eval results, production signals, trace events, routing policies |
-| [`cli/`](cli/) | The `caliper` command — extract, signals, classify, report, replay, policy, setup |
-| [`connectors/`](connectors/) | Ingestion: Claude Code, Cursor, and Codex logs plus local git history → normalized records |
-| [`harness/`](harness/) | The core Python package. Implemented: classifier, replay, report. Design READMEs only, no code yet: judge, signals*, trace, routing |
+| [`caliper/cli/`](caliper/cli/) | The `caliper` command — setup, extract, signals, classify, report, serve, trace, schedule, uninstall; replay, policy, pricing as development instruments |
+| [`caliper/connectors/`](caliper/connectors/) | Ingestion: Claude Code, Cursor, and Codex logs plus local git history → normalized records |
+| [`caliper/harness/`](caliper/harness/) | The core Python package. Implemented: classifier, replay, report (the data layer behind `report` and `serve`), trace v0 (edge producers only, no consumer yet). Design READMEs only, no code yet: judge, signals*, routing |
 | [`data/`](data/) | Frozen per-ADR evidence, calibration sets, fixtures. **Never customer data**; everything Caliper computes about a user lives outside the repo at `~/.caliper/` (ADR-0012) |
 | [`dashboard/`](dashboard/) | **Design README only — no app exists yet.** The intended Next.js reporting UI |
 | [`notebooks/`](notebooks/) | **Design README only — no notebooks exist yet.** Intended exploratory analysis |
 | [`tests/`](tests/) | Test suite for the harness and schema validation |
 
-\* signal *computation* ships today inside `connectors/git_history.py` (`caliper signals`, ADR-0006); `harness/signals/` is the intended home it moves to when the normalize/compute split happens.
+\* signal *computation* ships today inside `caliper/connectors/git_history.py` (`caliper signals`, ADR-0006); `harness/signals/` is the intended home it moves to when the normalize/compute split happens.
 
 ## Status
 

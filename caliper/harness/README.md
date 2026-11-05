@@ -2,7 +2,7 @@
 
 The core Python package, one subpackage per pipeline stage; each reads schema-conforming records from `data/` and writes its results back there. No subpackage imports another's internals — shared shapes live in `schemas/`.
 
-**Implemented:** `classifier/`, `replay/`, and `report/` (the first-look HTML behind `caliper report` — not a pipeline stage, so not in the table below). **Design READMEs only, no code yet:** `judge/`, `signals/` (its computation currently ships in `connectors/git_history.py`, ADR-0006), `trace/`, `routing/`. See [`PROGRESS.md`](../PROGRESS.md).
+**Implemented:** `classifier/`, `replay/`, `report/` (the shared data layer behind `caliper report` and `caliper serve` — not a pipeline stage, so not in the table below), and `trace/` at v0 (three edge producers behind `caliper trace`, ADR-0019; no surface consumes the edges yet). **Design READMEs only, no code yet:** `judge/`, `signals/` (its computation currently ships in `connectors/git_history.py`, ADR-0006), `routing/`. See [`PROGRESS.md`](../../PROGRESS.md).
 
 ## Pipeline order
 
