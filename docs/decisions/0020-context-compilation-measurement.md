@@ -92,7 +92,7 @@ user-added attachments, that gets its own postscript here.
   as sources are re-processed (watermarked runs touch changed files; the
   daily full pass heals the rest). Aggregates over the field must treat
   0.1.1-record absence as null, not zero.
-- The upstream human compilation cost itself (time in Figma/Glean/wikis)
+- The upstream human compilation cost itself (time in design files, the internal search tool, wikis)
   remains unobservable to Caliper and is stated as such wherever the panel
   renders — measuring its *artifact* (how much context arrived pre-compiled)
   is the honest proxy, not a substitute.
