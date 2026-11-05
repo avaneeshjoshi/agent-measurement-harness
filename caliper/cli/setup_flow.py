@@ -77,16 +77,39 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
     print()
 
     # ---- staged pipeline ------------------------------------------------
+    # setup IS an extract run: it holds the same lock (never races the
+    # scheduled job) and counts as coverage evidence exactly like
+    # `caliper extract` (ADR-0011)
+    from datetime import datetime, timezone
+
     from caliper.connectors import PLUGINS
-    from .paths import schema_path
+    from .collection import acquire_lock, mark_covered
+    from .paths import schema_path, state_dir
+    lock = acquire_lock(state_dir())
+    if lock is None:
+        print(S.byellow("another extract is already running")
+              + S.dim(" — the scheduled job, or a second terminal; "
+                      "try again in a moment"))
+        return 1
+    run_start = datetime.now(timezone.utc)
     schema = schema_path("session.schema.json")
     total_sessions = 0
+    covered: list[str] = []
+    absent: list[str] = []
     for name in PLUGINS:
-        m = _stage(f"Backfilling {name}",
-                   lambda n=name: run_extract([n], data_dir, schema, False))
+        try:
+            m = _stage(f"Backfilling {name}",
+                       lambda n=name: run_extract([n], data_dir, schema, False))
+        except BaseException:
+            lock.close()
+            raise
         src = m["sources"][name]
         r = src["records"]
         total_sessions += src.get("sessions_on_disk", 0)
+        discover_failed = any(s.get("path") == "<discover>"
+                              for s in src["skipped"])
+        if not discover_failed:
+            (covered if src.get("artifacts_discovered", 0) else absent).append(name)
         rng = src["date_range"]
         status_note = src["notes"].get("status")
         if status_note:
@@ -98,6 +121,8 @@ def run_setup(repo_root: Path, mode: str | None = None) -> int:
             print(step(sep(f"Backfilled {S.bold(name)}",
                            f"{r['emitted']} sessions", S.dim(span))))
         print()
+    mark_covered(state_dir(), covered, run_start, full=True, absent=absent)
+    lock.close()
 
     if total_sessions == 0:
         print("No agent logs found. Caliper reads Claude Code (~/.claude), "

@@ -78,3 +78,45 @@ def test_report_and_classify_empty_states(empty_plugins, capsys):
         in capsys.readouterr().out
     assert main(["classify"]) == 0
     assert "No prompt units to classify yet" in capsys.readouterr().out
+
+
+def test_setup_holds_the_lock_and_records_coverage(tmp_path, monkeypatch, capsys):
+    """A setup run is an extract run: it must refuse while another extract
+    holds the lock, and on success mark the present sources covered (and
+    drop absent ones) exactly like `caliper extract` — otherwise the first
+    thing a new install does leaves the gap detector thinking nothing was
+    ever collected."""
+    import caliper.cli.main as main_mod
+    import caliper.connectors as connectors
+    from caliper.cli.collection import acquire_lock, load_state
+    from caliper.cli.paths import state_dir
+    from caliper.cli.setup_flow import run_setup
+    from tests.conftest import FIXTURES, REPO
+
+    fake = {
+        "claude_code": lambda salt="": ClaudeCodePlugin(
+            root=FIXTURES / "claude_code", salt=salt),
+        "cursor": lambda salt="": CursorPlugin(
+            tracking_db=tmp_path / "no.db", state_db=tmp_path / "no2.db",
+            salt=salt),
+        "codex": lambda salt="": CodexPlugin(root=tmp_path / "no-codex",
+                                             salt=salt),
+    }
+    monkeypatch.setattr(connectors, "PLUGINS", fake)
+    monkeypatch.setattr(main_mod, "PLUGINS", fake)
+
+    held = acquire_lock(state_dir())
+    try:
+        assert run_setup(REPO, mode="quick") == 1
+        assert "another extract is already running" in capsys.readouterr().out
+    finally:
+        held.close()
+
+    assert run_setup(REPO, mode="quick") == 0
+    covered = load_state(state_dir())["last_covered"]
+    assert "claude_code" in covered
+    assert "cursor" not in covered and "codex" not in covered
+    # the lock was released: a following extract can take it
+    again = acquire_lock(state_dir())
+    assert again is not None
+    again.close()
