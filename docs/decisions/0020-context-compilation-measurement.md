@@ -96,3 +96,107 @@ user-added attachments, that gets its own postscript here.
   remains unobservable to Caliper and is stated as such wherever the panel
   renders — measuring its *artifact* (how much context arrived pre-compiled)
   is the honest proxy, not a substitute.
+
+## Postscript (2026-11-05): the recordings pass — context-compilation pain is concentrated, not universal
+
+**Source.** Six engineer interviews were held on 2026-09-01 at a large
+enterprise engineering organization; **five have transcripts, so every
+denominator below is 5**, indexed I1–I5 (one interview has no transcript and
+is not counted). Plus one buyer-side call (2026-08) with an engineering
+leader at the same organization. All transcripts were read in full for this
+postscript; they are private material kept outside the repository, and
+nothing identifying — people, employer, sector, internal product names —
+appears here. Internal tools are named by function only. The interviewer led
+several threads; "unprompted" below means the engineer introduced the topic
+before being asked.
+
+**The count this ADR promised.**
+
+- Raised context compilation / discovery as a **major** cost, unprompted:
+  **2 of 5** (I4, I5). I4 — the one engineer on rotating assignments across
+  systems he does not own — put roughly **70–80% of his token spend** on
+  discovery: understanding unfamiliar architectures, generating sequence
+  flows, comparing design approaches. He volunteered that this makes him
+  the exception ("I don't know if anyone said this") and that domain owners
+  are inverted: once they know what to do, implementation is fast. I5
+  called context management "the major challenge people face" and is
+  engineering around it (graph + vector code indexing, a pre-model hook
+  that strips redundant tool output before it reaches the LLM, both
+  explicitly "to save tokens").
+- Raised it unprompted as a **bounded** cost: **1 of 5** (I1). Feeding
+  context for a brand-new feature is iterative design work; for an
+  enhancement the context already exists in repos, PRDs and prior design
+  docs, and design is fast.
+- Did **not** raise it as a pain: **2 of 5** (I2, I3). I2, when the
+  interviewer proposed it, agreed that the speedup comes from the agent
+  assembling context across systems — context assembly as the *gain*, not
+  the cost. I3 treats requirements gathering as a routine phase (spike
+  ticket → internal search → implementation plan).
+- Only one interviewee attached a share to it (I4's 70–80%). No one else
+  quantified.
+
+**Reading: concentrated, not universal.** Per this ADR's own clause, the
+surface framing weakens accordingly: the compilation panel (follow-up 3)
+renders as a **per-cohort, per-task-class measurement, never a headline**,
+and must be able to show a cohort where compilation cost is small. The
+`prompt_chars` signal itself stands — it measures what arrived pre-compiled
+regardless of who paid to compile it, and I4's profile is exactly what it
+exists to make visible.
+
+**Findings this ADR lacked, supported by the transcripts.**
+
+1. **Context is not one thing; it differs by work type.** Feature work
+   compiles ticket/PRD or design-file + design-system library + prior
+   decisions (I1–I4). Bug work compiles **monitoring signals, production
+   traffic, logs, and the up/downstream service dependency graph** — I5's
+   load-bearing example is an API that looked broken in the code and was
+   simply receiving no production traffic; "no bug ticket comes as 'code
+   has a problem'". Design *intent* (why a decision was made) is not in the
+   code and was never written for an agent to read (I5). A compilation
+   metric that pools feature and bug work measures nothing; the panel
+   splits by task class or does not render.
+2. **The planning artifact, not the ticket, is the unit of work (4 of 5:
+   I1, I3, I4, I5).** An implementation plan or ADR is produced, reviewed
+   by the team, and *becomes the prompt* per PR or subagent; PR review
+   cycles shrink because reviewers already know the plan (I1: PRs merge
+   within ~2 hours of creation). One plan fans out into many small PRs
+   (I1, I3, I4, I5) — the chunked-commit reality ADR-0019's one-edge-per-
+   commit file-overlap matcher assumed, now stated independently. This
+   moves the measurement boundary upstream of the session and makes
+   ADR-0019's chain-rate the empirical form of the ADR-0002 unit question.
+3. **Speedups, as stated:** I2 two days → two hours ("with the unit tests");
+   I3 a week → a day, with a hard human-approval floor before production set
+   by the organization's compliance posture ("without that, it's just
+   blazing"); I1 a week → minutes for one repetitive multi-locale setup
+   task once captured as a skill. I2, asked directly: failure rate
+   unchanged — "not increased, not reduced; just faster".
+4. **Autonomy is further along than assumed (2 of 5).** I5: a headless
+   agent picks up a ticket on creation and proposes a PR (human review
+   required; his bug-triage prototype's self-estimated confidence is
+   ~40–50%, target 70–80%). I3: the agent merges PRs and transitions ticket
+   states, gated on comments resolved + approval + passing tests, each step
+   a deliberately narrow skill ("merge PR" checks only that, nothing else).
+5. **Engineers route models and trim tokens themselves, unprompted.** I3:
+   the mid-tier model for implementation and, given a good plan, for
+   planning too; many turns of a cheaper model "probably cost the same" as
+   one pass of the frontier model — the ADR-0008 shape, stated by someone
+   who added he had not measured it. I5: the pre-model output-stripping
+   hook and the index work above. I2 uses an indexing editor to comprehend
+   an unfamiliar codebase and a different agent to implement.
+
+**Buyer-side call (2026-08).** Three problems named: getting organizational
+knowledge into models; cost and efficiency via routing ("harness
+engineering"); and proving ROI on token spend to leadership, where PR and
+ticket counts "don't convey anything" and what is wanted is value moved
+from conception to customer. Pushback: turning codebases into skills has a
+low barrier to entry and will be built in-house; what is wanted is durable
+and horizontal. The third problem is this product's goal, stated by a
+buyer.
+
+**Consequences for the follow-ups.** Follow-up 3 (the compilation panel)
+is per-cohort and per-task-class or it does not ship. Follow-up 1 (the
+iteration profile) stands. The trace layer's chain-rate (ADR-0019) is the
+measurement that reaches the planning artifact and is the priority
+consumer to build. The replay caveat (follow-up 4) stands and gains I2's
+"unchanged failure rate" as the kind of production-side figure replay
+cannot see.
