@@ -64,8 +64,12 @@ def test_classifier_never_opens_content_sidecar(tmp_path, monkeypatch):
 
 
 def test_classifier_source_has_no_sidecar_references():
-    pkg = REPO / "harness" / "classifier"
-    for f in pkg.glob("*.py"):
+    # pre-rename this pointed at REPO/"harness", which no longer exists —
+    # the scan matched zero files and passed vacuously for months
+    pkg = REPO / "caliper" / "harness" / "classifier"
+    files = list(pkg.glob("*.py"))
+    assert files, f"no classifier sources found under {pkg}"
+    for f in files:
         assert "content.jsonl" not in f.read_text(), f"{f} references the sidecar"
 
 
